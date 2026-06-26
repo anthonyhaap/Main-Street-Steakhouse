@@ -1,0 +1,11 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --color-primary: #10b981;
+    --color-primary-dark: #059669;
+  }
+  body {
+    @apply bg-gray-950 text-gray-100 antialiased;
+  }
+}
