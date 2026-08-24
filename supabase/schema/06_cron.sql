@@ -1,0 +1,14 @@
+-- Scheduled jobs (pg_cron), extracted live from ojhjrxolrsppircyrcff.
+-- These are ACTIVE in production and are load-bearing for the draft.
+--
+--   draft-tick   every 5 seconds     select public.ff_tick_drafts()
+--                Advances the draft clock and autopicks when a pick expires.
+--                If this stops, drafts stall on the clock.
+--
+--   live-stats   every 2 minutes     select public.ff_poll_live()
+--                Pulls live NFL stats via the `http` extension and rescoring.
+--                Outbound network call from inside Postgres.
+--
+-- Recreate with:
+--   select cron.schedule('draft-tick', '5 seconds', 'select public.ff_tick_drafts()');
+--   select cron.schedule('live-stats', '*/2 * * * *', 'select public.ff_poll_live()');
