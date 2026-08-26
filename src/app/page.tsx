@@ -1,69 +1,11 @@
-import Image from "next/image";
-
-export default function Home() {
-  return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
-  );
-}
+"use client";
+import { useEffect,useMemo,useState } from "react";
+import { Activity,Clock3,Radio,ShieldCheck,Trophy,Users } from "lucide-react";
+import { getSupabase } from "@/lib/supabase";
+type Pick={id:string;pick_number:number;manager_name:string;player_name:string;position:string;nfl_team:string};
+type Standing={manager_name:string;wins:number;losses:number;points_for:number};
+const demo:Pick[]=[{id:"1",pick_number:1,manager_name:"The Commissioner",player_name:"Draft night awaits",position:"—",nfl_team:"MSS"}];
+export default function Home(){const[picks,setPicks]=useState(demo);const[standings,setStandings]=useState<Standing[]>([]);const[connected,setConnected]=useState(false);const supabase=useMemo(()=>getSupabase(),[]);
+useEffect(()=>{if(!supabase)return;let active=true;Promise.all([supabase.from("draft_board").select("id,pick_number,manager_name,player_name,position,nfl_team").order("pick_number",{ascending:false}).limit(8),supabase.from("standings").select("manager_name,wins,losses,points_for").order("wins",{ascending:false}).limit(12)]).then(([d,s])=>{if(!active)return;if(d.data?.length)setPicks(d.data as Pick[]);if(s.data)setStandings(s.data as Standing[])});const channel=supabase.channel("league-live").on("postgres_changes",{event:"*",schema:"public",table:"draft_picks"},()=>location.reload()).on("postgres_changes",{event:"*",schema:"public",table:"weekly_scores"},()=>location.reload()).subscribe(status=>setConnected(status==="SUBSCRIBED"));return()=>{active=false;void supabase.removeChannel(channel)}},[supabase]);
+return <main><nav className="nav"><div className="brand"><span>MSS</span><div>Main Street<br/>Steakhouse League</div></div><div className="live"><i className={connected?"on":""}/>{connected?"LIVE":"READY"}</div></nav><section className="hero"><div className="eyebrow"><ShieldCheck size={15}/> PRIVATE 12-MAN LEAGUE · 2026</div><h1>Built for Sundays.<br/><em>Owned by the league.</em></h1><p>One home for the draft, live scoring, matchups, standings, and the kind of league history nobody forgets.</p><div className="actions"><a href="#draft">Enter draft room</a><button>League rules</button></div><div className="statrow"><Stat icon={<Users/>} value="12" label="Managers"/><Stat icon={<Clock3/>} value="2 WKS" label="Until draft"/><Stat icon={<Radio/>} value="LIVE" label="Sync status"/></div></section><section className="grid" id="draft"><article className="panel wide"><header><div><small>DRAFT ROOM</small><h2>Recent picks</h2></div><Activity className="gold"/></header><div>{picks.map(p=><div className="pick" key={p.id}><b>{String(p.pick_number).padStart(2,"0")}</b><div><strong>{p.player_name}</strong><span>{p.position} · {p.nfl_team}</span></div><small>{p.manager_name}</small></div>)}</div></article><article className="panel"><header><div><small>LEAGUE TABLE</small><h2>Standings</h2></div><Trophy className="gold"/></header>{standings.length?standings.map((t,i)=><div className="standing" key={t.manager_name}><b>{i+1}</b><span>{t.manager_name}</span><small>{t.wins}-{t.losses}</small></div>):<div className="empty">Standings unlock when the season begins.</div>}</article></section><footer>MAIN STREET STEAKHOUSE · EST. 2026 <span>Commissioner controlled. League powered.</span></footer></main>}
+function Stat({icon,value,label}:{icon:React.ReactNode;value:string;label:string}){return <div className="stat">{icon}<div><b>{value}</b><span>{label}</span></div></div>}
