@@ -96,3 +96,29 @@ export type Matchup = {
   home_points: number;
   away_points: number;
 };
+
+export type LeagueMessage = {
+  id: string;
+  league_id: string;
+  author_id: string;
+  matchup_id: string | null;
+  body: string;
+  created_at: string;
+  edited_at: string | null;
+};
+
+export type Challenge = {
+  id: string;
+  league_id: string;
+  challenger_id: string;
+  opponent_id: string;
+  proposition_type: "weekly_matchup_winner" | "higher_player_points" | "season_finish" | "custom";
+  title: string;
+  terms: string;
+  stake_label: string;
+  status: "proposed" | "accepted" | "declined" | "expired" | "locked" | "awaiting_result" | "resolved" | "disputed" | "settled" | "voided";
+  terms_hash: string;
+  accepted_at: string | null;
+  winner_id: string | null;
+  created_at: string;
+};

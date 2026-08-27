@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  BarChart3, Crown, Home, LogOut, Radio, Shield, Swords, Users,
+  BarChart3, CircleDollarSign, Crown, Home, LogOut, MessageCircle, Radio, Shield, Swords, Users,
 } from "lucide-react";
 import { useSession } from "@/lib/session";
 import { supabaseBrowser } from "@/lib/supabase/client";
@@ -12,9 +12,11 @@ import { Seal } from "@/components/ui";
 
 const NAV = [
   { href: "/",          label: "League",    Icon: Home },
+  { href: "/matchups",  label: "Scores",    Icon: Radio },
+  { href: "/chat",      label: "Chat",      Icon: MessageCircle },
+  { href: "/challenges",label: "Challenges",Icon: CircleDollarSign },
   { href: "/draft",     label: "Draft",     Icon: Swords },
   { href: "/team",      label: "My Team",   Icon: Shield },
-  { href: "/matchups",  label: "Scores",    Icon: Radio },
   { href: "/standings", label: "Standings", Icon: BarChart3 },
   { href: "/players",   label: "Players",   Icon: Users },
 ];

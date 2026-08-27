@@ -80,6 +80,10 @@
   :root { --bottom-nav: 62px; }
 }
 
+.modal { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: var(--s4); background: #050403d9; }
+.modal__panel { width: min(100%, 520px); max-height: 92vh; overflow: auto; background: var(--ink-1); border: 1px solid var(--rule-hard); border-top-color: var(--gold); border-radius: var(--r-lg); box-shadow: 0 24px 80px #000a; }
+.badge { display: inline-flex; align-items: center; min-height: 24px; padding: 0 var(--s2); border: 1px solid var(--rule-hard); border-radius: 999px; color: var(--gold); font-size: var(--t-micro); font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+
 *, *::before, *::after { box-sizing: border-box; }
 
 html {

@@ -3,6 +3,10 @@
 Private 12-manager fantasy football league. Next.js 16 + Supabase (Postgres,
 Realtime, Auth), deployed on Vercel.
 
+The league clubhouse now includes private league chat and head-to-head social
+challenges. Accepted challenge terms are immutable and audited. Stakes are
+descriptive only: the app does not custody funds or automatically debit Venmo.
+
 ## How it's put together
 
 The **database is the application**. All business logic lives in Postgres as
@@ -38,6 +42,8 @@ countdown.
    `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
 3. Migrations in `supabase/migrations/` are already applied to project
    `ojhjrxolrsppircyrcff`.
+
+Release verification: `npm run build` and `npm run test:e2e`.
 
 ## Draft-day runbook
 
