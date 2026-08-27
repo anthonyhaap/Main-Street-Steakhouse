@@ -4,8 +4,14 @@ Private 12-manager fantasy football league. Next.js 16 + Supabase (Postgres,
 Realtime, Auth), deployed on Vercel.
 
 The league clubhouse now includes private league chat and head-to-head social
-challenges. Accepted challenge terms are immutable and audited. Stakes are
-descriptive only: the app does not custody funds or automatically debit Venmo.
+challenges. Accepted challenge terms are immutable and audited. Optional dollar
+amounts use an external settlement assistant: both managers opt in, the loser
+pays separately, and both sides confirm completion. The app never stores payment
+credentials, holds funds, initiates transfers, or automatically debits Venmo.
+
+Weekly-matchup challenges resolve automatically from official fantasy scores.
+Custom challenges use commissioner verification. Settlement deadlines, payment
+references, receipt confirmation, and disputes remain in the audit trail.
 
 ## How it's put together
 
@@ -15,7 +21,7 @@ there are no write policies anywhere. The web app never writes a row directly â€
 it calls RPCs. That means a browser with the publishable key cannot corrupt a
 draft even if someone reverse-engineers the client.
 
-Two `pg_cron` jobs do the work nobody is watching:
+Scheduled `pg_cron` jobs do the work nobody is watching:
 
 | job            | schedule    | does                                                    |
 |----------------|-------------|---------------------------------------------------------|

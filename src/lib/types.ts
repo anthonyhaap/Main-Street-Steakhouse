@@ -116,9 +116,30 @@ export type Challenge = {
   title: string;
   terms: string;
   stake_label: string;
-  status: "proposed" | "accepted" | "declined" | "expired" | "locked" | "awaiting_result" | "resolved" | "disputed" | "settled" | "voided";
+  status: "proposed" | "accepted" | "declined" | "expired" | "locked" | "awaiting_result" | "resolved" | "payment_pending" | "disputed" | "settled" | "voided";
   terms_hash: string;
   accepted_at: string | null;
+  locked_at: string | null;
+  resolved_at: string | null;
   winner_id: string | null;
+  stake_amount_cents: number | null;
+  matchup_id: string | null;
+  settlement_due_at: string | null;
+  payment_marked_at: string | null;
+  payment_marked_by: string | null;
+  payment_reference: string | null;
+  receipt_confirmed_at: string | null;
+  receipt_confirmed_by: string | null;
+  disputed_at: string | null;
+  dispute_reason: string | null;
+  resolution_evidence: Record<string, unknown> | null;
   created_at: string;
+};
+
+export type LeagueProfile = {
+  id: string;
+  display_name: string;
+  settlement_provider: "venmo" | "other" | null;
+  settlement_handle: string | null;
+  settlement_opt_in_at: string | null;
 };
