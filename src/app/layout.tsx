@@ -4,12 +4,25 @@ import { ToastHost } from "@/components/ui";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Main Street Steakhouse League",
-  description: "Private 12-manager fantasy football — live draft, live scoring.",
+  metadataBase: new URL("https://steakhouse.football"),
+  title: {
+    default: "Main Street Steakhouse League",
+    template: "%s · Main Street Steakhouse",
+  },
+  description: "Private 12-manager fantasy football — live draft, live scoring, no ads.",
+  applicationName: "Main Street Steakhouse",
+  openGraph: {
+    title: "Main Street Steakhouse League",
+    description: "Private 12-manager fantasy football — live draft, live scoring, no ads.",
+    siteName: "Main Street Steakhouse",
+    images: ["/logo-full.png"],
+    type: "website",
+  },
+  appleWebApp: { capable: true, title: "Steakhouse", statusBarStyle: "default" },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0a0908",
+  themeColor: "#fbf8f2",
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",

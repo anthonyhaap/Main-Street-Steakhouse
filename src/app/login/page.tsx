@@ -67,7 +67,7 @@ function LoginForm() {
       </button>
 
       {(error || urlError) && (
-        <p style={{ color: "#e59d90", fontSize: "var(--t-small)", marginTop: 14, lineHeight: 1.6 }} role="alert">
+        <p style={{ color: "var(--lose)", fontSize: "var(--t-small)", marginTop: 14, lineHeight: 1.6 }} role="alert">
           {error ?? urlError}
         </p>
       )}

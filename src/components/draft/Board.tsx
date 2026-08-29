@@ -61,9 +61,9 @@ export function Board({ draft, teams, picks, myTeamId }: Props) {
                   <div key={slot}
                     title={pick ? `${pick.player_name} — ${pick.team_name}` : `Pick ${pickNo}`}
                     style={{
-                      minHeight: 44, padding: "5px 6px", borderRadius: 3, overflow: "hidden",
-                      background: pick ? "var(--ink-2)" : isCurrent ? "var(--gold-wash)" : "#f2ede306",
-                      border: `1px solid ${isCurrent ? "var(--gold)" : isMine ? "#c9a22733" : "transparent"}`,
+                      minHeight: 44, padding: "5px 6px", borderRadius: 6, overflow: "hidden",
+                      background: pick ? "#ffffff" : isCurrent ? "var(--gold-wash)" : "var(--ink-2)",
+                      border: `1px solid ${isCurrent ? "var(--gold)" : isMine ? "var(--gold-lit)" : "transparent"}`,
                       borderLeft: pick ? `2px solid var(--${pick.position.toLowerCase()})` : undefined,
                       transition: "background 0.2s var(--ease)",
                     }}>

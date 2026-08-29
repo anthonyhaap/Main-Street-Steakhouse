@@ -143,3 +143,95 @@ export type LeagueProfile = {
   settlement_handle: string | null;
   settlement_opt_in_at: string | null;
 };
+
+/* ---------------------------------------------------------------- pulse -- */
+/** Shape of ff_league_pulse(league_id) — the commissioner dashboard payload. */
+
+export type PulseCheck = {
+  key: string;
+  label: string;
+  ok: boolean;
+  detail: string;
+  fix: string;
+};
+
+export type PulseManager = {
+  team_id: string;
+  name: string;
+  draft_slot: number | null;
+  email: string | null;
+  joined: boolean;
+  invited: boolean;
+  display_name: string | null;
+  queued: number;
+  roster: number;
+  picks: number;
+};
+
+export type PulseJob = {
+  name: string;
+  schedule: string;
+  active: boolean;
+  last_run: string | null;
+  last_status: string | null;
+  healthy: boolean;
+};
+
+export type PulseWeek = {
+  week: number;
+  games: number;
+  first_kick: string | null;
+  last_kick: string | null;
+  final: number;
+};
+
+export type PulseEvent = {
+  id: string;
+  type: string;
+  headline: string;
+  detail: string | null;
+  created_at: string;
+  actor: string | null;
+};
+
+export type Pulse = {
+  league: {
+    id: string;
+    name: string;
+    season: number;
+    team_count: number;
+    roster_slots: string[];
+    commissioner_id: string | null;
+    is_commissioner: boolean;
+  };
+  draft: {
+    id: string;
+    status: DraftStatus;
+    rounds: number;
+    pick_seconds: number;
+    current_pick: number;
+    pick_deadline: string | null;
+    started_at: string | null;
+    completed_at: string | null;
+    picks_made: number;
+    picks_total: number;
+    order_set: boolean;
+    teams_with_queue: number;
+  } | null;
+  managers: PulseManager[];
+  checks: PulseCheck[];
+  readiness: { passed: number; total: number; pct: number };
+  data: {
+    players: number;
+    adp: number;
+    byes: number;
+    games: number;
+    last_stats_at: string | null;
+    last_ingest_at: string | null;
+    jobs: PulseJob[];
+  };
+  season: { week: number; next_kickoff: string | null; calendar: PulseWeek[] };
+  clubhouse: { open_challenges: number; messages_7d: number };
+  activity: PulseEvent[];
+  generated_at: string;
+};
