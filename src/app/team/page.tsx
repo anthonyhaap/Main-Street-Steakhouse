@@ -1,23 +1,65 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowLeftRight, Lock } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { useLive } from "@/lib/live";
 import { useSession } from "@/lib/session";
-import type { RosterPoint } from "@/lib/types";
+import type { HubPlayer, TeamHub, Wire } from "@/lib/nfl/types";
 import { TopBar } from "@/components/Shell";
-import { Seal, SkeletonRows, fmtPts, useCountUp, useToast } from "@/components/ui";
+import { SkeletonRows, useToast } from "@/components/ui";
+import { TeamDesk, slotOk, type MoveTarget } from "@/components/team/TeamDesk";
 
-const FLEX_OK = new Set(["RB", "WR", "TE"]);
-const slotOk = (slot: string, pos: string) =>
-  slot === "BN" ? true : slot === "FLEX" ? FLEX_OK.has(pos) : slot === pos;
+/**
+ * The NFL wire, kept warm.
+ *
+ * It is deliberately not part of `useLive`: nothing in Postgres changes when
+ * ESPN publishes a story, so there is no realtime signal to hang it on, and a
+ * failure here must not colour the page's wire indicator. Refetch on an
+ * interval and when the tab comes back, same contract as everything else —
+ * whenever you look at it, it is current.
+ */
+function useWire() {
+  const [wire, setWire] = useState<Wire | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    const load = async () => {
+      try {
+        const res = await fetch("/api/nfl/wire");
+        if (!res.ok) throw new Error(String(res.status));
+        const body = (await res.json()) as Wire;
+        if (alive) setWire(body);
+      } catch {
+        // A dead wire is a state the page draws, not an error it throws.
+        if (alive) {
+          setWire({
+            fetchedAt: new Date().toISOString(),
+            articles: [], injuries: [],
+            sources: [{ name: "news", ok: false }, { name: "injuries", ok: false }],
+          });
+        }
+      }
+    };
+
+    void load();
+    const id = setInterval(() => { if (document.visibilityState === "visible") void load(); }, 300000);
+    const onFocus = () => { if (document.visibilityState === "visible") void load(); };
+    document.addEventListener("visibilitychange", onFocus);
+    return () => {
+      alive = false;
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", onFocus);
+    };
+  }, []);
+
+  return wire;
+}
 
 export default function TeamPage() {
-  const { ready, team, league } = useSession();
+  const { ready, team } = useSession();
   const toast = useToast();
   const [week, setWeek] = useState<number | null>(null);
-  const [moving, setMoving] = useState<RosterPoint | null>(null);
+  const [moving, setMoving] = useState<HubPlayer | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -26,71 +68,67 @@ export default function TeamPage() {
   }, [ready]);
 
   const fetcher = useCallback(async () => {
-    if (!team || week === null) return [] as RosterPoint[];
-    const { data } = await supabaseBrowser()
-      .from("roster_points").select("*").eq("team_id", team.id).eq("week", week);
-    return (data ?? []) as RosterPoint[];
+    if (!team || week === null) return null;
+    const { data, error } = await supabaseBrowser()
+      .rpc("ff_team_hub", { p_team_id: team.id, p_week: week });
+    if (error) throw new Error(error.message);
+    return data as TeamHub;
   }, [team, week]);
 
-  const { data, status, refetch } = useLive<RosterPoint[]>(fetcher, {
+  const { data: hub, status, error, refetch } = useLive<TeamHub | null>(fetcher, {
     tables: ["rosters", "matchups"],
     channel: "my-team",
     pollMs: 30000,
     enabled: ready && !!team && week !== null,
   });
 
-  const slots = league?.roster_slots ?? [];
-  const rows = useMemo(() => data ?? [], [data]);
+  const wire = useWire();
 
-  const starters = useMemo(() => {
-    const pool = rows.filter((r) => r.slot !== "BN");
-    const used = new Set<string>();
-    return slots.filter((s) => s !== "BN").map((slot, i) => {
-      const hit = pool.find((r) => r.slot === slot && !used.has(r.player_id));
-      if (hit) used.add(hit.player_id);
-      return { key: `${slot}-${i}`, slot, row: hit ?? null };
-    });
-  }, [rows, slots]);
-
-  const bench = rows.filter((r) => r.slot === "BN");
-  const total = starters.reduce((sum, s) => sum + Number(s.row?.points ?? 0), 0);
-  const shown = useCountUp(total);
-  const empties = starters.filter((s) => !s.row).length;
-
-  async function swap(target: { slot: string; row: RosterPoint | null }) {
+  async function drop(target: MoveTarget) {
     if (!moving || !team || week === null) return;
     if (!slotOk(target.slot, moving.position)) {
       toast("error", `A ${moving.position} can't play at ${target.slot}.`);
       return;
     }
+    if (target.player?.player_id === moving.player_id) {
+      setMoving(null);
+      return;
+    }
+
+    // Swap: the man already in the slot takes the one being vacated.
     const assignments: Record<string, string> = { [moving.player_id]: target.slot };
-    if (target.row) assignments[target.row.player_id] = moving.slot;
+    if (target.player) assignments[target.player.player_id] = moving.slot;
 
     setBusy(true);
-    const { error } = await supabaseBrowser().rpc("ff_set_lineup", {
+    const { error: rpcError } = await supabaseBrowser().rpc("ff_set_lineup", {
       p_team_id: team.id, p_week: week, p_assignments: assignments,
     });
     setBusy(false);
     setMoving(null);
-    if (error) toast("error", error.message);
+    if (rpcError) toast("error", rpcError.message);
+    else toast("ok", `${moving.full_name} → ${target.slot === "BN" ? "bench" : target.slot}.`);
     await refetch();
   }
 
-  if (!ready || (team && !data)) {
+  if (!ready || (team && !hub && !error)) {
     return (
       <>
         <TopBar status={status} />
-        <main className="page" data-width="narrow"><div className="card"><SkeletonRows n={9} /></div></main>
+        <main className="page"><div className="card"><SkeletonRows n={10} /></div></main>
       </>
     );
   }
 
-  if (!team) {
+  if (!team || !hub) {
     return (
       <>
         <TopBar status={status} />
         <main className="page" data-width="narrow">
-          <div className="card"><div className="empty">You aren&apos;t linked to a team yet.</div></div>
+          <div className="card">
+            {error
+              ? <div className="note" data-kind="error">Couldn&apos;t load your team: {error}</div>
+              : <div className="empty">You aren&apos;t linked to a team yet.</div>}
+          </div>
         </main>
       </>
     );
@@ -99,107 +137,16 @@ export default function TeamPage() {
   return (
     <>
       <TopBar status={status} />
-      <main className="page" data-width="narrow">
-        <div className="card">
-          <div className="card__head">
-            <div style={{ display: "flex", alignItems: "center", gap: "var(--s3)", minWidth: 0 }}>
-              <Seal name={team.name} mine size={38} />
-              <div style={{ minWidth: 0 }}>
-                <h2 style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{team.name}</h2>
-                <div className="eyebrow" style={{ marginTop: 4 }}>Week {week ?? "—"} starters</div>
-              </div>
-            </div>
-            <div style={{ textAlign: "right" }}>
-              <div className="score" style={{ fontSize: "clamp(1.7rem,5vw,2.3rem)", color: "var(--gold)" }}>
-                {shown.toFixed(1)}
-              </div>
-              <div className="eyebrow" style={{ marginTop: 3 }}>Points</div>
-            </div>
-          </div>
-
-          {empties > 0 && (
-            <div className="note" data-kind="error">
-              {empties} starting {empties === 1 ? "slot is" : "slots are"} empty — those score zero.
-            </div>
-          )}
-          {moving && (
-            <div className="note" data-kind="info" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
-              <span>Moving <strong>{moving.full_name}</strong> — choose a highlighted slot.</span>
-              <button className="btn" data-v="ghost" data-size="sm" onClick={() => setMoving(null)}>Cancel</button>
-            </div>
-          )}
-
-          <div className="rows">
-            {starters.map((s) => (
-              <Line key={s.key} slot={s.slot} row={s.row} busy={busy}
-                highlight={!!moving && slotOk(s.slot, moving.position)}
-                selected={!!moving && moving.player_id === s.row?.player_id}
-                onClick={() => (moving ? swap(s) : s.row && setMoving(s.row))} />
-            ))}
-          </div>
-        </div>
-
-        <div className="card">
-          <div className="card__head">
-            <h2>Bench</h2>
-            <span className="eyebrow"><span className="num">{bench.length}</span> players</span>
-          </div>
-          <div className="rows">
-            {bench.length === 0 && <div className="empty">Bench is empty.</div>}
-            {bench.map((r) => (
-              <Line key={r.player_id} slot="BN" row={r} busy={busy}
-                highlight={!!moving && !!moving.slot && moving.slot !== "BN"}
-                selected={moving?.player_id === r.player_id}
-                onClick={() => (moving ? swap({ slot: "BN", row: null }) : setMoving(r))} />
-            ))}
-          </div>
-        </div>
-      </main>
+      <TeamDesk
+        hub={hub}
+        wire={wire}
+        moving={moving}
+        busy={busy}
+        onPickUp={setMoving}
+        onCancelMove={() => setMoving(null)}
+        onDrop={drop}
+        onWeek={(w) => { setMoving(null); setWeek(w); }}
+      />
     </>
-  );
-}
-
-function Line({
-  slot, row, highlight, selected, busy, onClick,
-}: {
-  slot: string; row: RosterPoint | null; highlight: boolean; selected: boolean;
-  busy: boolean; onClick: () => void;
-}) {
-  const locked = !!row?.locked_at && new Date(row.locked_at).getTime() <= Date.now();
-  const clickable = !busy && !locked && (!!row || highlight);
-
-  return (
-    <button
-      onClick={onClick}
-      disabled={!clickable}
-      className="row"
-      data-hover={clickable}
-      style={{
-        width: "100%", textAlign: "left", font: "inherit", color: "inherit",
-        border: 0, borderLeft: `2px solid ${selected ? "var(--gold)" : highlight ? "var(--gold-dim)" : "transparent"}`,
-        background: selected ? "var(--gold-wash)" : highlight ? "var(--gold-haze)" : "transparent",
-        cursor: clickable ? "pointer" : "default",
-        opacity: locked ? 0.5 : 1,
-      }}
-    >
-      <span className="pos" data-p={slot} style={{ minWidth: 42 }}>{slot}</span>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        {row ? (
-          <>
-            <div style={{ fontWeight: 600, display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-              {row.full_name}
-              {locked && <Lock size={11} color="var(--faint)" />}
-            </div>
-            <div className="eyebrow" style={{ marginTop: 3, letterSpacing: "0.1em" }}>
-              {row.position} · {row.nfl_team ?? "FA"}
-            </div>
-          </>
-        ) : (
-          <span style={{ color: "var(--faint)", fontStyle: "italic" }}>Empty</span>
-        )}
-      </div>
-      {row && <span className="num" style={{ fontSize: "var(--t-head)" }}>{fmtPts(row.points)}</span>}
-      {clickable && row && <ArrowLeftRight size={13} color="var(--faint)" />}
-    </button>
   );
 }
