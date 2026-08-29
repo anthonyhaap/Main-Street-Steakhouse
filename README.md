@@ -41,6 +41,30 @@ Draft clocks are rendered in **server time**. `useServerClock` measures the
 offset against `ff_now()` so a manager with a skewed laptop still sees the true
 countdown.
 
+### My Team
+
+`/team` is a desk, not a list. One RPC — `ff_team_hub(team_id, week)` — returns
+the roster with each player's season form, per-game usage rates, depth-chart
+position and this week's real NFL game, plus the team's record, league rank,
+matchup and per-position splits. Historical stat lines are re-scored with *this*
+league's rules, so a 2025 game log reads as what it would have been worth to us.
+
+Beside the lineup sits the wire. `GET /api/nfl/wire` fetches ESPN's public news
+and league-wide injury feeds on the server, normalises them defensively and
+caches for five minutes, so twelve managers are one request upstream and a dead
+feed costs a card rather than a page. Club crests and player headshots are
+hotlinked from ESPN's CDN by ids we already hold (`player_id_map`), with a
+monogram fallback — no image pipeline, no storage.
+
+The two are joined by `src/lib/nfl/insights.ts`, which is the point of the page:
+a national injury report is noise until it is read against your roster. The back
+ahead of yours is out, so his carries are yours; the quarterback throwing to your
+receiver is out, so that is a downgrade; your own starter is questionable, so act
+on it. Pure function, roster in and ranked notes out.
+
+`/preview/team` renders the whole desk from a fixture — real players and real
+stat lines, invented wire — so the layout can be inspected without a session.
+
 ## Setup
 
 1. `npm install && npm run dev`
