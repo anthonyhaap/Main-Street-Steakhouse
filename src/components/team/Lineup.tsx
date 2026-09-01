@@ -1,7 +1,8 @@
 "use client";
 
 import { ArrowLeftRight, Lock, Plane } from "lucide-react";
-import { Face, InjuryBadge, Kickoff, Spark, usageLine } from "@/components/nfl";
+import { InjuryBadge, Kickoff, Spark, usageLine } from "@/components/nfl";
+import { PlayerBadge } from "@/components/PlayerBadge";
 import { fmtPts } from "@/components/ui";
 import type { HubPlayer, WireInjury } from "@/lib/nfl/types";
 
@@ -9,34 +10,33 @@ import type { HubPlayer, WireInjury } from "@/lib/nfl/types";
  * One roster line.
  *
  * The old row was a single button: clicking anywhere started a lineup move.
- * That worked when a row held a name and a number, but it can't hold a row that
- * is also worth *reading* — you cannot click a player to see why he's a start
- * without accidentally benching him. So the two intents are now two targets:
- * the player block opens him, the arrows button picks him up.
+ * That worked when a row held a name and a number, but not when the row is also
+ * worth *reading* — you cannot open a player to see whether he is a start
+ * without accidentally benching him. So the two intents are two targets: the
+ * badge opens his page, the arrows button picks him up.
  *
  * Once a move is in flight that stops being true — every legal row becomes one
- * drop target, laid over the whole line, because at that moment there is only
+ * drop target laid over the whole line, because at that moment there is only
  * one thing a click can sensibly mean.
  */
 export function PlayerRow({
-  slot, player, week, injury, moving, target, selected, busy, onOpen, onPickUp, onDrop,
+  slot, player, week, injury, projection, moving, target, selected, busy, onPickUp, onDrop,
 }: {
   slot: string;
   player: HubPlayer | null;
   week: number;
   injury: WireInjury | null;
+  projection: number | null;
   moving: boolean;
   target: boolean;
   selected: boolean;
   busy: boolean;
-  onOpen: () => void;
   onPickUp: () => void;
   onDrop: () => void;
 }) {
   const locked = player?.locked ?? false;
   const form = player?.form ?? null;
   const use = player ? usageLine(player) : null;
-  const hurt = injury && injury.severity !== "probable";
 
   return (
     <div
@@ -49,26 +49,27 @@ export function PlayerRow({
       <span className="pos" data-p={slot}>{slot}</span>
 
       {player ? (
-        <button type="button" className="plr__main" onClick={onOpen}
-          aria-label={`Open ${player.full_name}`}>
-          <Face player={player} size={38} />
-          <span style={{ minWidth: 0 }}>
-            <span className="plr__name">
-              {player.full_name}
-              {locked && <Lock size={11} color="var(--faint)" />}
-              {player.on_bye && <Plane size={11} color="var(--warn)" aria-label="On bye" />}
-            </span>
-            <span className="plr__sub">
+        <PlayerBadge
+          id={player.player_id}
+          name={player.full_name}
+          position={player.position}
+          team={player.nfl_team}
+          espnId={player.espn_id}
+          size={38}
+          sub={
+            <>
               <span>{player.position} · {player.nfl_team ?? "FA"}</span>
               {player.depth.rank && player.depth.of ? (
                 <span style={{ color: "var(--faint)" }}>
                   {player.position}{player.depth.rank} of {player.depth.of}
                 </span>
               ) : null}
-              {hurt && <InjuryBadge injury={injury} />}
-            </span>
-          </span>
-        </button>
+              {locked && <Lock size={11} color="var(--faint)" aria-label="Locked" />}
+              {player.on_bye && <Plane size={11} color="var(--warn)" aria-label="On bye" />}
+              {injury && <InjuryBadge injury={injury} />}
+            </>
+          }
+        />
       ) : (
         <span style={{ color: "var(--lose)", fontStyle: "italic", fontSize: "var(--t-small)" }}>
           Empty — scores zero
@@ -91,7 +92,14 @@ export function PlayerRow({
         )}
       </span>
 
-      <span className="plr__use">{use}</span>
+      <span className="plr__use">
+        {projection != null && (
+          <span style={{ display: "block", color: "var(--gold)", fontWeight: 600 }}>
+            {projection.toFixed(1)} projected
+          </span>
+        )}
+        {use}
+      </span>
 
       <span className="plr__pts">{player ? fmtPts(player.points) : "—"}</span>
 

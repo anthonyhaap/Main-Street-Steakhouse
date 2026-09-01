@@ -60,6 +60,10 @@ export type PoolPlayer = {
   overall_rank: number | null;
   bye_week: number | null;
   position_rank: number | null;
+  /** Addresses his headshot on ESPN's CDN; a club abbreviation for a defense. */
+  espn_id: string | null;
+  injury_status: string | null;
+  depth_chart_order: number | null;
 };
 
 export type Standing = {

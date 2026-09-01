@@ -1,12 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { buildInsights, myNews } from "@/lib/nfl/insights";
-import type { HubPlayer, TeamHub, Wire, WireInjury } from "@/lib/nfl/types";
+import { injuriesByPlayer } from "@/lib/nfl/wire";
+import type { HubPlayer, TeamHub, Wire } from "@/lib/nfl/types";
 import { Seal, useCountUp } from "@/components/ui";
 import { PlayerRow } from "@/components/team/Lineup";
 import { InsightBoard, NewsWire, TeamStats } from "@/components/team/Rail";
-import { PlayerSheet } from "@/components/team/PlayerSheet";
 
 const FLEX_OK = new Set(["RB", "WR", "TE"]);
 
@@ -23,9 +23,9 @@ export type MoveTarget = { slot: string; player: HubPlayer | null };
  * the layout can be looked at, and looked at on a wide screen, without a
  * session, a draft or a live Sunday.
  *
- * Selecting a player is internal state, because opening a card is a way of
- * reading the page rather than a change to anything. Moving a player is not:
- * that goes back out to whoever owns the roster.
+ * Opening a player is a link, not state: /player/[id] is a location you can
+ * share and come back from. Moving a player is not — that goes back out to
+ * whoever owns the roster.
  */
 export function TeamDesk({
   hub, wire, moving, busy, onPickUp, onCancelMove, onDrop, onWeek,
@@ -39,15 +39,8 @@ export function TeamDesk({
   onDrop: (target: MoveTarget) => void;
   onWeek: (week: number) => void;
 }) {
-  const [open, setOpen] = useState<string | null>(null);
-
   const roster = hub.roster;
-
-  const injuries = useMemo(() => {
-    const map = new Map<string, WireInjury>();
-    for (const i of wire?.injuries ?? []) if (i.espnId) map.set(i.espnId, i);
-    return map;
-  }, [wire]);
+  const injuries = useMemo(() => injuriesByPlayer(wire), [wire]);
 
   const insights = useMemo(
     () => buildInsights(roster, wire?.injuries ?? [], hub.week),
@@ -76,8 +69,7 @@ export function TeamDesk({
   const shownTheirs = useCountUp(theirs);
 
   const rec = hub.record;
-  const wireOk = (wire?.sources ?? []).some((s) => s.ok);
-  const sheetPlayer = roster.find((p) => p.player_id === open) ?? null;
+  const projected = Number(hub.splits.projected_starters ?? 0);
 
   return (
     <>
@@ -131,6 +123,10 @@ export function TeamDesk({
             <div className="th-stat">
               <b>{Number(hub.splits.starter_points).toFixed(1)}</b>
               <span>Starters this week</span>
+            </div>
+            <div className="th-stat">
+              <b data-tone="gold">{projected > 0 ? projected.toFixed(1) : "—"}</b>
+              <span>Projected</span>
             </div>
             <div className="th-stat">
               <b data-tone={empties ? "warn" : "ok"}>{starters.length - empties}/{starters.length}</b>
@@ -196,12 +192,12 @@ export function TeamDesk({
                     slot={s.slot}
                     player={s.player}
                     week={hub.week}
-                    injury={injuries.get(s.player?.espn_id ?? "") ?? null}
+                    injury={injuries.get(s.player?.player_id ?? "") ?? null}
+                    projection={s.player?.projection ?? null}
                     moving={!!moving}
                     target={!!moving && slotOk(s.slot, moving.position)}
                     selected={!!moving && moving.player_id === s.player?.player_id}
                     busy={busy}
-                    onOpen={() => s.player && setOpen(s.player.player_id)}
                     onPickUp={() => s.player && onPickUp(s.player)}
                     onDrop={() => onDrop({ slot: s.slot, player: s.player })}
                   />
@@ -225,12 +221,12 @@ export function TeamDesk({
                     slot="BN"
                     player={p}
                     week={hub.week}
-                    injury={injuries.get(p.espn_id ?? "") ?? null}
+                    injury={injuries.get(p.player_id) ?? null}
+                    projection={p.projection}
                     moving={!!moving}
                     target={!!moving && moving.slot !== "BN"}
                     selected={moving?.player_id === p.player_id}
                     busy={busy}
-                    onOpen={() => setOpen(p.player_id)}
                     onPickUp={() => onPickUp(p)}
                     onDrop={() => onDrop({ slot: "BN", player: null })}
                   />
@@ -240,23 +236,13 @@ export function TeamDesk({
           </div>
 
           <div className="th-col">
-            <InsightBoard insights={insights} wireOk={wireOk} onOpen={(p) => setOpen(p.player_id)} />
-            <TeamStats hub={hub} onOpen={(p) => setOpen(p.player_id)} />
+            <InsightBoard insights={insights} wire={wire} />
+            <TeamStats hub={hub} />
             <NewsWire mine={tagged} all={wire?.articles ?? []} wire={wire} />
           </div>
         </div>
       </main>
 
-      {sheetPlayer && (
-        <PlayerSheet
-          player={sheetPlayer}
-          week={hub.week}
-          injury={injuries.get(sheetPlayer.espn_id ?? "") ?? null}
-          news={(wire?.articles ?? []).filter((a) =>
-            a.athletes.some((x) => x.id === sheetPlayer.espn_id))}
-          onClose={() => setOpen(null)}
-        />
-      )}
     </>
   );
 }

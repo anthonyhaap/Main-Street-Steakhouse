@@ -7,6 +7,7 @@ import { useSession } from "@/lib/session";
 import { DRAFT_ID } from "@/lib/config";
 import type { PoolPlayer } from "@/lib/types";
 import { TopBar } from "@/components/Shell";
+import { PlayerBadge } from "@/components/PlayerBadge";
 import { SkeletonRows } from "@/components/ui";
 
 const POSITIONS = ["ALL", "QB", "RB", "WR", "TE", "K", "DST"] as const;
@@ -96,15 +97,22 @@ export default function PlayersPage() {
                   </span>
                   <span className="pos" data-p={p.position}>{p.position}</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                      {p.full_name}
-                    </div>
-                    <div className="eyebrow" style={{ marginTop: 3, letterSpacing: "0.1em", display: "flex", gap: 7, flexWrap: "wrap" }}>
-                      <span>{p.nfl_team ?? "FA"}</span>
-                      {p.position_rank ? <span>{p.position}{p.position_rank}</span> : null}
-                      {p.bye_week ? <span>Bye {p.bye_week}</span> : null}
-                      {p.adp ? <span className="num">ADP {Number(p.adp).toFixed(1)}</span> : null}
-                    </div>
+                    <PlayerBadge
+                      id={p.id}
+                      name={p.full_name}
+                      position={p.position}
+                      team={p.nfl_team}
+                      espnId={p.espn_id}
+                      size={34}
+                      sub={
+                        <>
+                          <span>{p.nfl_team ?? "FA"}</span>
+                          {p.position_rank ? <span>{p.position}{p.position_rank}</span> : null}
+                          {p.bye_week ? <span>Bye {p.bye_week}</span> : null}
+                          {p.adp ? <span className="num">ADP {Number(p.adp).toFixed(1)}</span> : null}
+                        </>
+                      }
+                    />
                   </div>
                   <span className="eyebrow" style={{
                     color: taken.has(p.id) ? "var(--muted)" : "var(--win)",

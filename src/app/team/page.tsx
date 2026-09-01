@@ -4,56 +4,11 @@ import { useCallback, useEffect, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { useLive } from "@/lib/live";
 import { useSession } from "@/lib/session";
-import type { HubPlayer, TeamHub, Wire } from "@/lib/nfl/types";
+import { useWire } from "@/lib/nfl/wire";
+import type { HubPlayer, TeamHub } from "@/lib/nfl/types";
 import { TopBar } from "@/components/Shell";
 import { SkeletonRows, useToast } from "@/components/ui";
 import { TeamDesk, slotOk, type MoveTarget } from "@/components/team/TeamDesk";
-
-/**
- * The NFL wire, kept warm.
- *
- * It is deliberately not part of `useLive`: nothing in Postgres changes when
- * ESPN publishes a story, so there is no realtime signal to hang it on, and a
- * failure here must not colour the page's wire indicator. Refetch on an
- * interval and when the tab comes back, same contract as everything else —
- * whenever you look at it, it is current.
- */
-function useWire() {
-  const [wire, setWire] = useState<Wire | null>(null);
-
-  useEffect(() => {
-    let alive = true;
-    const load = async () => {
-      try {
-        const res = await fetch("/api/nfl/wire");
-        if (!res.ok) throw new Error(String(res.status));
-        const body = (await res.json()) as Wire;
-        if (alive) setWire(body);
-      } catch {
-        // A dead wire is a state the page draws, not an error it throws.
-        if (alive) {
-          setWire({
-            fetchedAt: new Date().toISOString(),
-            articles: [], injuries: [],
-            sources: [{ name: "news", ok: false }, { name: "injuries", ok: false }],
-          });
-        }
-      }
-    };
-
-    void load();
-    const id = setInterval(() => { if (document.visibilityState === "visible") void load(); }, 300000);
-    const onFocus = () => { if (document.visibilityState === "visible") void load(); };
-    document.addEventListener("visibilitychange", onFocus);
-    return () => {
-      alive = false;
-      clearInterval(id);
-      document.removeEventListener("visibilitychange", onFocus);
-    };
-  }, []);
-
-  return wire;
-}
 
 export default function TeamPage() {
   const { ready, team } = useSession();
@@ -82,7 +37,7 @@ export default function TeamPage() {
     enabled: ready && !!team && week !== null,
   });
 
-  const wire = useWire();
+  const { data: wire } = useWire(ready);
 
   async function drop(target: MoveTarget) {
     if (!moving || !team || week === null) return;

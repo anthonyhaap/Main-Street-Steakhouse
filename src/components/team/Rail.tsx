@@ -1,10 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import {
-  AlertTriangle, ArrowDownRight, CalendarClock, ExternalLink, Newspaper, TrendingUp,
+  AlertTriangle, ArrowDownRight, CalendarClock, ExternalLink, TrendingUp,
 } from "lucide-react";
-import { Face, TeamLogo, fmtWhen } from "@/components/nfl";
+import { NewsShot, TeamLogo, fmtWhen } from "@/components/nfl";
+import { PlayerBadge, PlayerFace } from "@/components/PlayerBadge";
 import type { Insight } from "@/lib/nfl/insights";
 import type { HubPlayer, TeamHub, Wire, WireArticle } from "@/lib/nfl/types";
 
@@ -32,13 +34,8 @@ const KIND_WORD = {
  * the back ahead of yours is out, so his carries are yours this week. The
  * ranking is done in `buildInsights`; this only draws it.
  */
-export function InsightBoard({
-  insights, wireOk, onOpen,
-}: {
-  insights: Insight[];
-  wireOk: boolean;
-  onOpen: (p: HubPlayer) => void;
-}) {
+export function InsightBoard({ insights, wire }: { insights: Insight[]; wire: Wire | null }) {
+  const empty = wire !== null && wire.injuries.length === 0;
   return (
     <section className="card" data-accent="gold">
       <div className="card__head">
@@ -48,10 +45,10 @@ export function InsightBoard({
         </span>
       </div>
 
-      {!wireOk && (
+      {empty && (
         <div className="note" data-kind="info">
-          The NFL wire is not answering right now, so this only reflects byes and
-          the schedule. It will fill back in on its own.
+          No injury report loaded yet, so this only reflects byes and the
+          schedule. The wire refreshes every quarter hour.
         </div>
       )}
 
@@ -64,18 +61,26 @@ export function InsightBoard({
           {insights.map((n) => {
             const Icon = KIND_ICON[n.kind];
             return (
-              <button key={n.id} type="button" className="ins" data-kind={n.kind}
-                onClick={() => onOpen(n.player)}>
-                <Face player={n.player} size={38} />
+              <div key={n.id} className="ins" data-kind={n.kind}>
+                <PlayerFace
+                  id={n.player.player_id}
+                  name={n.player.full_name}
+                  team={n.player.nfl_team}
+                  position={n.player.position}
+                  espnId={n.player.espn_id}
+                  size={38}
+                />
                 <span className="ins__body">
-                  <b>{n.headline}</b>
+                  <b><Link href={`/player/${n.player.player_id}`} className="ins__link">
+                    {n.headline}
+                  </Link></b>
                   <p>{n.detail}</p>
                   <span className="ins__tag">
                     <Icon size={11} strokeWidth={2.4} />
                     {KIND_WORD[n.kind]}
                   </span>
                 </span>
-              </button>
+              </div>
             );
           })}
         </div>
@@ -90,7 +95,7 @@ type Tagged = { article: WireArticle; players: HubPlayer[]; clubs: string[] };
 
 export function NewsWire({ mine, all, wire }: { mine: Tagged[]; all: WireArticle[]; wire: Wire | null }) {
   const [tab, setTab] = useState<"mine" | "league">("mine");
-  const newsOk = wire?.sources.find((s) => s.name === "news")?.ok ?? false;
+  const newsOk = (wire?.articles.length ?? 0) > 0;
   const showing = tab === "mine" ? mine : all.map((a) => ({ article: a, players: [], clubs: [] }));
 
   return (
@@ -110,8 +115,8 @@ export function NewsWire({ mine, all, wire }: { mine: Tagged[]; all: WireArticle
       {!wire && <div className="empty" style={{ padding: "var(--s6)" }}>Pulling the wire…</div>}
 
       {wire && !newsOk && (
-        <div className="note" data-kind="error">
-          Couldn&apos;t reach the NFL news feed. Nothing else on this page depends on it.
+        <div className="note" data-kind="info">
+          No headlines loaded yet. Nothing else on this page depends on them.
         </div>
       )}
 
@@ -132,7 +137,8 @@ export function NewsWire({ mine, all, wire }: { mine: Tagged[]; all: WireArticle
       {wire && newsOk && (
         <div style={{ padding: "var(--s3) var(--s4)", borderTop: "1px solid var(--rule-soft)" }}>
           <span className="eyebrow" style={{ letterSpacing: "0.1em" }}>
-            Headlines and photographs from ESPN · {fmtWhen(wire.fetchedAt)}
+            Headlines and photographs from ESPN
+            {wire.fetchedAt ? ` · latest ${fmtWhen(wire.fetchedAt)}` : ""}
           </span>
         </div>
       )}
@@ -145,14 +151,7 @@ function NewsItem({ article, players, clubs }: Tagged) {
   return (
     <a className="news" data-mine={mine} href={article.url ?? undefined}
       target="_blank" rel="noopener noreferrer">
-      <span className="news__shot">
-        {article.image ? (
-          // eslint-disable-next-line @next/next/no-img-element -- ESPN CDN photo, fixed box
-          <img src={article.image.url} alt={article.image.alt} loading="lazy" decoding="async" />
-        ) : (
-          <Newspaper size={18} color="var(--faint)" />
-        )}
-      </span>
+      <NewsShot src={article.image_url} alt={article.image_alt ?? article.headline} />
       <span className="news__body">
         <b>{article.headline}</b>
         {article.description && <p>{article.description}</p>}
@@ -163,7 +162,7 @@ function NewsItem({ article, players, clubs }: Tagged) {
             </span>
           ))}
           {!mine && clubs.slice(0, 2).map((c) => <TeamLogo key={c} abbr={c} size={13} />)}
-          {article.published && <span>{fmtWhen(article.published)}</span>}
+          {article.published_at && <span>{fmtWhen(article.published_at)}</span>}
           {article.url && <ExternalLink size={10} />}
         </span>
       </span>
@@ -182,7 +181,7 @@ const POS_VAR: Record<string, string> = {
  * Where the week came from, and what it cost. The bench line is the one that
  * stings: points that scored for nobody because they sat.
  */
-export function TeamStats({ hub, onOpen }: { hub: TeamHub; onOpen: (p: HubPlayer) => void }) {
+export function TeamStats({ hub }: { hub: TeamHub }) {
   const splits = hub.splits.by_position;
   const top = Math.max(1, ...splits.map((s) => Number(s.points)));
 
@@ -239,17 +238,15 @@ export function TeamStats({ hub, onOpen }: { hub: TeamHub; onOpen: (p: HubPlayer
       )}
 
       <div style={{ borderTop: "1px solid var(--rule)" }}>
-        {best && <StatLine label="Top scorer" player={best} value={`${Number(best.points).toFixed(1)} pts`} onOpen={onOpen} />}
+        {best && <StatLine label="Top scorer" player={best} value={`${Number(best.points).toFixed(1)} pts`} />}
         {benchBest && Number(benchBest.points) > 0 && (
-          <StatLine label="Best on the bench" player={benchBest} value={`${Number(benchBest.points).toFixed(1)} pts`} onOpen={onOpen} />
+          <StatLine label="Best on the bench" player={benchBest} value={`${Number(benchBest.points).toFixed(1)} pts`} />
         )}
         {steadiest?.form && (
-          <StatLine label="Most reliable" player={steadiest}
-            value={`±${steadiest.form.swing.toFixed(1)}`} onOpen={onOpen} />
+          <StatLine label="Most reliable" player={steadiest} value={`±${steadiest.form.swing.toFixed(1)}`} />
         )}
         {wildest?.form && wildest.player_id !== steadiest?.player_id && (
-          <StatLine label="Biggest swing" player={wildest}
-            value={`±${wildest.form.swing.toFixed(1)}`} onOpen={onOpen} />
+          <StatLine label="Biggest swing" player={wildest} value={`±${wildest.form.swing.toFixed(1)}`} />
         )}
       </div>
 
@@ -263,29 +260,24 @@ export function TeamStats({ hub, onOpen }: { hub: TeamHub; onOpen: (p: HubPlayer
   );
 }
 
-function StatLine({
-  label, player, value, onOpen,
-}: {
-  label: string; player: HubPlayer; value: string; onOpen: (p: HubPlayer) => void;
-}) {
+function StatLine({ label, player, value }: { label: string; player: HubPlayer; value: string }) {
   return (
-    <button type="button" onClick={() => onOpen(player)}
-      style={{
-        display: "flex", alignItems: "center", gap: "var(--s3)", width: "100%",
-        padding: "8px var(--s4)", border: 0, borderTop: "1px solid var(--rule-soft)",
-        background: "none", font: "inherit", color: "inherit", cursor: "pointer", textAlign: "left",
-      }}>
-      <Face player={player} size={28} />
-      <span style={{ flex: 1, minWidth: 0 }}>
-        <span className="eyebrow" style={{ display: "block", letterSpacing: "0.12em" }}>{label}</span>
-        <span style={{
-          display: "block", fontSize: "var(--t-small)", fontWeight: 600, marginTop: 2,
-          whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-        }}>
-          {player.full_name}
-        </span>
-      </span>
-      <span className="num" style={{ fontSize: "var(--t-small)", color: "var(--muted)" }}>{value}</span>
-    </button>
+    <div style={{
+      display: "flex", alignItems: "center", gap: "var(--s3)",
+      padding: "8px var(--s4)", borderTop: "1px solid var(--rule-soft)",
+    }}>
+      <PlayerBadge
+        id={player.player_id}
+        name={player.full_name}
+        team={player.nfl_team}
+        position={player.position}
+        espnId={player.espn_id}
+        size={28}
+        sub={<span className="eyebrow" style={{ letterSpacing: "0.12em" }}>{label}</span>}
+      />
+      <span className="num" style={{
+        marginLeft: "auto", fontSize: "var(--t-small)", color: "var(--muted)",
+      }}>{value}</span>
+    </div>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Newspaper } from "lucide-react";
 import { headshot, teamColor, teamLogo } from "@/lib/nfl/assets";
 import { team as clubOf } from "@/lib/nfl/teams";
 import type { HubGame, HubPlayer, WireInjury } from "@/lib/nfl/types";
@@ -203,6 +204,29 @@ export function Spark({
       <path d={path} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
       <circle cx={width} cy={y(last.points)} r="2.1" fill={color} />
     </svg>
+  );
+}
+
+/* ------------------------------------------------------------- news shot -- */
+
+/**
+ * A story's photograph, in a fixed box, allowed to fail.
+ *
+ * ESPN's photo URLs go stale sooner than the headlines that carry them, and a
+ * broken image element spills its alt text across the card. On error the image
+ * hides itself and the placeholder behind it shows through.
+ */
+export function NewsShot({ src, alt }: { src: string | null; alt: string }) {
+  const [failed, setFailed] = useState(false);
+  return (
+    <span className="news__shot">
+      {src && !failed ? (
+        // eslint-disable-next-line @next/next/no-img-element -- ESPN CDN photo, fixed box
+        <img src={src} alt={alt} loading="lazy" decoding="async" onError={() => setFailed(true)} />
+      ) : (
+        <Newspaper size={18} color="var(--faint)" aria-hidden />
+      )}
+    </span>
   );
 }
 

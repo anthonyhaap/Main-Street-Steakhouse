@@ -27,6 +27,7 @@ type Seed = {
   bye: number; rank: number; of: number; adp: number;
   opp: string; home: boolean; kick: string;
   week: number;                       // this week's points
+  proj?: number;                      // what he was projected to score
   log: number[];                      // 2025, weeks 1..n
   use: Record<string, number>;
 };
@@ -123,6 +124,8 @@ const player = (s: Seed, i: number): HubPlayer => {
     espn_id: s.espn,
     sleeper_id: null,
     points: s.week,
+    projection: s.proj ?? Math.round((s.log.reduce((a, b) => a + b, 0) / s.log.length) * 10) / 10,
+    projected_at: new Date().toISOString(),
     stats_updated_at: new Date().toISOString(),
     on_bye: false,
     game: { opponent: s.opp, home: s.home, kickoff_at: s.kick, status: "pre", status_detail: null },
@@ -170,6 +173,7 @@ const HUB: TeamHub = {
   splits: {
     starter_points: round(STARTERS.reduce((a, p) => a + p.points, 0)),
     bench_points: round(ROSTER.filter((p) => p.slot === "BN").reduce((a, p) => a + p.points, 0)),
+    projected_starters: round(STARTERS.reduce((a, p) => a + (p.projection ?? 0), 0)),
     by_position: ["QB", "RB", "WR", "TE", "K", "DST"].map((pos) => {
       const group = STARTERS.filter((p) => p.position === pos);
       return {
@@ -185,53 +189,56 @@ const HUB: TeamHub = {
 
 /** Invented reports on invented players — enough to fire every rule once. */
 const WIRE: Wire = {
-  fetchedAt: new Date().toISOString(),
+  fetchedAt: new Date(Date.now() - 42 * 60000).toISOString(),
   articles: [
     {
       id: "a1", headline: "Colts lean on Taylor as backfield thins out",
       description: "Indianapolis ruled out a second running back on Friday, leaving the workload where it has been all month.",
-      published: new Date(Date.now() - 42 * 60000).toISOString(),
-      url: null, byline: "Fixture", image: null,
+      published_at: new Date(Date.now() - 42 * 60000).toISOString(),
+      url: null, byline: "Fixture", image_url: null, image_alt: null,
       athletes: [{ id: "4242335", name: "Jonathan Taylor" }], teams: ["IND"],
     },
     {
       id: "a2", headline: "Rams list Nacua as questionable with an ankle",
       description: "He was limited in practice Thursday and Friday but travelled with the team.",
-      published: new Date(Date.now() - 3 * 3600000).toISOString(),
-      url: null, byline: "Fixture", image: null,
+      published_at: new Date(Date.now() - 3 * 3600000).toISOString(),
+      url: null, byline: "Fixture", image_url: null, image_alt: null,
       athletes: [{ id: "4426515", name: "Puka Nacua" }], teams: ["LAR"],
     },
     {
       id: "a3", headline: "Seahawks turn to their backup under center",
       description: "A short week and a long injury report leave Seattle starting the second quarterback on the depth chart.",
-      published: new Date(Date.now() - 7 * 3600000).toISOString(),
-      url: null, byline: "Fixture", image: null,
+      published_at: new Date(Date.now() - 7 * 3600000).toISOString(),
+      url: null, byline: "Fixture", image_url: null, image_alt: null,
       athletes: [], teams: ["SEA"],
     },
     {
       id: "a4", headline: "Around the league: five games with playoff weight",
       description: "A look at the Sunday slate and what each result would do to the picture.",
-      published: new Date(Date.now() - 11 * 3600000).toISOString(),
-      url: null, byline: "Fixture", image: null,
+      published_at: new Date(Date.now() - 11 * 3600000).toISOString(),
+      url: null, byline: "Fixture", image_url: null, image_alt: null,
       athletes: [], teams: ["BAL", "KC"],
     },
   ],
   injuries: [
-    { id: "i1", espnId: "900001", name: "Ray Alcott", position: "RB", team: "IND",
-      status: "Out", severity: "out", detail: "Hamstring", comment: "Ruled out Friday.",
-      returnDate: null, updated: new Date().toISOString() },
-    { id: "i2", espnId: "4426515", name: "Puka Nacua", position: "WR", team: "LAR",
-      status: "Questionable", severity: "questionable", detail: "Ankle",
-      comment: "Limited in practice Thursday and Friday.", returnDate: null,
-      updated: new Date().toISOString() },
-    { id: "i3", espnId: "900002", name: "Dell Whitaker", position: "QB", team: "SEA",
-      status: "Out", severity: "out", detail: "Shoulder", comment: null,
-      returnDate: null, updated: new Date().toISOString() },
-    { id: "i4", espnId: "900003", name: "Marcus Vane", position: "WR", team: "GB",
-      status: "Out", severity: "out", detail: "Concussion", comment: "Did not clear protocol.",
-      returnDate: null, updated: new Date().toISOString() },
+    { id: "i1", espn_athlete_id: "900001", player_id: null, name: "Ray Alcott",
+      position: "RB", team: "IND", status: "Out", severity: "out", detail: "Hamstring",
+      location: "Leg", comment: "Ruled out Friday.", return_date: null,
+      reported_at: new Date().toISOString() },
+    // Matched to a roster player by id — the rule that says "your own man is hurt".
+    { id: "i2", espn_athlete_id: "4426515", player_id: "p3", name: "Puka Nacua",
+      position: "WR", team: "LAR", status: "Questionable", severity: "questionable",
+      detail: "Ankle", location: "Leg", comment: "Limited in practice Thursday and Friday.",
+      return_date: null, reported_at: new Date().toISOString() },
+    { id: "i3", espn_athlete_id: "900002", player_id: null, name: "Dell Whitaker",
+      position: "QB", team: "SEA", status: "Out", severity: "out", detail: "Shoulder",
+      location: "Arm", comment: null, return_date: null,
+      reported_at: new Date().toISOString() },
+    { id: "i4", espn_athlete_id: "900003", player_id: null, name: "Marcus Vane",
+      position: "WR", team: "GB", status: "Out", severity: "out", detail: "Concussion",
+      location: "Head", comment: "Did not clear protocol.", return_date: null,
+      reported_at: new Date().toISOString() },
   ],
-  sources: [{ name: "news", ok: true }, { name: "injuries", ok: true }],
 };
 
 export default function TeamPreviewPage() {
