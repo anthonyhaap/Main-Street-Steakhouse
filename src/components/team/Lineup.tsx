@@ -92,16 +92,19 @@ export function PlayerRow({
         )}
       </span>
 
-      <span className="plr__use">
-        {projection != null && (
-          <span style={{ display: "block", color: "var(--gold)", fontWeight: 600 }}>
-            {projection.toFixed(1)} projected
-          </span>
-        )}
-        {use}
-      </span>
+      {/* Usage prose only. The projection used to live here, and went with it
+          whenever the container was too narrow for this column — which is most
+          of the desktop range, because the rail takes width from the lineup the
+          moment the desk goes two-column. A number that small belongs next to
+          the points it is predicting, in a column that never drops. */}
+      <span className="plr__use">{use}</span>
 
-      <span className="plr__pts">{player ? fmtPts(player.points) : "—"}</span>
+      <span className="plr__pts">
+        {player ? fmtPts(player.points) : "—"}
+        {projection != null && (
+          <span className="plr__proj">{projection.toFixed(1)} proj</span>
+        )}
+      </span>
 
       <button
         type="button"

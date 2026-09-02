@@ -1104,6 +1104,17 @@ a.kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); border-c
   font-family: var(--serif); font-variant-numeric: tabular-nums;
   font-size: var(--t-head); text-align: right; letter-spacing: -0.02em;
 }
+/* Scored above, projected beneath it. This column is in every grid variant
+   down to the narrowest, so the projection is the one number that survives
+   every width — which is the point of it living here rather than beside the
+   usage prose. */
+.plr__proj {
+  display: block;
+  margin-top: 1px;
+  font-family: var(--sans);
+  font-size: 10px; font-weight: 600; letter-spacing: 0.02em;
+  color: var(--gold); white-space: nowrap;
+}
 .plr__act {
   display: grid; place-items: center;
   width: 30px; height: 30px;
