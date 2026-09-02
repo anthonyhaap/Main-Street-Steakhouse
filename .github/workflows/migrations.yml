@@ -22,9 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-      # No install: the check is dependency-free on purpose, so it cannot be
-      # broken by a lockfile change and takes no database credentials.
+      # No setup-node and no install, on purpose. The check is Node stdlib
+      # only, so the runner's own Node runs it and this gate cannot be broken
+      # by a lockfile, a registry outage, or an expired credential.
       - run: node scripts/check-migrations.mjs
