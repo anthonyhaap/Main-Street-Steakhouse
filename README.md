@@ -198,18 +198,32 @@ pushes forward, it never replays what it cannot see. A recorded version with no
 file is harmless. **A file whose version is not recorded is the dangerous
 direction**, because that is the one the integration would run.
 
-So the invariant is one-way, and it is checkable:
+So the invariant is one-way, and CI enforces it. `npm run check:migrations` —
+run on every pull request touching `supabase/migrations/` by
+`.github/workflows/migrations.yml` — checks each filename against
+`supabase/applied_versions.txt`, the committed ledger of recorded versions. It
+takes no database credentials and has no dependencies, so nothing can break it
+but the thing it is looking for.
 
-```sql
--- every filename's version must appear here; anything missing would be replayed
-select version from supabase_migrations.schema_migrations order by version;
-```
+It rejects a file whose version is not in the ledger, a filename whose name
+half disagrees with the recorded one, a repeated version, and anything not
+shaped like a migration. It warns, without failing, when two files share a
+name — legal (`20260829020645` and `20260829021500` are both `team_hub`) but
+also what a migration checked in twice looks like.
 
-**When adding a migration**, apply it first and name the file after the version
-the database recorded for it — not a timestamp you picked. The two differ:
+It compares **names only**. A file correctly named for a recorded version whose
+*contents* are something else passes; catching that means hashing against
+`schema_migrations.statements`, which needs database access this check
+deliberately does not have.
+
+**When adding a migration**, apply it first, name the file after the version the
+database recorded for it — not a timestamp you picked — and add that version to
+the ledger (the refresh query is in its header). The two differ because
 `apply_migration` stamps its own. Getting this backwards is what left
 `20260902010000` and `20260902011500` on disk against `20260902005227` and
-`20260902005322` recorded, and it went unnoticed because nothing enforces it.
+`20260902005322` recorded, and days later checked a whole migration in a second
+time as `20260902120000`, which would have re-run a `drop function` against
+production. Both are now CI failures rather than things somebody has to notice.
 
 Two files carry content from a version adjacent to their name, both deliberate
 and both no-ops:

@@ -1,0 +1,66 @@
+# Every migration version recorded in supabase_migrations.schema_migrations on
+# the live project (ojhjrxolrsppircyrcff), newest last. This is the ledger that
+# scripts/check-migrations.mjs checks supabase/migrations/ against.
+#
+# A version here with no file is fine — plenty were applied before the repo
+# existed. A FILE with no version here is the failure, because that is the one
+# the GitHub integration would run against production.
+#
+# Refresh after applying a migration, with the version the database assigned:
+#
+#   select version || ' ' || name
+#     from supabase_migrations.schema_migrations order by version;
+#
+20260809015006 core_schema
+20260809015038 draft_functions_and_escape_hatch
+20260809015258 players_gsis_canonical_id
+20260809015520 nflverse_player_loader
+20260809015628 rls_and_commissioner_authz
+20260809021720 league_config_teams_and_dst
+20260809022447 sleeper_primary_feed
+20260809022638 sleeper_canonical_player_pool
+20260809022811 scoring_engine
+20260809023031 fix_loader_temp_table_reuse
+20260809023212 scoring_engine_fixes
+20260809023920 fix_dst_touchdown_key
+20260809024820 league_rules_locked
+20260809025227 forced_fumbles_and_rule_versioning
+20260809025301 commissioner_mutations
+20260809030533 adp_and_draft_queue
+20260809030612 fix_adp_kicker_and_dst_matching
+20260809030659 autopick_and_tick_worker
+20260809030753 need_aware_autopick
+20260809031015 draft_room_views_and_pick
+20260810010054 dedupe_player_pool
+20260810010710 manager_invites_and_schedule
+20260810010845 lineups_locks_scoring_standings
+20260824034323 revoke_anon_execute_on_public_functions
+20260824034350 revoke_public_execute_on_public_functions
+20260826022321 ff_poll_live_and_settle
+20260826022327 backfill_bye_weeks
+20260826022547 frontend_support_clock_pool_realtime
+20260826023035 nfl_weeks_and_current_week
+20260826023254 harden_commissioner_authorization
+20260826030012 fix_dst_shutout_scoring
+20260826030518 membership_rls_and_email_allowlist
+20260827025356 realtime_and_secure_views
+20260827025419 league_clubhouse_challenges
+20260827030004 clubhouse_rpc_contracts
+20260827033240 external_settlement_workflow
+20260827033943 league_pulse
+20260827034049 league_pulse_fix_columns
+20260827034158 league_pulse_automation_health
+20260829020645 team_hub
+20260829021500 team_hub
+20260829021956 team_hub_documented
+20260829024753 player_bio
+20260829025225 projections
+20260829032335 nfl_wire
+20260829032611 wire_cron
+20260829051500 team_hub_projections
+20260829120826 player_card
+20260901004318 draft_pool_faces
+20260902005227 season_projections
+20260902005322 draft_board_faces
+20260902011415 projections_off_draft_night
+20260902011636 commissioner_year_round

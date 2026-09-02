@@ -1,0 +1,30 @@
+name: migrations
+
+# The repo is connected to Supabase, so a migration file whose version is not
+# in the remote history gets applied to production on merge. This runs before
+# that can happen.
+on:
+  pull_request:
+    paths:
+      - "supabase/migrations/**"
+      - "supabase/applied_versions.txt"
+      - "scripts/check-migrations.mjs"
+      - ".github/workflows/migrations.yml"
+  push:
+    branches: [main]
+    paths:
+      - "supabase/migrations/**"
+      - "supabase/applied_versions.txt"
+
+jobs:
+  filenames:
+    name: filenames match recorded versions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      # No install: the check is dependency-free on purpose, so it cannot be
+      # broken by a lockfile change and takes no database credentials.
+      - run: node scripts/check-migrations.mjs
