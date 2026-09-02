@@ -1014,14 +1014,20 @@ a.kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); border-c
 /* Flex rather than grid: when six tiles wrap onto two rows, the last row
    should stretch to fill. A grid leaves the track empty and the container's
    hairline colour reads as a hole. */
+/* Wrapping flex was the wrong tool here: the last row grows to fill, so a
+   stat left over on its own became a full-width cell beside five normal ones —
+   684px of "Under 5" in the draft room's player sheet. auto-fit gives every
+   row the same tracks, so a leftover stat is just a normal cell with space
+   after it, at every width. Where the strip already fitted on one row the
+   result is identical, because collapsed empty tracks leave the filled ones
+   sharing the width exactly as flex-grow did. */
 .th-strip {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(108px, 1fr));
   background: #fffdf8;
   border-top: 1px solid var(--rule);
 }
 .th-stat {
-  flex: 1 1 118px;
   min-width: 0;
   padding: var(--s3) var(--s4);
   display: grid; gap: 3px; align-content: start;
