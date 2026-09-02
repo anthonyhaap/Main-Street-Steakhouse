@@ -167,7 +167,29 @@ recorded versions makes these a no-op instead of a re-run against production.
 
 Migrations from before 2026-08-26 were applied directly and are not checked in;
 they exist only in the remote history, which is fine — the integration only
-pushes forward, it never replays what it cannot see.
+pushes forward, it never replays what it cannot see. A recorded version with no
+file is harmless. **A file whose version is not recorded is the dangerous
+direction**, because that is the one the integration would run.
 
-**When adding a new migration**, use a fresh timestamp ahead of
-`20260826030518`, and never rename or edit a file that has already been applied.
+So the invariant is one-way, and it is checkable:
+
+```sql
+-- every filename's version must appear here; anything missing would be replayed
+select version from supabase_migrations.schema_migrations order by version;
+```
+
+**When adding a migration**, apply it first and name the file after the version
+the database recorded for it — not a timestamp you picked. The two differ:
+`apply_migration` stamps its own. Getting this backwards is what left
+`20260902010000` and `20260902011500` on disk against `20260902005227` and
+`20260902005322` recorded, and it went unnoticed because nothing enforces it.
+
+Two files carry content from a version adjacent to their name, both deliberate
+and both no-ops:
+
+| file | note |
+|------|------|
+| `20260827034158_league_pulse_automation_health.sql` | four comment lines the applied version lacks; the code is byte-identical to the live `ff_league_pulse` |
+| `20260829021956_team_hub_documented.sql` | byte-exact for this version; it was previously misfiled under `20260829021500`, an empty recorded marker |
+
+Never edit a file that has been applied — replace it with a new migration.
