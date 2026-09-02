@@ -45,6 +45,7 @@ export default function MatchupsPage() {
 
   const weeks = Number((league?.settings as { regular_season_weeks?: number })?.regular_season_weeks ?? 14) + 3;
   const nameOf = (id: string) => data?.teams.find((t) => t.id === id)?.name ?? "—";
+  const managerOf = (id: string) => data?.teams.find((t) => t.id === id)?.manager_name ?? null;
   const startersFor = (id: string) => (data?.points ?? []).filter((r) => r.team_id === id && r.slot !== "BN");
 
   return (
@@ -83,8 +84,8 @@ export default function MatchupsPage() {
               >
                 {isOpen ? <ChevronDown size={16} color="var(--dim)" /> : <ChevronRight size={16} color="var(--dim)" />}
                 <div style={{ flex: 1, display: "grid", gap: "var(--s2)", minWidth: 0 }}>
-                  <Side name={nameOf(m.away_team_id)} pts={ap} win={ap > hp} mine={m.away_team_id === team?.id} />
-                  <Side name={nameOf(m.home_team_id)} pts={hp} win={hp > ap} mine={m.home_team_id === team?.id} />
+                  <Side name={nameOf(m.away_team_id)} manager={managerOf(m.away_team_id)} pts={ap} win={ap > hp} mine={m.away_team_id === team?.id} />
+                  <Side name={nameOf(m.home_team_id)} manager={managerOf(m.home_team_id)} pts={hp} win={hp > ap} mine={m.home_team_id === team?.id} />
                 </div>
               </button>
 
@@ -121,17 +122,26 @@ export default function MatchupsPage() {
   );
 }
 
-function Side({ name, pts, win, mine }: { name: string; pts: number; win: boolean; mine: boolean }) {
+function Side({ name, manager, pts, win, mine }: {
+  name: string; manager: string | null; pts: number; win: boolean; mine: boolean;
+}) {
   const shown = useCountUp(pts);
   return (
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "var(--s3)", minWidth: 0 }}>
       <div style={{ display: "flex", alignItems: "center", gap: "var(--s2)", minWidth: 0 }}>
         <Seal name={name} mine={mine} size={26} />
-        <span style={{
-          fontSize: "var(--t-head)", fontWeight: win ? 600 : 400,
-          color: win ? "var(--cream)" : "var(--muted)",
-          whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-        }}>{name}</span>
+        <span style={{ minWidth: 0, display: "grid" }}>
+          <span style={{
+            fontSize: "var(--t-head)", fontWeight: win ? 600 : 400,
+            color: win ? "var(--cream)" : "var(--muted)",
+            whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+          }}>{name}</span>
+          {manager && (
+            <span style={{ fontSize: "var(--t-micro)", color: "var(--dim)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              {manager}
+            </span>
+          )}
+        </span>
       </div>
       <span className="score" style={{ fontSize: "1.45rem", color: win ? "var(--gold)" : "var(--muted)" }}>
         {shown.toFixed(1)}

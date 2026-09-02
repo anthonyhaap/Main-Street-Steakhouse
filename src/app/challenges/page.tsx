@@ -57,7 +57,7 @@ export default function ChallengesPage() {
     {error && <p role="alert" style={{ color: "var(--lose)" }}>{error}</p>}
     {!data ? <div className="card"><SkeletonRows n={5}/></div> : <div className="grid-auto">{data.challenges.length === 0 && <div className="card"><div className="empty">No challenges yet.<br/>Be the first to call your shot.</div></div>}{data.challenges.map((item) => <ChallengeCard key={item.id} item={item} userId={user?.id ?? null} busy={busy} isCommissioner={isCommissioner} profiles={data.profiles} nameOf={nameOf} onRespond={respond} onMarkPaid={markPaid} onConfirm={(id) => run(() => supabaseBrowser().rpc("ff_confirm_challenge_received", { p_challenge_id: id }))} onDispute={dispute} onResolve={resolve}/>)}</div>}
     {dialog === "challenge" && data && <ChallengeDialog matchups={data.matchups} close={() => setDialog(null)} done={async () => { setDialog(null); await refetch(); }}/>}
-    {dialog === "profile" && <ProfileDialog initial={myProfile} displayName={team?.name ?? "League manager"} close={() => setDialog(null)} done={async () => { setDialog(null); await refetch(); }}/>}
+    {dialog === "profile" && <ProfileDialog initial={myProfile} displayName={team?.manager_name ?? team?.name ?? "League manager"} close={() => setDialog(null)} done={async () => { setDialog(null); await refetch(); }}/>}
   </main></>;
 }
 
