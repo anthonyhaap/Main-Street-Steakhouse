@@ -238,6 +238,34 @@ version whose body is something else passes either way; catching that means
 hashing against `schema_migrations.statements`, which is a bigger check than
 this one.
 
+#### Turning on the database-verified mode
+
+The credential does not have to be the `postgres` superuser, and should not be:
+that is full production access sitting in a CI secret to run one `select`
+against one table. `20260902020943_ci_migrations_reader.sql` creates a role
+that can do exactly that and nothing else — no superuser, no `BYPASSRLS`, no
+role memberships, a connection limit of four, and a single `SELECT` grant on
+`supabase_migrations.schema_migrations`.
+
+**It is created without a password, so it cannot authenticate.** The role
+existing grants nobody anything; it only becomes usable when someone sets one.
+To finish:
+
+1. Set a password for it (Supabase SQL editor):
+   `alter role ci_migrations_reader with password '…';`
+2. Add a `SUPABASE_DB_URL` repository secret under Settings → Secrets and
+   variables → Actions, using the **session pooler** host:
+   `postgresql://ci_migrations_reader.ojhjrxolrsppircyrcff:PASSWORD@aws-0-us-east-1.pooler.supabase.com:5432/postgres`
+
+Use the pooler rather than `db.<ref>.supabase.co`: the direct host is IPv6-only
+and GitHub's hosted runners have no IPv6, so a direct string works from a
+laptop and hangs in CI.
+
+You can tell the stronger mode is live from the check's own output — it logs
+`rows: 54` and says *recorded in the database* instead of *recorded in the
+ledger*, and drops the note about configuring the secret. To undo the role
+entirely: `drop owned by ci_migrations_reader; drop role ci_migrations_reader;`
+
 **When adding a migration**, apply it first, name the file after the version the
 database recorded for it — not a timestamp you picked — and add that version to
 the ledger (the refresh query is in its header). The two differ because
