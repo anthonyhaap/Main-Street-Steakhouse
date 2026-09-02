@@ -1011,17 +1011,28 @@ a.kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); border-c
 .th-vs__pts[data-lead="false"] { color: var(--faint); }
 .th-vs__sep { font: 700 var(--t-micro) var(--sans); letter-spacing: 0.2em; color: var(--faint); }
 
+/* Flex rather than grid: when six tiles wrap onto two rows, the last row
+   should stretch to fill. A grid leaves the track empty and the container's
+   hairline colour reads as a hole. */
 .th-strip {
-  display: grid;
-  gap: 1px;
-  background: var(--rule);
+  display: flex;
+  flex-wrap: wrap;
+  background: #fffdf8;
   border-top: 1px solid var(--rule);
-  grid-template-columns: repeat(auto-fit, minmax(min(50%, 140px), 1fr));
 }
 .th-stat {
-  background: #fffdf8;
+  flex: 1 1 118px;
+  min-width: 0;
   padding: var(--s3) var(--s4);
   display: grid; gap: 3px; align-content: start;
+  border-left: 1px solid var(--rule);
+  border-top: 1px solid var(--rule);
+}
+/* The first tile of each row owns the left edge; the first row owns the top. */
+.th-strip > .th-stat:first-child { border-left: 0; }
+.th-strip > .th-stat { border-top: 0; }
+@supports (grid-template-columns: subgrid) {
+  .th-strip { row-gap: 0; }
 }
 .th-stat b {
   font: 400 clamp(1.15rem, 0.9rem + 0.8vw, 1.5rem)/1 var(--serif);
@@ -1163,6 +1174,8 @@ a.kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); border-c
   display: grid; place-items: center;
 }
 .news__shot img { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* A photo that 404s must not spill its alt text across the card. */
+.news__shot img[data-failed="true"] { display: none; }
 .news__body { min-width: 0; }
 .news__body b { display: block; font-weight: 600; font-size: var(--t-small); line-height: 1.4; }
 .news__body p {
@@ -1238,3 +1251,165 @@ a.kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); border-c
 .gamelog__col[data-best="true"] .gamelog__bar { background: linear-gradient(180deg, var(--wine-lit), var(--wine)); }
 .gamelog__col b { font-size: 10px; font-variant-numeric: tabular-nums; color: var(--muted); }
 .gamelog__col span { font-size: 9px; color: var(--faint); letter-spacing: 0.08em; }
+
+/* ============================================================================
+   PLAYER — the badge, and the page behind it
+   ----------------------------------------------------------------------------
+   A name in a lineup is a door. The badge is the handle: the same face, crest
+   and two lines of type everywhere a player is named, always linking to the
+   same place. The page behind it is a card — picture, club colours, the bio, a
+   season of evidence and what he is projected to do next.
+   ========================================================================== */
+
+.pbadge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s3);
+  min-width: 0;
+  text-decoration: none;
+  color: inherit;
+  border-radius: 999px;
+  transition: background 0.15s var(--ease);
+}
+.pbadge[data-tone="chip"] {
+  padding: 4px 12px 4px 4px;
+  border: 1px solid var(--rule);
+  background: var(--ink-1);
+  box-shadow: var(--shadow-1);
+}
+.pbadge:hover .pbadge__name { color: var(--wine); text-decoration: underline; text-underline-offset: 2px; }
+.pbadge__face { position: relative; flex-shrink: 0; display: block; }
+.pbadge__crest {
+  position: absolute; right: -3px; bottom: -2px;
+  display: grid; place-items: center;
+  border-radius: 50%; background: var(--ink-1);
+  box-shadow: 0 1px 3px #1b181433;
+}
+.pbadge__text { min-width: 0; display: block; }
+.pbadge__name {
+  display: flex; align-items: center; gap: 6px;
+  font-weight: 600; font-size: var(--t-small);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  transition: color 0.15s var(--ease);
+}
+.pbadge__sub {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  margin-top: 2px;
+  font-size: var(--t-micro); color: var(--dim); letter-spacing: 0.04em;
+}
+
+/* --- page ---------------------------------------------------------------- */
+
+.pl-hero {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-2);
+  /* The club's colour, at an alpha that stays a background. */
+  background:
+    radial-gradient(620px 300px at 8% -60%, var(--club-wash, #c99c3f24), transparent 70%),
+    linear-gradient(180deg, #ffffff, #fdfaf3);
+}
+.pl-hero::before {
+  content: "";
+  position: absolute; inset: 0 0 auto 0; height: 4px;
+  background: linear-gradient(90deg, var(--club, var(--wine)), var(--gold-lit) 70%, transparent);
+}
+.pl-hero__top {
+  display: flex; align-items: center; gap: clamp(var(--s4), 3vw, var(--s6));
+  padding: clamp(var(--s5), 3vw, var(--s6));
+  flex-wrap: wrap;
+}
+.pl-shot {
+  position: relative;
+  width: clamp(88px, 14vw, 132px);
+  height: clamp(88px, 14vw, 132px);
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--club-wash, var(--ink-2));
+  border: 2px solid var(--ink-1);
+  box-shadow: var(--shadow-2);
+  overflow: hidden;
+  display: grid; place-items: center;
+}
+.pl-shot img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pl-id { min-width: 0; flex: 1; }
+.pl-id h1 {
+  margin: 0;
+  font: 400 var(--t-title)/1.05 var(--serif);
+  letter-spacing: -0.025em;
+}
+.pl-id__line {
+  display: flex; align-items: center; gap: var(--s2);
+  flex-wrap: wrap; margin-top: var(--s3);
+}
+.pl-id__club { display: inline-flex; align-items: center; gap: 7px; font-size: var(--t-small); color: var(--muted); }
+
+.pl-bio {
+  display: flex; flex-wrap: wrap;
+  background: #fffdf8;
+  border-top: 1px solid var(--rule);
+}
+.pl-bio > div {
+  flex: 1 1 116px; min-width: 0;
+  padding: var(--s3) var(--s4);
+  display: grid; gap: 3px;
+  border-left: 1px solid var(--rule);
+}
+.pl-bio > div:first-child { border-left: 0; }
+.pl-bio b { font: 400 1.1rem/1 var(--serif); font-variant-numeric: tabular-nums; }
+.pl-bio span { font-size: var(--t-micro); color: var(--dim); letter-spacing: 0.06em; text-transform: uppercase; }
+
+.pl-grid { display: grid; gap: clamp(var(--s4), 2vw, var(--s5)); align-items: start; }
+@media (min-width: 1080px) {
+  .pl-grid { grid-template-columns: minmax(0, 1.5fr) minmax(320px, 1fr); }
+}
+
+/* --- projection strip ---------------------------------------------------- */
+
+.proj { display: flex; gap: var(--s2); padding: var(--s4) var(--s5); overflow-x: auto; }
+.proj__wk {
+  flex: 0 0 auto; min-width: 74px;
+  border: 1px solid var(--rule); border-radius: var(--r-sm);
+  background: var(--ink-1); padding: var(--s3) var(--s2);
+  display: grid; gap: 3px; justify-items: center; text-align: center;
+}
+.proj__wk[data-next="true"] {
+  border-color: var(--gold-lit); background: var(--gold-haze);
+  box-shadow: 0 0 0 3px var(--gold-wash);
+}
+.proj__wk b { font: 400 1.3rem/1 var(--serif); font-variant-numeric: tabular-nums; }
+.proj__wk span { font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); }
+
+/* --- stat table ---------------------------------------------------------- */
+
+.statline { width: 100%; border-collapse: collapse; }
+.statline th, .statline td { padding: var(--s2) var(--s4); text-align: right; white-space: nowrap; }
+.statline th:first-child, .statline td:first-child { text-align: left; }
+.statline thead th {
+  font: 700 var(--t-micro)/1 var(--sans); letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--dim); border-bottom: 1px solid var(--rule);
+}
+.statline tbody td { font-variant-numeric: tabular-nums; font-size: var(--t-small); }
+.statline tbody tr + tr td { border-top: 1px solid var(--rule-soft); }
+
+/* --- depth chart --------------------------------------------------------- */
+
+.depth { display: grid; }
+.depth__row {
+  display: grid; grid-template-columns: 26px minmax(0, 1fr) auto;
+  gap: var(--s3); align-items: center;
+  padding: 8px var(--s4);
+  text-decoration: none; color: inherit;
+}
+.depth__row + .depth__row { border-top: 1px solid var(--rule-soft); }
+.depth__row:hover { background: var(--ink-2); }
+.depth__row[data-me="true"] { background: var(--gold-haze); box-shadow: inset 3px 0 0 var(--gold-lit); }
+.depth__ord { font: 400 13px/1 var(--serif); color: var(--faint); text-align: right; font-variant-numeric: tabular-nums; }
+.depth__name { font-size: var(--t-small); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.depth__row[data-me="true"] .depth__name { font-weight: 600; }
+
+/* An insight's headline is the player's name in a sentence — link it. */
+.ins__link { text-decoration: none; color: inherit; }
+.ins__link:hover { color: var(--wine); text-decoration: underline; text-underline-offset: 2px; }

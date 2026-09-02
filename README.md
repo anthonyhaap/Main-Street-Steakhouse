@@ -27,6 +27,9 @@ Scheduled `pg_cron` jobs do the work nobody is watching:
 |----------------|-------------|---------------------------------------------------------|
 | `draft-tick`   | every 5s    | `ff_tick_drafts()` — autopicks when a clock expires      |
 | `live-stats`   | every 2 min | `ff_poll_live()` — pulls Sleeper stats during game windows |
+| `wire-refresh` | every 15 min| `ff_refresh_wire()` — ESPN news and the league injury report |
+| `projections`  | every 6 h   | `ff_refresh_projections()` — Sleeper's weekly projections |
+| `player-pool`  | daily 08:40 | `ff_load_sleeper_players()` — bio, depth chart, injury designation |
 | `stats-settle` | daily 09:17 | `ff_settle_recent_weeks()` — re-pulls for stat corrections |
 
 ### Live updates
@@ -49,12 +52,14 @@ position and this week's real NFL game, plus the team's record, league rank,
 matchup and per-position splits. Historical stat lines are re-scored with *this*
 league's rules, so a 2025 game log reads as what it would have been worth to us.
 
-Beside the lineup sits the wire. `GET /api/nfl/wire` fetches ESPN's public news
-and league-wide injury feeds on the server, normalises them defensively and
-caches for five minutes, so twelve managers are one request upstream and a dead
-feed costs a card rather than a page. Club crests and player headshots are
-hotlinked from ESPN's CDN by ids we already hold (`player_id_map`), with a
-monogram fallback — no image pipeline, no storage.
+Beside the lineup sits the wire. ESPN's public news and league-wide injury
+feeds are loaded into `nfl_news` and `nfl_injuries` by `pg_cron`, which means
+the app reads them as ordinary tables under the same live contract as
+everything else — and an injury row carries the `players.id` it refers to, so
+"is one of my guys hurt" is a foreign key rather than a string match. Club
+crests and player headshots are hotlinked from ESPN's CDN by ids we already
+hold (`player_id_map`), with a monogram fallback — no image pipeline, no
+storage.
 
 The two are joined by `src/lib/nfl/insights.ts`, which is the point of the page:
 a national injury report is noise until it is read against your roster. The back
@@ -62,8 +67,30 @@ ahead of yours is out, so his carries are yours; the quarterback throwing to you
 receiver is out, so that is a downgrade; your own starter is questionable, so act
 on it. Pure function, roster in and ranked notes out.
 
-`/preview/team` renders the whole desk from a fixture — real players and real
-stat lines, invented wire — so the layout can be inspected without a session.
+### Players
+
+Every name in the app is a `PlayerBadge`: a headshot on the club's colour with
+the crest in the corner, linking to `/player/[id]`. `ff_player_card` assembles
+that page in one call — bio, club, injury and expected return, this season and
+last (both scored under our rules), the projected week and rest of season, the
+club's own depth chart, and the wire filtered to him.
+
+Three feeds keep it current, all free and keyless:
+
+| source | gives |
+|--------|-------|
+| Sleeper `/players/nfl` | age, height, weight, college, jersey, experience, **depth chart**, injury designation |
+| Sleeper `/projections/nfl/…` | **weekly projections**, in the same stat shape as the actuals |
+| ESPN news + injuries | headlines with photographs, and the league-wide report |
+
+Because projections arrive in the same shape as real stat lines, `ff_score`
+prices them with this league's rules: the number on the card is what the
+projection is worth *here*, not somebody else's PPR setting.
+
+`/preview/team` and `/preview/player` render both from fixtures — the team desk
+from real players with an invented wire, the player card from a verbatim
+snapshot of one real response — so either layout can be inspected without a
+session.
 
 ## Setup
 

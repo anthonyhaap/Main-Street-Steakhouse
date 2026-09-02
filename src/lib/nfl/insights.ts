@@ -2,30 +2,30 @@
  * The opportunity engine.
  *
  * A wire full of league news is noise until it is read against *your* roster.
- * The thing a manager actually wants to know on a Sunday morning is not "who
- * gothurt" — it is "what does that do to my lineup". Two teams' worth of injury
- * reports are one line of value: the starter ahead of your back is out, so his
- * carries are your carries.
+ * The thing a manager wants on a Sunday morning is not "who got hurt" — it is
+ * "what does that do to my lineup". Two clubs' worth of injury reports are one
+ * line of value: the back ahead of yours is out, so his carries are yours.
  *
- * So this is a pure function: roster in, ranked notes out. No fetching, no
- * state, no rendering. That makes the judgement calls below — who counts as a
- * beneficiary, what counts as a downgrade, which note outranks which — the only
- * thing in the file, and testable on their own.
+ * Pure function: roster in, ranked notes out. No fetching, no state, no
+ * rendering — which leaves the judgement calls (who counts as a beneficiary,
+ * what counts as a downgrade, which note outranks which) as the only thing in
+ * the file.
  *
  * The rules, in the order they fire:
  *
  *   1. A player of yours is himself on the report → that is the headline, and
  *      the only note that can start a lineup change. Never dressed up as good
  *      news.
- *   2. A teammate at the same position is out → the touches move. An RB's
- *      carries, a receiver's targets. Weighted by how far up the depth chart
- *      the absence goes: the RB1 going down matters, the RB4 does not.
+ *   2. A man ahead of him at his own club is out → the touches move. An RB's
+ *      carries, a receiver's targets.
  *   3. The quarterback throwing to your receiver is out → a downgrade, because
- *      target volume survives a QB change and efficiency does not.
+ *      target volume survives a quarterback change and efficiency does not.
  *   4. Your player is on bye, or has no game this week → a scheduling fact
  *      worth as much as any injury and cheaper to act on.
  *
- * Every note carries the player it concerns so the UI can put a face on it.
+ * Matching is by `player_id`. The injury loader resolves it when the feed is
+ * ingested, so a roster row and a report row are the same player by key rather
+ * than by a name or an id ESPN does not publish.
  */
 
 import type { HubPlayer, WireArticle, WireInjury } from "@/lib/nfl/types";
@@ -43,21 +43,17 @@ export type Insight = {
   /** The player of yours this is about. */
   player: HubPlayer;
   /** The other player who caused it, when there is one. */
-  cause?: { name: string; position: string | null; team: string | null; status: string; espnId: string | null };
+  cause?: { name: string; position: string | null; team: string | null; status: string };
 };
 
-/** Positions whose touches flow to the same position group when one is out. */
+/** Positions whose work flows to the same group when one of them is out. */
 const SHARES: Record<string, string[]> = {
   RB: ["RB"],
   WR: ["WR", "TE"],
   TE: ["WR", "TE"],
 };
 
-const WORD: Record<string, string> = {
-  RB: "carries",
-  WR: "targets",
-  TE: "targets",
-};
+const WORD: Record<string, string> = { RB: "carries", WR: "targets", TE: "targets" };
 
 const OUT: WireInjury["severity"][] = ["out", "doubtful"];
 
@@ -74,7 +70,7 @@ const volumeNote = (p: HubPlayer): string | null => {
 
 export function buildInsights(roster: HubPlayer[], injuries: WireInjury[], week: number): Insight[] {
   const notes: Insight[] = [];
-  const mine = new Set(roster.map((p) => p.espn_id).filter(Boolean));
+  const mine = new Set(roster.map((p) => p.player_id));
 
   // Index the report by club once; every rule below is a lookup, not a scan.
   const byClub = new Map<string, WireInjury[]>();
@@ -89,8 +85,8 @@ export function buildInsights(roster: HubPlayer[], injuries: WireInjury[], week:
     const club = p.nfl_team ? byClub.get(p.nfl_team) ?? [] : [];
 
     // --- 1. your own guy is hurt ---------------------------------------
-    const self = club.find((i) => i.espnId && i.espnId === p.espn_id);
-    if (self && self.severity !== "probable") {
+    const self = club.find((i) => i.player_id === p.player_id);
+    if (self) {
       const starting = p.slot !== "BN";
       notes.push({
         id: `self-${p.player_id}`,
@@ -100,10 +96,10 @@ export function buildInsights(roster: HubPlayer[], injuries: WireInjury[], week:
         detail: [
           self.detail ? `${self.detail}.` : null,
           starting ? `He is in your ${p.slot} slot.` : "He is on your bench.",
-          self.comment,
+          self.return_date ? `Targeting a return ${self.return_date}.` : null,
         ].filter(Boolean).join(" "),
         player: p,
-        cause: { name: self.name, position: self.position, team: self.team, status: self.status, espnId: self.espnId },
+        cause: { name: self.name, position: self.position, team: self.team, status: self.status },
       });
     }
 
@@ -112,12 +108,11 @@ export function buildInsights(roster: HubPlayer[], injuries: WireInjury[], week:
     if (shares.length && !self) {
       for (const inj of club) {
         if (!OUT.includes(inj.severity)) continue;
-        if (inj.espnId && inj.espnId === p.espn_id) continue;
-        if (mine.has(inj.espnId ?? "")) continue;
+        if (inj.player_id && mine.has(inj.player_id)) continue;
         if (!inj.position || !shares.includes(inj.position)) continue;
 
         // Only an absence *ahead of* your player frees up work. Without a depth
-        // rank we assume it might, at a lower weight, rather than staying quiet.
+        // rank we say it might, at a lower weight, rather than staying quiet.
         const ahead = p.depth.rank == null || p.depth.rank > 1;
         const sameSpot = inj.position === p.position;
 
@@ -136,14 +131,15 @@ export function buildInsights(roster: HubPlayer[], injuries: WireInjury[], week:
             volumeNote(p) ? `${volumeNote(p)} — expect more.` : "",
           ].filter(Boolean).join(" "),
           player: p,
-          cause: { name: inj.name, position: inj.position, team: inj.team, status: inj.status, espnId: inj.espnId },
+          cause: { name: inj.name, position: inj.position, team: inj.team, status: inj.status },
         });
       }
     }
 
     // --- 3. the man throwing him the ball is out -----------------------
     if (["WR", "TE", "RB"].includes(p.position) && !self) {
-      const qb = club.find((i) => i.position === "QB" && OUT.includes(i.severity) && !mine.has(i.espnId ?? ""));
+      const qb = club.find((i) => i.position === "QB" && OUT.includes(i.severity)
+                                  && !(i.player_id && mine.has(i.player_id)));
       if (qb) {
         notes.push({
           id: `qb-${p.player_id}-${qb.id}`,
@@ -152,7 +148,7 @@ export function buildInsights(roster: HubPlayer[], injuries: WireInjury[], week:
           headline: `${qb.name} is ${qb.status.toLowerCase()} — that lands on ${p.full_name}`,
           detail: `The ${clubName(p.nfl_team)} go to a backup at quarterback${qb.detail ? ` (${qb.detail})` : ""}. Volume usually holds; efficiency usually doesn't.`,
           player: p,
-          cause: { name: qb.name, position: qb.position, team: qb.team, status: qb.status, espnId: qb.espnId },
+          cause: { name: qb.name, position: qb.position, team: qb.team, status: qb.status },
         });
       }
     }
@@ -188,7 +184,7 @@ export function buildInsights(roster: HubPlayer[], injuries: WireInjury[], week:
   return notes
     .sort((a, b) => b.weight - a.weight)
     .filter((n) => {
-      const key = `${n.player.player_id}:${n.cause?.espnId ?? n.kind}`;
+      const key = `${n.player.player_id}:${n.cause?.name ?? n.kind}`;
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
@@ -197,22 +193,23 @@ export function buildInsights(roster: HubPlayer[], injuries: WireInjury[], week:
 
 /**
  * The stories that are actually about your team, newest first: anything filed
- * under one of your players, or under a club you hold a starter from.
+ * under one of your players, or under a club you hold someone from.
  */
 export function myNews(roster: HubPlayer[], articles: WireArticle[]) {
-  const byEspn = new Map(roster.filter((p) => p.espn_id).map((p) => [p.espn_id!, p]));
+  const byEspn = new Map(roster.filter((p) => p.espn_id).map((p) => [p.espn_id as string, p]));
   const clubs = new Set(roster.map((p) => p.nfl_team).filter((t): t is string => !!t));
 
   return articles
     .map((a) => {
-      const players = a.athletes.map((x) => byEspn.get(x.id)).filter((p): p is HubPlayer => !!p);
-      const clubHit = a.teams.filter((t) => clubs.has(t));
-      return { article: a, players, clubs: clubHit };
+      const players = a.athletes
+        .map((x) => byEspn.get(x.id))
+        .filter((p): p is HubPlayer => !!p);
+      return { article: a, players, clubs: a.teams.filter((t) => clubs.has(t)) };
     })
     .filter((r) => r.players.length > 0 || r.clubs.length > 0)
     .sort((a, b) => {
       // A story about your player beats a story about his club.
       if (a.players.length !== b.players.length) return b.players.length - a.players.length;
-      return Date.parse(b.article.published ?? "") - Date.parse(a.article.published ?? "");
+      return Date.parse(b.article.published_at ?? "") - Date.parse(a.article.published_at ?? "");
     });
 }
