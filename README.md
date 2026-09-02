@@ -106,6 +106,32 @@ from real players with an invented wire, the player card from a verbatim
 snapshot of one real response, the draft pool from ten real rows — so any of
 them can be inspected without a session.
 
+### The season
+
+**Standings carry playoff odds.** `ff_playoff_outlook` returns the table, the
+whole schedule with a played flag per matchup, and each lineup's projected
+points per game (the starters' remaining season projections, spread over the
+weeks left). `src/lib/playoffs.ts` then plays the rest of the season out 4,000
+times in the browser: each team's weekly score is normal around a blend of what
+it has scored and what its lineup projects, with the projection worth about
+four games of evidence. The top *N* by wins-then-points are in. Clinches and
+eliminations are worked out exactly, not read off the simulation, so a
+"Clinched" badge is a mathematical claim and ">99%" is not.
+
+**The commissioner edits rules all year.** `/admin` has the league rules
+(season length, playoff teams and byes, trade deadline, waivers, keepers,
+roster slots) and every scoring value. Scoring changes are versioned by
+effective week through `ff_set_scoring_rules`; `roster_points` already prices
+each week with the rules in force for it, and `ff_rescore_weeks` rewrites the
+matchup totals on the spot so the standings agree immediately rather than after
+the next cron run.
+
+**Managers have names.** `teams.manager_name` is what the league sees under a
+team everywhere; the email is only shown on the invite row in `/admin`.
+
+`/preview/standings` and `/preview/admin` render the standings board and the
+rule editors from fixtures.
+
 ## Setup
 
 1. `npm install && npm run dev`
@@ -119,8 +145,9 @@ Release verification: `npm run build` and `npm run test:e2e`.
 ## Draft-day runbook
 
 1. **/admin → Claim commissioner.** Nothing else works until someone owns the league.
-2. Enter all 12 manager emails. Each manager signs in with that email; `ff_link_me`
-   binds their account to their team automatically.
+2. Enter each team's name, the manager's name and their email. Each manager
+   signs in with that email; `ff_link_me` binds their account to their team
+   automatically. The name is what the league sees; the email stays on `/admin`.
 3. Set rounds + seconds per pick. Randomize draft order.
 4. Start the draft from the clock bar in **/draft**.
 5. After the board fills: **Seed week 1 rosters**, then **Generate schedule**.

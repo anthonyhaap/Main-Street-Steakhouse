@@ -16,9 +16,11 @@ const NAMES = [
   "Sirloin Syndicate", "Ribeye Renegades", "Brisket Brigade", "Chuck Wagon",
 ];
 
+const MANAGERS = ["Anthony", "Marcus", "Dev", "Ray", "Tom", "Nate", "Jules", "Sam", "Kai", "Priya", null, null];
+
 const teams = NAMES.map((name, i) => ({
   id: `t${i + 1}`, league_id: "L", name, owner_id: i < 9 ? `u${i}` : null,
-  owner_email: i < 11 ? `m${i}@example.com` : null, draft_slot: i + 1,
+  owner_email: i < 11 ? `m${i}@example.com` : null, manager_name: MANAGERS[i], draft_slot: i + 1,
 }));
 
 const pulse: Pulse = {
@@ -103,7 +105,7 @@ const hub: Hub = {
     espn_id: null,
   })),
   standings: teams.map((t) => ({
-    league_id: "L", team_id: t.id, name: t.name,
+    league_id: "L", team_id: t.id, name: t.name, manager_name: t.manager_name,
     wins: 0, losses: 0, ties: 0, points_for: 0, points_against: 0,
   })),
   matchups: Array.from({ length: 6 }, (_, i) => ({

@@ -41,6 +41,7 @@ export function LeagueDashboard({
   const complete = draft?.status === "complete";
   const onClock = draft ? teamAtPick(draft.current_pick, data.teams, teamCount) : undefined;
   const nameOf = (id: string) => data.teams.find((t) => t.id === id)?.name ?? "\u2014";
+  const managerOf = (id: string) => data.teams.find((t) => t.id === id)?.manager_name ?? null;
 
   const table = [...data.standings].sort(
     (a, b) => b.wins - a.wins || Number(b.points_for) - Number(a.points_for),
@@ -276,6 +277,9 @@ export function LeagueDashboard({
                     <Seal name={s.name} mine={s.team_id === team?.id} size={28} />
                     <span style={{ flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontWeight: 600 }}>
                       {s.name}
+                      {(s.manager_name ?? managerOf(s.team_id)) && (
+                        <span style={{ color: "var(--dim)", fontWeight: 400 }}> · {s.manager_name ?? managerOf(s.team_id)}</span>
+                      )}
                     </span>
                     <span className="num" style={{ fontSize: "var(--t-small)" }}>
                       {s.wins}-{s.losses}{s.ties ? `-${s.ties}` : ""}
@@ -339,7 +343,11 @@ export function LeagueDashboard({
                     <Seal name={m.name} mine={m.team_id === team?.id} size={28} />
                     <span className="mgr__name">
                       <b>{m.name}</b>
-                      <span>{m.display_name || m.email || "no email on file"}</span>
+                      {/* The person, never the address: emails stay on the invite screen. */}
+                      <span>
+                        {managerOf(m.team_id) || m.display_name
+                          || (m.joined ? "Signed in" : m.invited ? "Invite sent" : "No manager yet")}
+                      </span>
                     </span>
                     <span className="badge" data-tone={m.joined ? "ok" : m.invited ? "warn" : "danger"}>
                       {m.joined ? "In" : m.invited ? "Invited" : "Empty"}

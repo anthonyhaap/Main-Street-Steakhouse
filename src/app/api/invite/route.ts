@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
 
   const { data: team } = await supabase
     .from("teams")
-    .select("id,name,owner_email,draft_slot")
+    .select("id,name,owner_email,manager_name,draft_slot")
     .eq("id", teamId)
     .eq("league_id", LEAGUE_ID)
     .maybeSingle();
@@ -56,6 +56,7 @@ export async function POST(request: NextRequest) {
 
   const { html, text } = inviteEmail({
     teamName: team.name,
+    managerName: team.manager_name ?? undefined,
     leagueName: league.name,
     email: team.owner_email,
     joinUrl,
