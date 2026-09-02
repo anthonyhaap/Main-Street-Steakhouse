@@ -100,6 +100,7 @@ const hub: Hub = {
     team_id: teams[i % 12].id, team_name: teams[i % 12].name,
     draft_slot: teams[i % 12].draft_slot, player_id: `p${i}`,
     player_name, position: POS[i], nfl_team: ["CIN","ATL","BUF","LV","NYG","PHI","DAL","ARI","DET","BAL"][i],
+    espn_id: null,
   })),
   standings: teams.map((t) => ({
     league_id: "L", team_id: t.id, name: t.name,

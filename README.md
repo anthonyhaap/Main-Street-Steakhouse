@@ -28,7 +28,8 @@ Scheduled `pg_cron` jobs do the work nobody is watching:
 | `draft-tick`   | every 5s    | `ff_tick_drafts()` — autopicks when a clock expires      |
 | `live-stats`   | every 2 min | `ff_poll_live()` — pulls Sleeper stats during game windows |
 | `wire-refresh` | every 15 min| `ff_refresh_wire()` — ESPN news and the league injury report |
-| `projections`  | every 6 h   | `ff_refresh_projections()` — Sleeper's weekly projections |
+| `projections`  | every 6 h   | `ff_refresh_projections()` — this week and next, then rebuild season totals |
+| `projections-season` | daily 09:10 | `ff_load_season_projections()` — every unplayed week of the season |
 | `player-pool`  | daily 08:40 | `ff_load_sleeper_players()` — bio, depth chart, injury designation |
 | `stats-settle` | daily 09:17 | `ff_settle_recent_weeks()` — re-pulls for stat corrections |
 
@@ -87,10 +88,23 @@ Because projections arrive in the same shape as real stat lines, `ff_score`
 prices them with this league's rules: the number on the card is what the
 projection is worth *here*, not somebody else's PPR setting.
 
-`/preview/team` and `/preview/player` render both from fixtures — the team desk
+### The draft room
+
+Every row in the pool is a badge with a face, and carries a **season
+projection** — all eighteen weeks of Sleeper's numbers summed through
+`ff_score`, so it is what the player is worth under *our* rules rather than the
+market's. `player_season_projections` holds the totals so the board joins
+instead of aggregating eighteen weeks per keystroke; cron rebuilds them.
+
+The board can be ordered by ADP or by projection, and the two disagree in
+useful places — a quarterback projecting 345 points can sit at ADP 34 because
+our passing rules are stingier than the market's. That gap is the point of
+showing both.
+
+`/preview/team`, `/preview/player` and `/preview/draft` render these from fixtures — the team desk
 from real players with an invented wire, the player card from a verbatim
-snapshot of one real response — so either layout can be inspected without a
-session.
+snapshot of one real response, the draft pool from ten real rows — so any of
+them can be inspected without a session.
 
 ## Setup
 
