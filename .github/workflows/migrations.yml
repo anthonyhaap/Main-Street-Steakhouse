@@ -1,0 +1,52 @@
+name: migrations
+
+# The repo is connected to Supabase, so a migration file whose version is not
+# in the remote history gets applied to production on merge. This runs before
+# that can happen.
+on:
+  pull_request:
+    paths:
+      - "supabase/migrations/**"
+      - "supabase/applied_versions.txt"
+      - "scripts/check-migrations.mjs"
+      - ".github/workflows/migrations.yml"
+  push:
+    branches: [main]
+    paths:
+      - "supabase/migrations/**"
+      - "supabase/applied_versions.txt"
+
+jobs:
+  filenames:
+    name: filenames match recorded versions
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # Without this the check can only compare the migrations directory against
+      # a ledger committed beside it — two files in the same pull request, which
+      # a single consistent mistake satisfies. Reading the real history is what
+      # makes the ledger evidence instead of an assertion.
+      #
+      # psql ships on the runner. coalesce guards a null name: it would
+      # otherwise collapse the whole row to NULL, print a blank line, and drop
+      # that version from the comparison silently.
+      - name: read the recorded migration history
+        if: env.SUPABASE_DB_URL != ''
+        run: |
+          set -euo pipefail
+          psql "$SUPABASE_DB_URL" --no-psqlrc -Atc \
+            "select version || ' ' || coalesce(name, '(unnamed)')
+               from supabase_migrations.schema_migrations order by version" \
+            > "$RUNNER_TEMP/remote.txt"
+          echo "rows: $(wc -l < "$RUNNER_TEMP/remote.txt")"
+          echo "REMOTE_ARGS=--remote $RUNNER_TEMP/remote.txt" >> "$GITHUB_ENV"
+
+      # No setup-node and no install, on purpose. The check is Node stdlib only,
+      # so the runner's own Node runs it and the offline floor cannot be broken
+      # by a lockfile, a registry outage, or an expired credential. REMOTE_ARGS
+      # is empty when no database URL is configured, and the check says so in
+      # its output rather than implying more than it verified.
+      - run: node scripts/check-migrations.mjs ${REMOTE_ARGS:-}

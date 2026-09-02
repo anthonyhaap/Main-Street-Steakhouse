@@ -208,18 +208,44 @@ pushes forward, it never replays what it cannot see. A recorded version with no
 file is harmless. **A file whose version is not recorded is the dangerous
 direction**, because that is the one the integration would run.
 
-So the invariant is one-way, and it is checkable:
+So the invariant is one-way, and CI enforces it. `npm run check:migrations` —
+run on every pull request touching `supabase/migrations/` by
+`.github/workflows/migrations.yml` — checks each filename against
+`supabase/applied_versions.txt`, the committed ledger of recorded versions. It
+takes no database credentials and has no dependencies, so nothing can break it
+but the thing it is looking for.
 
-```sql
--- every filename's version must appear here; anything missing would be replayed
-select version from supabase_migrations.schema_migrations order by version;
-```
+It rejects a file whose version is not recorded, a filename whose name half
+disagrees with the recorded one, a repeated version, and anything not shaped
+like a migration. It warns, without failing, when two files share a name —
+legal (`20260829020645` and `20260829021500` are both `team_hub`) but also what
+a migration checked in twice looks like.
 
-**When adding a migration**, apply it first and name the file after the version
-the database recorded for it — not a timestamp you picked. The two differ:
+**How much it proves depends on whether CI can reach the database.** Set a
+`SUPABASE_DB_URL` repository secret and the workflow reads the real history and
+passes it in with `--remote`; the database then wins over the ledger, so a
+stale ledger cannot fail a legitimate file and an invented one cannot pass a
+bogus version. Without the secret the check still runs, but it compares the
+migrations directory against a ledger sitting beside it in the same pull
+request — which a single consistent mistake satisfies: pick a timestamp, name
+the file with it, write the same timestamp into the ledger, and the two agree
+while the database has never heard of it. The output says which mode ran.
+The offline floor is kept deliberately, because a gate that needs a credential
+stops working the day the credential expires.
+
+Neither mode compares **contents**. A file correctly named for a recorded
+version whose body is something else passes either way; catching that means
+hashing against `schema_migrations.statements`, which is a bigger check than
+this one.
+
+**When adding a migration**, apply it first, name the file after the version the
+database recorded for it — not a timestamp you picked — and add that version to
+the ledger (the refresh query is in its header). The two differ because
 `apply_migration` stamps its own. Getting this backwards is what left
 `20260902010000` and `20260902011500` on disk against `20260902005227` and
-`20260902005322` recorded, and it went unnoticed because nothing enforces it.
+`20260902005322` recorded, and days later checked a whole migration in a second
+time as `20260902120000`, which would have re-run a `drop function` against
+production. Both are now CI failures rather than things somebody has to notice.
 
 Two files carry content from a version adjacent to their name, both deliberate
 and both no-ops:
