@@ -48,6 +48,7 @@ export type BoardPick = {
   player_name: string;
   position: string;
   nfl_team: string | null;
+  espn_id: string | null;
 };
 
 export type PoolPlayer = {
@@ -64,6 +65,11 @@ export type PoolPlayer = {
   espn_id: string | null;
   injury_status: string | null;
   depth_chart_order: number | null;
+  /** Season projection, priced with this league's rules. Null until the
+      projection cron has run for a player nobody projects. */
+  proj_total: number | null;
+  /** Current week forward. Equal to the total before the season starts. */
+  proj_remaining: number | null;
 };
 
 export type Standing = {
