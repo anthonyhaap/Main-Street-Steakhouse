@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { Pencil } from "lucide-react";
 import { buildInsights, myNews } from "@/lib/nfl/insights";
 import { injuriesByPlayer } from "@/lib/nfl/wire";
 import type { HubPlayer, TeamHub, Wire } from "@/lib/nfl/types";
@@ -26,18 +27,27 @@ export type MoveTarget = { slot: string; player: HubPlayer | null };
  * Opening a player is a link, not state: /player/[id] is a location you can
  * share and come back from. Moving a player is not — that goes back out to
  * whoever owns the roster.
+ *
+ * The crests come in as URLs rather than being looked up here, for the same
+ * reason: the fixture has no session to look them up in.
  */
 export function TeamDesk({
-  hub, wire, moving, busy, onPickUp, onCancelMove, onDrop, onWeek,
+  hub, wire, moving, busy, crest = null, oppCrest = null,
+  onPickUp, onCancelMove, onDrop, onWeek, onEdit,
 }: {
   hub: TeamHub;
   wire: Wire | null;
   moving: HubPlayer | null;
   busy: boolean;
+  /** This team's crest, from `crestUrl()`. Null falls back to the monogram. */
+  crest?: string | null;
+  oppCrest?: string | null;
   onPickUp: (p: HubPlayer) => void;
   onCancelMove: () => void;
   onDrop: (target: MoveTarget) => void;
   onWeek: (week: number) => void;
+  /** Absent on the fixture, where there is no team to edit. */
+  onEdit?: () => void;
 }) {
   const roster = hub.roster;
   const injuries = useMemo(() => injuriesByPlayer(wire), [wire]);
@@ -78,7 +88,7 @@ export function TeamDesk({
         <section className="th-hero">
           <div className="th-hero__top">
             <div className="th-side">
-              <Seal name={hub.team.name} mine size={46} />
+              <Seal name={hub.team.name} src={crest} mine size={46} />
               <div style={{ minWidth: 0 }}>
                 <h1>{hub.team.name}</h1>
                 <div className="th-side__meta">
@@ -88,6 +98,11 @@ export function TeamDesk({
                     </span>
                   )}
                   {rec && <span className="eyebrow">{ordinal(rec.rank)} of {rec.teams}</span>}
+                  {onEdit && (
+                    <button className="btn" data-v="ghost" data-size="sm" onClick={onEdit}>
+                      <Pencil size={13} /> Edit team
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -115,7 +130,7 @@ export function TeamDesk({
                   <span className="eyebrow">This week&apos;s opponent</span>
                 </div>
               </div>
-              <Seal name={hub.matchup?.opponent.name ?? "—"} size={46} />
+              <Seal name={hub.matchup?.opponent.name ?? "—"} src={oppCrest} size={46} />
             </div>
           </div>
 

@@ -3,7 +3,7 @@
 import { useCallback } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { useLive } from "@/lib/live";
-import { useSession } from "@/lib/session";
+import { useCrests, useSession } from "@/lib/session";
 import { LEAGUE_ID } from "@/lib/config";
 import type { Outlook } from "@/lib/types";
 import { TopBar } from "@/components/Shell";
@@ -11,6 +11,7 @@ import { StandingsBoard } from "@/components/StandingsBoard";
 
 export default function StandingsPage() {
   const { ready, team } = useSession();
+  const crestOf = useCrests();
 
   // One RPC carries the table, the whole schedule and each lineup's projected
   // output; the playoff simulation runs on the phone from there.
@@ -28,7 +29,7 @@ export default function StandingsPage() {
     <>
       <TopBar status={status} />
       <main className="page" data-width="mid">
-        <StandingsBoard outlook={data} myTeamId={team?.id} />
+        <StandingsBoard outlook={data} myTeamId={team?.id} crestOf={crestOf} />
       </main>
     </>
   );

@@ -3,19 +3,22 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { useLive } from "@/lib/live";
-import { useSession } from "@/lib/session";
+import { useCrests, useSession } from "@/lib/session";
 import { useWire } from "@/lib/nfl/wire";
 import type { HubPlayer, TeamHub } from "@/lib/nfl/types";
 import { TopBar } from "@/components/Shell";
 import { SkeletonRows, useToast } from "@/components/ui";
 import { TeamDesk, slotOk, type MoveTarget } from "@/components/team/TeamDesk";
+import { EditTeam } from "@/components/team/EditTeam";
 
 export default function TeamPage() {
-  const { ready, team } = useSession();
+  const { ready, team, reload } = useSession();
+  const crestOf = useCrests();
   const toast = useToast();
   const [week, setWeek] = useState<number | null>(null);
   const [moving, setMoving] = useState<HubPlayer | null>(null);
   const [busy, setBusy] = useState(false);
+  const [editing, setEditing] = useState(false);
 
   useEffect(() => {
     if (!ready) return;
@@ -97,11 +100,23 @@ export default function TeamPage() {
         wire={wire}
         moving={moving}
         busy={busy}
+        crest={crestOf(team.id)}
+        oppCrest={crestOf(hub.matchup?.opponent.id)}
         onPickUp={setMoving}
         onCancelMove={() => setMoving(null)}
         onDrop={drop}
         onWeek={(w) => { setMoving(null); setWeek(w); }}
+        onEdit={() => setEditing(true)}
       />
+      {editing && (
+        <EditTeam
+          team={team}
+          onClose={() => setEditing(false)}
+          // The name and the crest are on every screen in the app, so the whole
+          // session is reloaded rather than just this page's hub.
+          onSaved={async () => { await reload(); await refetch(); }}
+        />
+      )}
     </>
   );
 }

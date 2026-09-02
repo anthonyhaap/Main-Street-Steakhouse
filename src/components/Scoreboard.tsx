@@ -18,6 +18,7 @@
 import { useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { PlayerBadge } from "@/components/PlayerBadge";
+import { crestUrl } from "@/lib/crest";
 import { Seal, fmtPts, useCountUp } from "@/components/ui";
 import type { Matchup, RosterPoint, Team } from "@/lib/types";
 
@@ -34,6 +35,9 @@ export function Scoreboard({ matchups, points, teams, myTeamId = null }: Scorebo
 
   const nameOf = (id: string) => teams.find((t) => t.id === id)?.name ?? "—";
   const managerOf = (id: string) => teams.find((t) => t.id === id)?.manager_name ?? null;
+  // Uploaded team crest, from #15. It arrived on the inline markup this
+  // component replaced, so it is re-applied here rather than merged away.
+  const crestOf = (id: string) => crestUrl(teams.find((t) => t.id === id)?.logo_path);
   const startersFor = (id: string) => points.filter((r) => r.team_id === id && r.slot !== "BN");
 
   return (
@@ -55,8 +59,10 @@ export function Scoreboard({ matchups, points, teams, myTeamId = null }: Scorebo
             >
               {isOpen ? <ChevronDown size={16} color="var(--dim)" /> : <ChevronRight size={16} color="var(--dim)" />}
               <div style={{ flex: 1, display: "grid", gap: "var(--s2)", minWidth: 0 }}>
-                <Side name={nameOf(m.away_team_id)} manager={managerOf(m.away_team_id)} pts={ap} win={ap > hp} mine={m.away_team_id === myTeamId} />
-                <Side name={nameOf(m.home_team_id)} manager={managerOf(m.home_team_id)} pts={hp} win={hp > ap} mine={m.home_team_id === myTeamId} />
+                <Side name={nameOf(m.away_team_id)} manager={managerOf(m.away_team_id)} crest={crestOf(m.away_team_id)}
+                  pts={ap} win={ap > hp} mine={m.away_team_id === myTeamId} />
+                <Side name={nameOf(m.home_team_id)} manager={managerOf(m.home_team_id)} crest={crestOf(m.home_team_id)}
+                  pts={hp} win={hp > ap} mine={m.home_team_id === myTeamId} />
               </div>
             </button>
 
@@ -103,14 +109,14 @@ export function Scoreboard({ matchups, points, teams, myTeamId = null }: Scorebo
   );
 }
 
-function Side({ name, manager, pts, win, mine }: {
-  name: string; manager: string | null; pts: number; win: boolean; mine: boolean;
+function Side({ name, manager, crest, pts, win, mine }: {
+  name: string; manager: string | null; crest: string | null; pts: number; win: boolean; mine: boolean;
 }) {
   const shown = useCountUp(pts);
   return (
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "var(--s3)", minWidth: 0 }}>
       <div style={{ display: "flex", alignItems: "center", gap: "var(--s2)", minWidth: 0 }}>
-        <Seal name={name} mine={mine} size={26} />
+        <Seal name={name} src={crest} mine={mine} size={26} />
         <span style={{ minWidth: 0, display: "grid" }}>
           <span style={{
             fontSize: "var(--t-head)", fontWeight: win ? 600 : 400,

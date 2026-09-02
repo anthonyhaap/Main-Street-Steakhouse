@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { LEAGUE_ID } from "@/lib/config";
+import { crestUrl } from "@/lib/crest";
 import type { League, Team } from "@/lib/types";
 
 type SessionValue = {
@@ -81,4 +82,20 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   };
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+}
+
+/**
+ * A team's crest by id, for the seals scattered across the league.
+ *
+ * The session already carries every team in the league, so nothing here costs
+ * a request. Components that are deliberately pure — the standings board, the
+ * draft clock — take the lookup as a prop instead of calling this, so they
+ * still render from a fixture.
+ */
+export function useCrests() {
+  const { teams } = useSession();
+  return useMemo(() => {
+    const by = new Map(teams.map((t) => [t.id, crestUrl(t.logo_path)]));
+    return (teamId: string | null | undefined) => (teamId ? by.get(teamId) ?? null : null);
+  }, [teams]);
 }
