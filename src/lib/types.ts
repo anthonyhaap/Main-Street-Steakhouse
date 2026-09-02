@@ -157,6 +157,8 @@ export type RosterPoint = {
   points: number;
   locked_at: string | null;
   stats_updated_at: string | null;
+  /** For the badge's headshot. Null for players ESPN has no mapping for. */
+  espn_id: string | null;
 };
 
 export type Matchup = {

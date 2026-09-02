@@ -139,6 +139,20 @@ the next cron run.
 **Managers have names.** `teams.manager_name` is what the league sees under a
 team everywhere; the email is only shown on the invite row in `/admin`.
 
+### The scoreboard
+
+`/matchups` is the screen the league actually watches on a Sunday, and it was
+the only one with no fixture behind it: its markup lived inside the component
+that fetched its own data, so it could not be looked at without a session, a
+finished draft and a live week. `Scoreboard` is that markup, split out, and
+`/preview/matchups` renders it from three invented games.
+
+Splitting it also settled an inconsistency. Expanded lineups printed player
+names as plain strings — the one place in the app where a name was not a
+`PlayerBadge`, on the page where you most want to tap a name and see why he is
+doing what he is doing. `roster_points` now carries `espn_id` for the headshot,
+the same one-line join `draft_pool` and `draft_board` already use.
+
 `/preview/standings` and `/preview/admin` render the standings board and the
 rule editors from fixtures.
 
