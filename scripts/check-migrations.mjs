@@ -21,16 +21,31 @@
  * migration checked in a second time under a fresh timestamp — which would have
  * re-run a DROP FUNCTION against production.
  *
- * Both are caught here, with no database credentials, by checking filenames
- * against a ledger of recorded versions committed alongside them.
+ * ── how much this proves, and when ──────────────────────────────────────────
  *
- * What this cannot catch: a file correctly named for a recorded version whose
- * CONTENTS are something else. Names are all that is compared. Verifying
- * contents means hashing against schema_migrations.statements, which needs
- * database access this check deliberately does not have.
+ * Offline (no arguments) it compares filenames against supabase/applied_versions.txt,
+ * a ledger committed alongside them. That catches both incidents above, because
+ * both left the ledger alone. It does NOT catch a consistent mistake: name the
+ * file from a timestamp you picked, write that same timestamp into the ledger,
+ * and the two agree with each other while the database has never heard of it.
+ * The ledger is an assertion, and offline this script can only check the
+ * assertion against itself.
  *
- * Usage:  node scripts/check-migrations.mjs
- * Exit:   0 clean, 1 on any error below.
+ * With `--remote <file>` — lines of "<version> <name>" read out of the live
+ * database — the ledger is checked rather than believed, and that hole closes.
+ * CI runs this whenever a database URL is configured. Without one the offline
+ * floor still holds, which is why the ledger exists at all: a gate that needs a
+ * credential is a gate that stops working the day the credential expires.
+ *
+ * Neither mode compares CONTENTS. A file correctly named for a recorded version
+ * whose body is something else passes either way; catching that means hashing
+ * against schema_migrations.statements, which is a bigger check than this one.
+ *
+ * Usage:
+ *   node scripts/check-migrations.mjs
+ *   node scripts/check-migrations.mjs --remote /tmp/remote.txt
+ *
+ * Exit: 0 clean, 1 on any error below, 2 on bad usage.
  */
 
 import { readFileSync, readdirSync } from "node:fs";
@@ -44,25 +59,71 @@ const DIR = join(root, "supabase", "migrations");
 /** `20260902011636_commissioner_year_round.sql` and nothing else. */
 const FILENAME = /^(\d{14})_([a-z0-9_]+)\.sql$/;
 
+const argv = process.argv.slice(2);
+const remoteIdx = argv.indexOf("--remote");
+const remotePath = remoteIdx === -1 ? null : argv[remoteIdx + 1];
+if (remoteIdx !== -1 && !remotePath) {
+  console.error('error: --remote needs a file of "<version> <name>" lines');
+  process.exit(2);
+}
+
 const errors = [];
 const warnings = [];
 
-// ---------------------------------------------------------------- the ledger
-/** version -> recorded name. Comments and blank lines are ignored. */
-const recorded = new Map();
-for (const [i, raw] of readFileSync(LEDGER, "utf8").split("\n").entries()) {
-  const line = raw.trim();
-  if (!line || line.startsWith("#")) continue;
-  const m = /^(\d{14})\s+(\S+)$/.exec(line);
-  if (!m) {
-    errors.push(`applied_versions.txt:${i + 1}: expected "<14-digit version> <name>", got: ${line}`);
-    continue;
+/** version -> name, from ledger-shaped text. Comments and blanks ignored. */
+function parseLedger(text, label) {
+  const out = new Map();
+  for (const [i, raw] of text.split("\n").entries()) {
+    const line = raw.trim();
+    if (!line || line.startsWith("#")) continue;
+    const m = /^(\d{14})\s+(\S+)$/.exec(line);
+    if (!m) {
+      errors.push(`${label}:${i + 1}: expected "<14-digit version> <name>", got: ${line}`);
+      continue;
+    }
+    if (out.has(m[1])) {
+      errors.push(`${label}:${i + 1}: version ${m[1]} listed twice`);
+      continue;
+    }
+    out.set(m[1], m[2]);
   }
-  if (recorded.has(m[1])) {
-    errors.push(`applied_versions.txt:${i + 1}: version ${m[1]} listed twice`);
-    continue;
+  return out;
+}
+
+const recorded = parseLedger(readFileSync(LEDGER, "utf8"), "applied_versions.txt");
+
+// ------------------------------------------- the ledger against the database
+// Only reached when CI has a database URL. A ledger row the database does not
+// have is the forgeable case: the file and the ledger agree with each other,
+// and both are wrong.
+let remote = null;
+if (remotePath) {
+  remote = parseLedger(readFileSync(remotePath, "utf8"), remotePath);
+
+  for (const [version, name] of recorded) {
+    const actual = remote.get(version);
+    if (actual === undefined) {
+      errors.push(
+        `applied_versions.txt claims version ${version} (${name}), which the database\n` +
+          `    has NOT recorded. Adding a version to the ledger does not apply a migration.\n` +
+          `    Apply it, then take the version the database assigns.`,
+      );
+    } else if (actual !== name) {
+      errors.push(
+        `applied_versions.txt has version ${version} as "${name}"; the database\n` +
+          `    recorded it as "${actual}".`,
+      );
+    }
   }
-  recorded.set(m[1], m[2]);
+
+  const stale = [...remote.keys()].filter((v) => !recorded.has(v));
+  if (stale.length) {
+    warnings.push(
+      `the database has ${stale.length} version${stale.length === 1 ? "" : "s"} the ledger is missing ` +
+        `(${stale.slice(0, 3).join(", ")}${stale.length > 3 ? ", …" : ""}).\n` +
+        `    Harmless until a file uses one, which would then be rejected here. Refresh the ledger.`,
+    );
+  }
 }
 
 // ----------------------------------------------------------------- the files
@@ -85,19 +146,24 @@ for (const file of files.sort()) {
   }
   byVersion.set(version, file);
 
-  const name = recorded.get(version);
+  // The database wins where we have it, so a stale ledger cannot green-light a
+  // file on its own and cannot fail one the database actually knows.
+  const truth = remote ?? recorded;
+  const source = remote ? "the database" : "supabase/applied_versions.txt";
+  const name = truth.get(version);
+
   if (name === undefined) {
     errors.push(
-      `${file}: version ${version} is not in supabase/applied_versions.txt.\n` +
+      `${file}: version ${version} is not in ${source}.\n` +
         `    The integration would treat this as new work and run it against production.\n` +
-        `    If it HAS been applied, add the version the database recorded for it — not the\n` +
+        `    If it HAS been applied, use the version the database recorded for it — not the\n` +
         `    one in this filename — and rename the file to match. If it has NOT been applied,\n` +
         `    apply it first, then name the file after the version that comes back.`,
     );
   } else if (name !== slug) {
     errors.push(
-      `${file}: version ${version} is recorded under the name "${name}", not "${slug}".\n` +
-        `    Rename the file to ${version}_${name}.sql, or correct the ledger.`,
+      `${file}: version ${version} is recorded in ${source} under the name "${name}",\n` +
+        `    not "${slug}". Rename the file to ${version}_${name}.sql, or correct the ledger.`,
     );
   }
 
@@ -121,7 +187,9 @@ for (const [slug, group] of bySlug) {
 for (const w of warnings) console.warn(`warning: ${w}`);
 
 if (errors.length) {
-  console.error(`\n${errors.length} problem${errors.length === 1 ? "" : "s"} in supabase/migrations:\n`);
+  console.error(
+    `\n${errors.length} problem${errors.length === 1 ? "" : "s"} in supabase/migrations:\n`,
+  );
   for (const e of errors) console.error(`  error: ${e}`);
   console.error(
     `\nsupabase/applied_versions.txt has the refresh query. A recorded version with\n` +
@@ -130,8 +198,16 @@ if (errors.length) {
   process.exit(1);
 }
 
-const unfiled = [...recorded.keys()].filter((v) => !byVersion.has(v)).length;
+const truth = remote ?? recorded;
+const unfiled = [...truth.keys()].filter((v) => !byVersion.has(v)).length;
 console.log(
   `supabase/migrations: ${byVersion.size} file${byVersion.size === 1 ? "" : "s"}, ` +
-    `each matching a recorded version (${recorded.size} recorded, ${unfiled} with no file, which is fine).`,
+    `each matching a version recorded in ${remote ? "the database" : "the ledger"} ` +
+    `(${truth.size} recorded, ${unfiled} with no file, which is fine).`,
 );
+if (!remote) {
+  console.log(
+    "note: ledger checked against itself only. Configure SUPABASE_DB_URL in CI to " +
+      "check it against the database.",
+  );
+}

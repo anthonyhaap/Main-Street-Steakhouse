@@ -205,16 +205,28 @@ run on every pull request touching `supabase/migrations/` by
 takes no database credentials and has no dependencies, so nothing can break it
 but the thing it is looking for.
 
-It rejects a file whose version is not in the ledger, a filename whose name
-half disagrees with the recorded one, a repeated version, and anything not
-shaped like a migration. It warns, without failing, when two files share a
-name — legal (`20260829020645` and `20260829021500` are both `team_hub`) but
-also what a migration checked in twice looks like.
+It rejects a file whose version is not recorded, a filename whose name half
+disagrees with the recorded one, a repeated version, and anything not shaped
+like a migration. It warns, without failing, when two files share a name —
+legal (`20260829020645` and `20260829021500` are both `team_hub`) but also what
+a migration checked in twice looks like.
 
-It compares **names only**. A file correctly named for a recorded version whose
-*contents* are something else passes; catching that means hashing against
-`schema_migrations.statements`, which needs database access this check
-deliberately does not have.
+**How much it proves depends on whether CI can reach the database.** Set a
+`SUPABASE_DB_URL` repository secret and the workflow reads the real history and
+passes it in with `--remote`; the database then wins over the ledger, so a
+stale ledger cannot fail a legitimate file and an invented one cannot pass a
+bogus version. Without the secret the check still runs, but it compares the
+migrations directory against a ledger sitting beside it in the same pull
+request — which a single consistent mistake satisfies: pick a timestamp, name
+the file with it, write the same timestamp into the ledger, and the two agree
+while the database has never heard of it. The output says which mode ran.
+The offline floor is kept deliberately, because a gate that needs a credential
+stops working the day the credential expires.
+
+Neither mode compares **contents**. A file correctly named for a recorded
+version whose body is something else passes either way; catching that means
+hashing against `schema_migrations.statements`, which is a bigger check than
+this one.
 
 **When adding a migration**, apply it first, name the file after the version the
 database recorded for it — not a timestamp you picked — and add that version to
