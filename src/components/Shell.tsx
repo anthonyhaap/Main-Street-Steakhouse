@@ -7,7 +7,7 @@ import {
   BarChart3, CircleDollarSign, Crown, Home, LogOut, MessageCircle, MoreHorizontal,
   Radio, Shield, Swords, Users, X,
 } from "lucide-react";
-import { useSession } from "@/lib/session";
+import { useCrests, useSession } from "@/lib/session";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import type { WireStatus } from "@/lib/live";
 import { Seal } from "@/components/ui";
@@ -57,6 +57,7 @@ export function Crest({ size = 38 }: { size?: number }) {
 export function TopBar({ status }: { status?: WireStatus }) {
   const path = usePathname();
   const { team, league, isCommissioner } = useSession();
+  const crestOf = useCrests();
   const [more, setMore] = useState(false);
   const close = () => setMore(false);
 
@@ -89,7 +90,7 @@ export function TopBar({ status }: { status?: WireStatus }) {
           <Wire status={status} />
           {team && (
             <div style={{ display: "flex", alignItems: "center", gap: "var(--s2)" }}>
-              <Seal name={team.name} mine size={30} />
+              <Seal name={team.name} src={crestOf(team.id)} mine size={30} />
               <span className="hide-sm" style={{ fontSize: "var(--t-small)", color: "var(--muted)", fontWeight: 600 }}>
                 {team.name}
               </span>

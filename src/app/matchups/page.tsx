@@ -6,6 +6,7 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 import { useLive } from "@/lib/live";
 import { useSession } from "@/lib/session";
 import { LEAGUE_ID } from "@/lib/config";
+import { crestUrl } from "@/lib/crest";
 import type { Matchup, RosterPoint, Team } from "@/lib/types";
 import { TopBar } from "@/components/Shell";
 import { Seal, SkeletonRows, fmtPts, useCountUp } from "@/components/ui";
@@ -46,6 +47,7 @@ export default function MatchupsPage() {
   const weeks = Number((league?.settings as { regular_season_weeks?: number })?.regular_season_weeks ?? 14) + 3;
   const nameOf = (id: string) => data?.teams.find((t) => t.id === id)?.name ?? "—";
   const managerOf = (id: string) => data?.teams.find((t) => t.id === id)?.manager_name ?? null;
+  const crestOf = (id: string) => crestUrl(data?.teams.find((t) => t.id === id)?.logo_path);
   const startersFor = (id: string) => (data?.points ?? []).filter((r) => r.team_id === id && r.slot !== "BN");
 
   return (
@@ -84,8 +86,10 @@ export default function MatchupsPage() {
               >
                 {isOpen ? <ChevronDown size={16} color="var(--dim)" /> : <ChevronRight size={16} color="var(--dim)" />}
                 <div style={{ flex: 1, display: "grid", gap: "var(--s2)", minWidth: 0 }}>
-                  <Side name={nameOf(m.away_team_id)} manager={managerOf(m.away_team_id)} pts={ap} win={ap > hp} mine={m.away_team_id === team?.id} />
-                  <Side name={nameOf(m.home_team_id)} manager={managerOf(m.home_team_id)} pts={hp} win={hp > ap} mine={m.home_team_id === team?.id} />
+                  <Side name={nameOf(m.away_team_id)} manager={managerOf(m.away_team_id)} crest={crestOf(m.away_team_id)}
+                    pts={ap} win={ap > hp} mine={m.away_team_id === team?.id} />
+                  <Side name={nameOf(m.home_team_id)} manager={managerOf(m.home_team_id)} crest={crestOf(m.home_team_id)}
+                    pts={hp} win={hp > ap} mine={m.home_team_id === team?.id} />
                 </div>
               </button>
 
@@ -122,14 +126,14 @@ export default function MatchupsPage() {
   );
 }
 
-function Side({ name, manager, pts, win, mine }: {
-  name: string; manager: string | null; pts: number; win: boolean; mine: boolean;
+function Side({ name, manager, crest, pts, win, mine }: {
+  name: string; manager: string | null; crest: string | null; pts: number; win: boolean; mine: boolean;
 }) {
   const shown = useCountUp(pts);
   return (
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "var(--s3)", minWidth: 0 }}>
       <div style={{ display: "flex", alignItems: "center", gap: "var(--s2)", minWidth: 0 }}>
-        <Seal name={name} mine={mine} size={26} />
+        <Seal name={name} src={crest} mine={mine} size={26} />
         <span style={{ minWidth: 0, display: "grid" }}>
           <span style={{
             fontSize: "var(--t-head)", fontWeight: win ? 600 : 400,

@@ -11,7 +11,16 @@ import { Meter } from "@/components/dash";
  * The standings, with the playoff picture worked out. Pure function of the
  * outlook payload so it renders from a fixture as well as from the league.
  */
-export function StandingsBoard({ outlook, myTeamId }: { outlook: Outlook | null; myTeamId?: string | null }) {
+export function StandingsBoard({ outlook, myTeamId, crestOf }: {
+  outlook: Outlook | null;
+  myTeamId?: string | null;
+  /**
+   * A team's crest by id. Passed in rather than looked up, so the board still
+   * renders from a fixture — the playoff odds are the point of this component,
+   * and they do not need a session.
+   */
+  crestOf?: (teamId: string) => string | null;
+}) {
   const proj = useMemo(() => (outlook ? projectPlayoffs(outlook) : null), [outlook]);
   const byId = useMemo(() => new Map((proj ?? []).map((p) => [p.team_id, p])), [proj]);
 
@@ -100,7 +109,7 @@ export function StandingsBoard({ outlook, myTeamId }: { outlook: Outlook | null;
                       <td className="num eyebrow" style={{ padding: "var(--s3) var(--s4)" }}>{i + 1}</td>
                       <td style={{ padding: "var(--s3) var(--s4)" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: "var(--s2)" }}>
-                          <Seal name={t.name} mine={mine} size={28} />
+                          <Seal name={t.name} src={crestOf?.(t.id) ?? null} mine={mine} size={28} />
                           <div style={{ minWidth: 0 }}>
                             <div style={{ whiteSpace: "nowrap", fontWeight: mine ? 600 : 500 }}>{t.name}</div>
                             {t.manager_name && (
