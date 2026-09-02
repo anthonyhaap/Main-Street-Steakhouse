@@ -63,8 +63,21 @@ export function SkeletonRows({ n = 6 }: { n?: number }) {
 
 /* ----------------------------------------------------------------- seals -- */
 
-/** Two-letter monogram for a team. Deterministic, no images to load. */
-export function Seal({ name, mine = false, size = 30 }: { name: string; mine?: boolean; size?: number }) {
+/**
+ * A team's mark: its crest when the manager has uploaded one, and otherwise the
+ * two-letter monogram drawn from its name.
+ *
+ * The monogram is the floor, not a placeholder to be replaced everywhere: a
+ * crest that 404s — a file deleted out from under the column — falls straight
+ * back to it rather than leaving a broken box in the standings.
+ */
+export function Seal({ name, src = null, mine = false, size = 30 }: {
+  name: string;
+  /** Public URL of the team's crest, from `crestUrl()`. */
+  src?: string | null;
+  mine?: boolean;
+  size?: number;
+}) {
   const initials = useMemo(() => {
     const words = name.trim().split(/\s+/).filter(Boolean);
     if (words.length === 0) return "—";
@@ -72,14 +85,25 @@ export function Seal({ name, mine = false, size = 30 }: { name: string; mine?: b
     return (words[0][0] + words[words.length - 1][0]).toUpperCase();
   }, [name]);
 
+  // The URL that failed, rather than a flag: a new crest is a new URL, so
+  // choosing a different picture clears the fallback without an effect to
+  // reset it.
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  const crest = src && src !== failedSrc ? src : null;
+
   return (
     <span
       className="seal"
       data-mine={mine}
+      data-crest={!!crest}
       style={{ width: size, height: size, fontSize: size * 0.37 }}
       aria-hidden
     >
-      {initials}
+      {crest ? (
+        // eslint-disable-next-line @next/next/no-img-element -- storage object, fixed size, no optimiser
+        <img src={crest} alt="" width={size} height={size} loading="lazy" decoding="async"
+          onError={() => setFailedSrc(src)} />
+      ) : initials}
     </span>
   );
 }

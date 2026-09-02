@@ -59,8 +59,22 @@ the app reads them as ordinary tables under the same live contract as
 everything else — and an injury row carries the `players.id` it refers to, so
 "is one of my guys hurt" is a foreign key rather than a string match. Club
 crests and player headshots are hotlinked from ESPN's CDN by ids we already
-hold (`player_id_map`), with a monogram fallback — no image pipeline, no
-storage.
+hold (`player_id_map`), with a monogram fallback — no image pipeline and
+nothing of the NFL's stored here.
+
+The one picture the league does store is a manager's own. **Edit team** in the
+hero renames the team and uploads a crest, which then replaces the monogram on
+every seal in the app — top bar, standings, scoreboard, draft clock. Two
+things keep that safe. `teams.logo_path` holds an object key, never a URL, so
+the column can only ever address our own bucket rather than becoming a stored
+redirect printed on every screen. And the key IS the authorization: an object
+lives at `<team_id>/<file>`, the `team-logos` storage policy lets a manager
+write only inside the folder named for the team he owns, and
+`ff_update_my_team` takes no team id at all — it edits whatever team the caller
+owns, so there is nothing to spoof. The commissioner keeps `ff_update_team` for
+draft slots, manager names and any team in the league. Uploads are downscaled
+to 512px in the browser before they are sent; an animated GIF is left alone,
+because a canvas would keep only its first frame.
 
 The two are joined by `src/lib/nfl/insights.ts`, which is the point of the page:
 a national injury report is noise until it is read against your roster. The back

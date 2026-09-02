@@ -10,6 +10,7 @@ import { useSession } from "@/lib/session";
 import { DRAFT_ID, LEAGUE_ID } from "@/lib/config";
 import type { Draft, League, ScoringRuleSet, Team } from "@/lib/types";
 import { TopBar } from "@/components/Shell";
+import { crestUrl } from "@/lib/crest";
 import { Seal, SkeletonRows, useToast } from "@/components/ui";
 import { LeagueRules, ScoringEditor, compact, type SaveFn, type SaveScoring } from "@/components/admin/RulesEditors";
 
@@ -302,7 +303,7 @@ function TeamRow({ team, busy, onSave }: { team: Team; busy: boolean; onSave: Sa
   return (
     <div className="row" style={{ flexWrap: "wrap", rowGap: 10, alignItems: "center" }}>
       <span className="num eyebrow" style={{ width: 22 }}>{team.draft_slot}</span>
-      <Seal name={name || "?"} size={28} />
+      <Seal name={name || "?"} src={crestUrl(team.logo_path)} size={28} />
 
       <div style={{ display: "grid", gap: 7, flex: "1 1 280px", minWidth: 200 }}>
         <div style={{ display: "grid", gap: 7, gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))" }}>

@@ -21,6 +21,11 @@ export type Team = {
   owner_email: string | null;
   /** The person behind the team, as the commissioner typed it. */
   manager_name: string | null;
+  /**
+   * The manager's crest, as an object key inside the public `team-logos`
+   * bucket — never a URL. `crestUrl()` turns it into one.
+   */
+  logo_path: string | null;
   draft_slot: number | null;
 };
 

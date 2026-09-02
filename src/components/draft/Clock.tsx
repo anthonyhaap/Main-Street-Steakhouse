@@ -3,6 +3,7 @@
 import { AlertTriangle, Pause, Play, RotateCcw, Zap } from "lucide-react";
 import type { Draft, Team } from "@/lib/types";
 import { fmtClock, pickLabel } from "@/lib/draft";
+import { crestUrl } from "@/lib/crest";
 import { Seal } from "@/components/ui";
 
 type Props = {
@@ -52,7 +53,7 @@ export function Clock(p: Props) {
         gridTemplateColumns: "1fr auto", padding: "var(--s5)",
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: "var(--s3)", minWidth: 0 }}>
-          {onClock && !done && <Seal name={onClock.name} mine={mine} size={40} />}
+          {onClock && !done && <Seal name={onClock.name} src={crestUrl(onClock.logo_path)} mine={mine} size={40} />}
           <div style={{ minWidth: 0 }}>
             <div className="eyebrow" data-tone={mine && !done ? "gold" : undefined}>
               {done ? "Draft" : mine ? "You're on the clock" : "On the clock"}

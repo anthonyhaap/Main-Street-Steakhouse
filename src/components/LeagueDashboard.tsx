@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import type { BoardPick, Matchup, Pulse, Standing, Team } from "@/lib/types";
 import { fmtClock, pickLabel, snakeSlot, teamAtPick } from "@/lib/draft";
+import { crestUrl } from "@/lib/crest";
 import { Seal, fmtPts } from "@/components/ui";
 import { CheckRow, Kpi, Meter, Ring, fmtDay, relTime } from "@/components/dash";
 
@@ -42,6 +43,7 @@ export function LeagueDashboard({
   const onClock = draft ? teamAtPick(draft.current_pick, data.teams, teamCount) : undefined;
   const nameOf = (id: string) => data.teams.find((t) => t.id === id)?.name ?? "\u2014";
   const managerOf = (id: string) => data.teams.find((t) => t.id === id)?.manager_name ?? null;
+  const crestOf = (id: string) => crestUrl(data.teams.find((t) => t.id === id)?.logo_path);
 
   const table = [...data.standings].sort(
     (a, b) => b.wins - a.wins || Number(b.points_for) - Number(a.points_for),
@@ -274,7 +276,7 @@ export function LeagueDashboard({
                 {table.map((s, i) => (
                   <div className="row" key={s.team_id} data-mine={s.team_id === team?.id}>
                     <span className="num eyebrow" style={{ width: 18 }}>{i + 1}</span>
-                    <Seal name={s.name} mine={s.team_id === team?.id} size={28} />
+                    <Seal name={s.name} src={crestOf(s.team_id)} mine={s.team_id === team?.id} size={28} />
                     <span style={{ flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontWeight: 600 }}>
                       {s.name}
                       {(s.manager_name ?? managerOf(s.team_id)) && (
@@ -340,7 +342,7 @@ export function LeagueDashboard({
                 {pulse.managers.map((m) => (
                   <div className="mgr" key={m.team_id}>
                     <span className="mgr__slot">{m.draft_slot ?? "–"}</span>
-                    <Seal name={m.name} mine={m.team_id === team?.id} size={28} />
+                    <Seal name={m.name} src={crestOf(m.team_id)} mine={m.team_id === team?.id} size={28} />
                     <span className="mgr__name">
                       <b>{m.name}</b>
                       {/* The person, never the address: emails stay on the invite screen. */}
