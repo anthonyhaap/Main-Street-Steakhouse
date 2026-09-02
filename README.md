@@ -82,6 +82,15 @@ ahead of yours is out, so his carries are yours; the quarterback throwing to you
 receiver is out, so that is a downgrade; your own starter is questionable, so act
 on it. Pure function, roster in and ranked notes out.
 
+Under the hero on the league home sits the plaque: Lawrence Taylor, number 56,
+four fixed numbers and one line that turns over daily (`src/lib/lt.ts`). Two
+rules govern what goes on it. Facts only, never quotations — a misremembered
+line put in a real person's mouth on a wall is worse than no wall, the same
+reason the `/preview/team` fixture invents its injured players. And text, never
+footage: NFL Films owns the highlights, a league of twelve friends is not a
+licence, and an autoplaying clip that is superb on the first sign-in is a tax
+by the thirtieth.
+
 ### Players
 
 Every name in the app is a `PlayerBadge`: a headshot on the club's colour with

@@ -10,6 +10,7 @@ import type { BoardPick, Matchup, Pulse, Standing, Team } from "@/lib/types";
 import { fmtClock, pickLabel, snakeSlot, teamAtPick } from "@/lib/draft";
 import { crestUrl } from "@/lib/crest";
 import { Seal, fmtPts } from "@/components/ui";
+import { Plaque } from "@/components/Plaque";
 import { CheckRow, Kpi, Meter, Ring, fmtDay, relTime } from "@/components/dash";
 
 export type Hub = {
@@ -126,6 +127,9 @@ export function LeagueDashboard({
 
           <Ring pct={pulse.readiness.pct} passed={pulse.readiness.passed} total={pulse.readiness.total} />
         </section>
+
+        {/* ======================================================= plaque == */}
+        <Plaque now={now} />
 
         {/* ========================================================= KPIs == */}
         <div className="kpis">
