@@ -17,8 +17,31 @@ export type Team = {
   league_id: string;
   name: string;
   owner_id: string | null;
+  /** The invite address. Shown only on the commissioner's invite screen. */
   owner_email: string | null;
+  /** The person behind the team, as the commissioner typed it. */
+  manager_name: string | null;
   draft_slot: number | null;
+};
+
+/** The keys the app reads out of leagues.settings. Anything else rides along. */
+export type LeagueSettings = {
+  regular_season_weeks?: number;
+  playoff_teams?: number;
+  playoff_byes?: number;
+  playoff_weeks?: number[];
+  trade_deadline_week?: number;
+  waiver_type?: string;
+  waiver_run_day?: string;
+  keepers?: boolean;
+};
+
+/** One row of league_scoring_rules: a ruleset and the week it took effect. */
+export type ScoringRuleSet = {
+  id: string;
+  effective_from_week: number;
+  note: string | null;
+  created_at: string;
 };
 
 export type Draft = {
@@ -81,6 +104,45 @@ export type Standing = {
   ties: number;
   points_for: number;
   points_against: number;
+  manager_name: string | null;
+};
+
+/* -------------------------------------------------------------- outlook -- */
+/** Shape of ff_playoff_outlook(league_id) — the inputs to the playoff sim. */
+
+export type OutlookTeam = {
+  id: string;
+  name: string;
+  manager_name: string | null;
+  wins: number;
+  losses: number;
+  ties: number;
+  points_for: number;
+  points_against: number;
+  /** Every score posted so far, in week order. */
+  scores: number[];
+  /** Expected weekly output of the current starters. Null before rosters exist. */
+  proj_ppg: number | null;
+};
+
+export type OutlookMatchup = {
+  id: string;
+  week: number;
+  home_team_id: string;
+  away_team_id: string;
+  home_points: number;
+  away_points: number;
+  played: boolean;
+};
+
+export type Outlook = {
+  week: number;
+  regular_season_weeks: number;
+  playoff_teams: number;
+  playoff_byes: number;
+  teams: OutlookTeam[];
+  matchups: OutlookMatchup[];
+  generated_at: string;
 };
 
 export type RosterPoint = {

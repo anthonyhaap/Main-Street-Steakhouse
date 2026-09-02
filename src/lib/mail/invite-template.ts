@@ -11,16 +11,20 @@
  */
 export function inviteEmail(opts: {
   teamName: string;
+  /** Greets the manager by name when the commissioner has entered one. */
+  managerName?: string;
   leagueName: string;
   email: string;
   joinUrl: string;
   draftNote?: string;
   logoUrl?: string;
 }) {
-  const { teamName, leagueName, email, joinUrl, draftNote } = opts;
+  const { teamName, managerName, leagueName, email, joinUrl, draftNote } = opts;
   const logoUrl = opts.logoUrl ?? "https://steakhouse.football/logo-full.png";
+  const first = managerName?.trim().split(/\s+/)[0];
 
   const text = [
+    ...(first ? [`${first},`, ""] : []),
     `You've been given ${teamName} in ${leagueName}.`,
     "",
     "Set up your account:",
@@ -58,7 +62,7 @@ export function inviteEmail(opts: {
 
     <tr><td align="center" style="padding:22px 34px 0 34px;">
       <div style="font:700 10px ${SANS};letter-spacing:3px;text-transform:uppercase;color:#a6791a;">
-        A seat is yours
+        ${first ? `${esc(first)}, a seat is yours` : "A seat is yours"}
       </div>
       <h1 style="margin:12px 0 0 0;font:400 32px/1.1 ${SERIF};color:#6a0b20;letter-spacing:-0.5px;">
         ${esc(teamName)}
