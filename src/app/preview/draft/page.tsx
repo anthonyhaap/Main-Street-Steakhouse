@@ -12,6 +12,8 @@
 import { useState } from "react";
 import { TopBar } from "@/components/Shell";
 import { Pool } from "@/components/draft/Pool";
+import { PlayerSheet } from "@/components/player/PlayerSheet";
+import { CARD } from "@/app/preview/player/fixture";
 import type { BoardPick, PoolPlayer } from "@/lib/types";
 
 const POOL: PoolPlayer[] = [
@@ -47,7 +49,9 @@ export default function DraftPreviewPage() {
     "c72adccf-bed4-4ab6-adce-1cdca8a5879b",
     "40a0f498-2a47-4619-b451-1ccbea51254c",
   ]);
+  const [openId, setOpenId] = useState<string | null>(null);
   const drafted = new Set(MY_PICKS.map((p) => p.player_id));
+  const takenBy = new Map(MY_PICKS.map((p) => [p.player_id, p.team_name]));
 
   return (
     <>
@@ -57,12 +61,16 @@ export default function DraftPreviewPage() {
         borderBottom: "1px solid var(--gold-dim)", color: "#7d5a11", fontSize: "var(--t-small)",
       }}>
         <strong>Fixture.</strong> Ten real rows straight out of <code>draft_pool</code>,
-        with the season projection priced under this league&apos;s rules.
+        with the season projection priced under this league&apos;s rules. Click any name
+        for the in-room card; it shows the player fixture regardless of who was clicked.
       </div>
       <main className="page" data-width="narrow">
         <Pool
           pool={POOL}
           draftedIds={drafted}
+          takenBy={takenBy}
+          slots={["QB", "RB", "RB", "WR", "WR", "TE", "FLEX", "K", "DST", "BN", "BN", "BN", "BN", "BN", "BN"]}
+          onOpen={setOpenId}
           queue={queueIds.map((id) => POOL.find((p) => p.id === id)!).filter(Boolean)}
           myPicks={MY_PICKS}
           needs={["QB", "TE", "K", "DST"]}
@@ -72,6 +80,19 @@ export default function DraftPreviewPage() {
           onQueueChange={setQueueIds}
         />
       </main>
+      {openId && (
+        <PlayerSheet
+          playerId={openId}
+          card={CARD}
+          onClose={() => setOpenId(null)}
+          actions={
+            <>
+              <button className="btn" data-size="sm">Queue</button>
+              <button className="btn" data-v="primary" data-size="sm">Draft Mahomes</button>
+            </>
+          }
+        />
+      )}
     </>
   );
 }

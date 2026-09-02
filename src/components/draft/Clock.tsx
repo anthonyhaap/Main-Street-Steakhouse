@@ -12,6 +12,8 @@ type Props = {
   myTeamId: string | null;
   teamCount: number;
   msLeft: number | null;
+  /** Picks until this manager is up, or null if they are out of picks. */
+  picksUntilMine?: number | null;
   isCommissioner: boolean;
   busy: boolean;
   onStart: () => void;
@@ -21,7 +23,7 @@ type Props = {
 };
 
 export function Clock(p: Props) {
-  const { draft, onClock, nextUp, myTeamId, teamCount, msLeft } = p;
+  const { draft, onClock, nextUp, myTeamId, teamCount, msLeft, picksUntilMine } = p;
   const mine = !!onClock && onClock.id === myTeamId;
   const total = teamCount * draft.rounds;
   const done = draft.status === "complete" || draft.current_pick > total;
@@ -66,6 +68,11 @@ export function Clock(p: Props) {
                 <span className="num">{pickLabel(draft.current_pick, teamCount)}</span>
                 {" · "}pick <span className="num">{draft.current_pick}</span> of <span className="num">{total}</span>
                 {nextUp && <> · next up <span style={{ color: "var(--muted)" }}>{nextUp.name}</span></>}
+                {!mine && picksUntilMine != null && picksUntilMine > 0 && (
+                  <> · <span style={{ color: "var(--gold)", fontWeight: 600 }}>
+                    {picksUntilMine === 1 ? "you're up next" : `your pick in ${picksUntilMine}`}
+                  </span></>
+                )}
               </div>
             )}
           </div>

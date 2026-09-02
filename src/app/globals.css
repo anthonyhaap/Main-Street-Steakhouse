@@ -1266,6 +1266,9 @@ a.kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); border-c
   align-items: center;
   gap: var(--s3);
   min-width: 0;
+  /* An inline-flex box won't shrink on its own; without this the name runs
+     under the next column on a phone instead of ellipsising. */
+  max-width: 100%;
   text-decoration: none;
   color: inherit;
   border-radius: 999px;

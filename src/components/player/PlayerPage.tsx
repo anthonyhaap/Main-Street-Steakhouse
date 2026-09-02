@@ -133,39 +133,7 @@ export function PlayerPage({ card }: { card: PlayerCard }) {
 
       <div className="pl-grid">
         <div className="th-col">
-          {/* ------------------------------------------------ projections -- */}
-          <section className="card" data-accent="gold">
-            <div className="card__head">
-              <h2>Projected</h2>
-              <span className="eyebrow">
-                {card.rest_of_season > 0
-                  ? <><span className="num">{card.rest_of_season.toFixed(1)}</span> rest of season</>
-                  : "No projection on file"}
-              </span>
-            </div>
-            {card.projections.length === 0 ? (
-              <div className="empty" style={{ padding: "var(--s6) var(--s5)" }}>
-                Nothing projected for him yet.<br />Projections load each day once the week is set.
-              </div>
-            ) : (
-              <>
-                <div className="proj">
-                  {card.projections.slice(0, 8).map((pr) => (
-                    <span className="proj__wk" key={pr.week} data-next={pr.week === card.week}>
-                      <b>{pr.points.toFixed(1)}</b>
-                      <span>Week {pr.week}</span>
-                    </span>
-                  ))}
-                </div>
-                <div style={{ padding: "0 var(--s5) var(--s4)" }}>
-                  <span className="eyebrow" style={{ letterSpacing: "0.1em" }}>
-                    Sleeper&apos;s projection, scored under this league&apos;s rules
-                    {nextProj?.updated_at ? ` · updated ${fmtWhen(nextProj.updated_at)}` : ""}
-                  </span>
-                </div>
-              </>
-            )}
-          </section>
+          <ProjectionCard card={card} />
 
           {/* ---------------------------------------------------- season -- */}
           {season ? (
@@ -265,6 +233,7 @@ export function PlayerPage({ card }: { card: PlayerCard }) {
 }
 
 /* ------------------------------------------------------------------ parts -- */
+/* Exported so the draft room's player sheet draws the same cards. */
 
 function Bio({ label, value }: { label: string; value: string | null }) {
   return (
@@ -275,7 +244,45 @@ function Bio({ label, value }: { label: string; value: string | null }) {
   );
 }
 
-function SeasonCard({
+export function ProjectionCard({ card }: { card: PlayerCard }) {
+  const nextProj = card.projections[0] ?? null;
+  return (
+    <section className="card" data-accent="gold">
+      <div className="card__head">
+        <h2>Projected</h2>
+        <span className="eyebrow">
+          {card.rest_of_season > 0
+            ? <><span className="num">{card.rest_of_season.toFixed(1)}</span> rest of season</>
+            : "No projection on file"}
+        </span>
+      </div>
+      {card.projections.length === 0 ? (
+        <div className="empty" style={{ padding: "var(--s6) var(--s5)" }}>
+          Nothing projected for him yet.<br />Projections load each day once the week is set.
+        </div>
+      ) : (
+        <>
+          <div className="proj">
+            {card.projections.slice(0, 8).map((pr) => (
+              <span className="proj__wk" key={pr.week} data-next={pr.week === card.week}>
+                <b>{pr.points.toFixed(1)}</b>
+                <span>Week {pr.week}</span>
+              </span>
+            ))}
+          </div>
+          <div style={{ padding: "0 var(--s5) var(--s4)" }}>
+            <span className="eyebrow" style={{ letterSpacing: "0.1em" }}>
+              Sleeper&apos;s projection, scored under this league&apos;s rules
+              {nextProj?.updated_at ? ` · updated ${fmtWhen(nextProj.updated_at)}` : ""}
+            </span>
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
+export function SeasonCard({
   line, label, note, position,
 }: {
   line: SeasonLine; label: string; note: string | null; position: string;

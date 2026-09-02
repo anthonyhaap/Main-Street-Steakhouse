@@ -6,12 +6,14 @@ import { useLive, useServerClock, useTicker } from "@/lib/live";
 import { useSession } from "@/lib/session";
 import { DRAFT_ID, LEAGUE_ID } from "@/lib/config";
 import type { BoardPick, Draft, PoolPlayer, Team } from "@/lib/types";
-import { rosterNeeds, teamAtPick } from "@/lib/draft";
+import { rosterNeeds, teamAtPick, upcomingPicksFor } from "@/lib/draft";
 import { TopBar } from "@/components/Shell";
 import { Clock } from "@/components/draft/Clock";
 import { Board } from "@/components/draft/Board";
 import { Pool } from "@/components/draft/Pool";
+import { PlayerSheet } from "@/components/player/PlayerSheet";
 import { SkeletonRows, useToast } from "@/components/ui";
+import { Star } from "lucide-react";
 
 type State = { draft: Draft; picks: BoardPick[]; teams: Team[]; queueIds: string[] };
 
@@ -25,6 +27,8 @@ export default function DraftPage() {
   const [busy, setBusy] = useState(false);
   const [view, setView] = useState<"board" | "pool">("pool");
   const [lastSeenPick, setLastSeenPick] = useState<number | null>(null);
+  /** The player card open over the room, if any. */
+  const [openId, setOpenId] = useState<string | null>(null);
 
   const fetcher = useCallback(async (): Promise<State> => {
     const supabase = supabaseBrowser();
@@ -89,6 +93,7 @@ export default function DraftPage() {
   }, [myTurn]);
 
   const draftedIds = useMemo(() => new Set((data?.picks ?? []).map((p) => p.player_id)), [data]);
+  const takenBy = useMemo(() => new Map((data?.picks ?? []).map((p) => [p.player_id, p.team_name])), [data]);
   const myPicks = useMemo(() => (data?.picks ?? []).filter((p) => p.team_id === team?.id), [data, team]);
   const byId = useMemo(() => new Map(pool.map((p) => [p.id, p])), [pool]);
   const queue = useMemo(
@@ -99,6 +104,15 @@ export default function DraftPage() {
     () => (league ? rosterNeeds(league.roster_slots ?? [], myPicks) : []),
     [league, myPicks],
   );
+
+  // How far off this manager's next turn is — the number ESPN puts in its
+  // banner, and the one that decides whether to open a card or hit Draft.
+  const mySlot = team?.draft_slot ?? null;
+  const picksUntilMine = useMemo(() => {
+    if (!data || !mySlot) return null;
+    const next = upcomingPicksFor(mySlot, data.draft.current_pick, data.draft.rounds, teamCount)[0];
+    return next == null ? null : next - data.draft.current_pick;
+  }, [data, mySlot, teamCount]);
 
   const msLeft =
     data?.draft.status === "active" && data.draft.pick_deadline && synced
@@ -124,6 +138,17 @@ export default function DraftPage() {
     },
     [refetch, toast],
   );
+
+  const canPick = myTurn || (isCommissioner && data?.draft.status === "active");
+
+  function toggleQueue(id: string) {
+    if (!team || !data) return;
+    const ids = data.queueIds;
+    void call("ff_set_queue", {
+      p_team_id: team.id,
+      p_player_ids: ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id],
+    });
+  }
 
   if (!ready || !data) {
     return (
@@ -162,6 +187,7 @@ export default function DraftPage() {
           myTeamId={team?.id ?? null}
           teamCount={teamCount}
           msLeft={msLeft}
+          picksUntilMine={picksUntilMine}
           isCommissioner={isCommissioner}
           busy={busy}
           onStart={() => call("ff_start_draft", { p_draft_id: DRAFT_ID }, "Draft started.")}
@@ -182,23 +208,61 @@ export default function DraftPage() {
 
         <div className="draft-grid">
           <div className="draft-pane" data-show={view === "board"}>
-            <Board draft={data.draft} teams={data.teams} picks={data.picks} myTeamId={team?.id ?? null} />
+            <Board draft={data.draft} teams={data.teams} picks={data.picks} myTeamId={team?.id ?? null} onOpen={setOpenId} />
           </div>
           <div className="draft-pane" data-show={view === "pool"}>
             <Pool
               pool={pool}
               draftedIds={draftedIds}
+              takenBy={takenBy}
               queue={queue}
               myPicks={myPicks}
+              slots={league?.roster_slots ?? []}
               needs={needs}
-              canPick={myTurn || (isCommissioner && data.draft.status === "active")}
+              canPick={canPick}
               busy={busy}
+              onOpen={setOpenId}
               onDraft={(p) => call("ff_pick_for_my_team", { p_draft_id: DRAFT_ID, p_player_id: p.id }, `Drafted ${p.full_name}.`)}
               onQueueChange={(ids) => team ? call("ff_set_queue", { p_team_id: team.id, p_player_ids: ids }) : undefined}
             />
           </div>
         </div>
       </main>
+
+      {openId && (() => {
+        const p = byId.get(openId);
+        const drafted = draftedIds.has(openId);
+        const queued = data.queueIds.includes(openId);
+        return (
+          <PlayerSheet
+            playerId={openId}
+            onClose={() => setOpenId(null)}
+            actions={
+              drafted ? (
+                <span className="badge" data-tone="neutral">Taken · {takenBy.get(openId)}</span>
+              ) : (
+                <>
+                  {team && (
+                    <button className="btn" data-size="sm" onClick={() => toggleQueue(openId)} disabled={busy}
+                      style={queued ? { color: "var(--gold)" } : undefined}>
+                      <Star size={13} fill={queued ? "var(--gold)" : "none"} /> {queued ? "Queued" : "Queue"}
+                    </button>
+                  )}
+                  <button className="btn" data-v="primary" data-size="sm" disabled={!canPick || busy || !p}
+                    title={canPick ? undefined : picksUntilMine ? `Your pick in ${picksUntilMine}` : "Not your pick"}
+                    onClick={() => {
+                      if (!p) return;
+                      setOpenId(null);
+                      void call("ff_pick_for_my_team", { p_draft_id: DRAFT_ID, p_player_id: p.id }, `Drafted ${p.full_name}.`);
+                    }}>
+                    Draft{p ? ` ${p.full_name.split(" ").slice(-1)[0]}` : ""}
+                  </button>
+                </>
+              )
+            }
+          />
+        );
+      })()}
 
       <style>{`
         .draft-grid { display: grid; gap: var(--s4); min-height: 0; }

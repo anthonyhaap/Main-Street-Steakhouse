@@ -10,9 +10,11 @@ type Props = {
   teams: Team[];
   picks: BoardPick[];
   myTeamId: string | null;
+  /** Open a drafted player's card in place. */
+  onOpen?: (playerId: string) => void;
 };
 
-export function Board({ draft, teams, picks, myTeamId }: Props) {
+export function Board({ draft, teams, picks, myTeamId, onOpen }: Props) {
   const teamCount = teams.length || 12;
   const byPick = new Map(picks.map((p) => [p.pick_number, p]));
   const rounds = Array.from({ length: draft.rounds }, (_, i) => i + 1);
@@ -59,8 +61,13 @@ export function Board({ draft, teams, picks, myTeamId }: Props) {
                 const isCurrent = pickNo === draft.current_pick && draft.status !== "complete";
                 const isMine = teams[i]?.id === myTeamId;
 
+                const clickable = !!pick && !!onOpen;
                 return (
                   <div key={slot}
+                    role={clickable ? "button" : undefined}
+                    tabIndex={clickable ? 0 : undefined}
+                    onClick={clickable ? () => onOpen(pick.player_id) : undefined}
+                    onKeyDown={clickable ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(pick.player_id); } } : undefined}
                     title={pick ? `${pick.player_name} — ${pick.team_name}` : `Pick ${pickNo}`}
                     style={{
                       minHeight: 44, padding: "5px 6px", borderRadius: 6, overflow: "hidden",
@@ -68,6 +75,7 @@ export function Board({ draft, teams, picks, myTeamId }: Props) {
                       border: `1px solid ${isCurrent ? "var(--gold)" : isMine ? "var(--gold-lit)" : "transparent"}`,
                       borderLeft: pick ? `2px solid var(--${pick.position.toLowerCase()})` : undefined,
                       transition: "background 0.2s var(--ease)",
+                      cursor: clickable ? "pointer" : undefined,
                     }}>
                     {pick ? (
                       <>
