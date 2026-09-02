@@ -60,6 +60,25 @@ export function rosterNeeds(slots: string[], drafted: BoardPick[]): string[] {
   return remaining;
 }
 
+/**
+ * The roster as it will seed: each slot, and the pick that fills it. Same
+ * placement order as rosterNeeds, so the two never disagree about what is
+ * still open. Picks that fit nowhere spill onto the bench.
+ */
+export function fillRoster(slots: string[], drafted: BoardPick[]): { slot: string; pick: BoardPick | null }[] {
+  const out = slots.map((slot) => ({ slot, pick: null as BoardPick | null }));
+  const flexOk = new Set(["RB", "WR", "TE"]);
+
+  for (const p of drafted) {
+    let i = out.findIndex((o) => !o.pick && o.slot === p.position);
+    if (i === -1 && flexOk.has(p.position)) i = out.findIndex((o) => !o.pick && o.slot === "FLEX");
+    if (i === -1) i = out.findIndex((o) => !o.pick && o.slot === "BN");
+    if (i !== -1) out[i].pick = p;
+    else out.push({ slot: "BN", pick: p });
+  }
+  return out;
+}
+
 export function fmtClock(ms: number): string {
   const total = Math.max(0, Math.ceil(ms / 1000));
   const m = Math.floor(total / 60);

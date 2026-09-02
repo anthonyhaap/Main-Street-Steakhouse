@@ -101,6 +101,16 @@ useful places — a quarterback projecting 345 points can sit at ADP 34 because
 our passing rules are stingier than the market's. That gap is the point of
 showing both.
 
+**A name opens the card in the room.** Leaving the page mid-draft loses the
+clock and your place in the list, so in the draft room a `PlayerBadge` takes an
+`onOpen` and a plain click raises `PlayerSheet` over the board instead: the
+same `ff_player_card` data and the same projection and season cards as
+`/player/[id]`, with Draft and Queue on the footer. A cmd-click or middle
+click still opens the full page, and the board's filled cells open the same
+card. Borrowed from ESPN's room alongside it: a "show drafted" toggle that
+greys out taken players with who took them, a roster tab laid out slot by slot
+the way the lineup will seed, and "your pick in N" on the clock.
+
 `/preview/team`, `/preview/player` and `/preview/draft` render these from fixtures — the team desk
 from real players with an invented wire, the player card from a verbatim
 snapshot of one real response, the draft pool from ten real rows — so any of

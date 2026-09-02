@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { ChevronDown, ChevronUp, Search, Star, X } from "lucide-react";
 import { PlayerBadge } from "@/components/PlayerBadge";
+import { fillRoster } from "@/lib/draft";
 import type { BoardPick, PoolPlayer } from "@/lib/types";
 
 const POSITIONS = ["ALL", "QB", "RB", "WR", "TE", "K", "DST"] as const;
@@ -32,26 +33,35 @@ function Proj({ p }: { p: PoolPlayer }) {
 type Props = {
   pool: PoolPlayer[];
   draftedIds: Set<string>;
+  /** Who took whom, for the drafted rows and the "taken" state. */
+  takenBy?: Map<string, string>;
   queue: PoolPlayer[];
   myPicks: BoardPick[];
+  /** The league's roster slots, so the roster tab reads as the lineup will. */
+  slots?: string[];
   needs: string[];
   canPick: boolean;
   busy: boolean;
   onDraft: (p: PoolPlayer) => void;
   onQueueChange: (ids: string[]) => void;
+  /** Open a player's card in place. Falls back to the full page when absent. */
+  onOpen?: (playerId: string) => void;
 };
 
 export function Pool(props: Props) {
-  const { pool, draftedIds, queue, myPicks, needs, canPick, busy } = props;
+  const { pool, draftedIds, takenBy, queue, myPicks, slots, needs, canPick, busy, onOpen } = props;
   const [tab, setTab] = useState<Tab>("available");
   const [pos, setPos] = useState<(typeof POSITIONS)[number]>("ALL");
   const [sort, setSort] = useState<Sort>("rank");
   const [q, setQ] = useState("");
+  const [showDrafted, setShowDrafted] = useState(false);
+
+  const byId = useMemo(() => new Map(pool.map((p) => [p.id, p])), [pool]);
 
   const available = useMemo(() => {
     const term = q.trim().toLowerCase();
     const rows = pool
-      .filter((p) => !draftedIds.has(p.id))
+      .filter((p) => showDrafted || !draftedIds.has(p.id))
       .filter((p) => pos === "ALL" || p.position === pos)
       .filter((p) => !term || p.full_name.toLowerCase().includes(term) || (p.nfl_team ?? "").toLowerCase().includes(term));
 
@@ -62,10 +72,11 @@ export function Pool(props: Props) {
       (a.overall_rank ?? 9999) - (b.overall_rank ?? 9999);
 
     return [...rows].sort(sort === "proj" ? byProj : byRank).slice(0, 250);
-  }, [pool, draftedIds, pos, q, sort]);
+  }, [pool, draftedIds, pos, q, sort, showDrafted]);
 
   const queueIds = queue.map((p) => p.id);
   const liveQueue = queue.filter((p) => !draftedIds.has(p.id));
+  const roster = useMemo(() => (slots?.length ? fillRoster(slots, myPicks) : null), [slots, myPicks]);
 
   function move(id: string, dir: -1 | 1) {
     const i = queueIds.indexOf(id);
@@ -113,9 +124,17 @@ export function Pool(props: Props) {
                 </div>
               </div>
 
-              <div className="segmented" style={{ marginLeft: "auto" }} title="Order the board">
-                <button className="segmented__opt" data-on={sort === "rank"} onClick={() => setSort("rank")}>ADP</button>
-                <button className="segmented__opt" data-on={sort === "proj"} onClick={() => setSort("proj")}>Proj</button>
+              <div style={{ marginLeft: "auto", display: "flex", gap: "var(--s3)", alignItems: "center" }}>
+                <label className="eyebrow" style={{ display: "flex", gap: 6, alignItems: "center", cursor: "pointer", whiteSpace: "nowrap" }}
+                  title="Keep drafted players in the list, greyed out">
+                  <input type="checkbox" checked={showDrafted} onChange={(e) => setShowDrafted(e.target.checked)}
+                    style={{ accentColor: "var(--gold)" }} />
+                  Show drafted
+                </label>
+                <div className="segmented" title="Order the board">
+                  <button className="segmented__opt" data-on={sort === "rank"} onClick={() => setSort("rank")}>ADP</button>
+                  <button className="segmented__opt" data-on={sort === "proj"} onClick={() => setSort("proj")}>Proj</button>
+                </div>
               </div>
             </div>
 
@@ -131,6 +150,8 @@ export function Pool(props: Props) {
             {available.map((p) => (
               <PlayerRow key={p.id} p={p} canPick={canPick} busy={busy}
                 queued={queueIds.includes(p.id)}
+                taken={draftedIds.has(p.id) ? (takenBy?.get(p.id) ?? "Taken") : null}
+                onOpen={onOpen}
                 onDraft={() => props.onDraft(p)}
                 onQueue={() => props.onQueueChange(
                   queueIds.includes(p.id) ? queueIds.filter((x) => x !== p.id) : [...queueIds, p.id],
@@ -165,6 +186,7 @@ export function Pool(props: Props) {
                     team={p.nfl_team}
                     espnId={p.espn_id}
                     size={30}
+                    onOpen={onOpen}
                     sub={
                       <>
                         <span>{p.nfl_team ?? "FA"}</span>
@@ -186,29 +208,79 @@ export function Pool(props: Props) {
 
       {tab === "roster" && (
         <div className="scroll rows" style={{ flex: 1, minHeight: 220 }}>
-          {myPicks.length === 0 && <div className="empty">You haven&apos;t drafted anyone yet.</div>}
-          {myPicks.map((p) => (
-            <div className="row" key={p.player_id}>
-              <span className="num eyebrow" style={{ width: 26 }}>R{p.round}</span>
-              <span className="pos" data-p={p.position}>{p.position}</span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <PlayerBadge
-                  id={p.player_id}
-                  name={p.player_name}
-                  position={p.position}
-                  team={p.nfl_team}
-                  espnId={p.espn_id}
-                  size={30}
-                  sub={
-                    <>
-                      <span>{p.nfl_team ?? "FA"}</span>
-                      {p.is_autopick && <span>Auto</span>}
-                    </>
-                  }
-                />
+          {/* Slot by slot, the way the lineup will seed — an empty FLEX reads
+              as a need, not a blank. Falls back to a flat list of picks when
+              the league's slots aren't known. */}
+          {roster ? (
+            <>
+              {roster.map(({ slot, pick }, i) => {
+                const bye = pick ? byId.get(pick.player_id)?.bye_week : null;
+                return (
+                  <div className="row" key={i} style={{ opacity: pick ? 1 : 0.6 }}>
+                    <span className="pos" data-p={slot} style={{ minWidth: 42 }}>{slot}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      {pick ? (
+                        <PlayerBadge
+                          id={pick.player_id}
+                          name={pick.player_name}
+                          position={pick.position}
+                          team={pick.nfl_team}
+                          espnId={pick.espn_id}
+                          size={30}
+                          onOpen={onOpen}
+                          sub={
+                            <>
+                              <span>{pick.nfl_team ?? "FA"}</span>
+                              <span className="num">R{pick.round}</span>
+                              {pick.is_autopick && <span>Auto</span>}
+                            </>
+                          }
+                        />
+                      ) : (
+                        <span style={{ fontSize: "var(--t-small)", color: "var(--faint)", fontStyle: "italic" }}>Empty</span>
+                      )}
+                    </div>
+                    <span className="num" style={{ fontSize: "var(--t-micro)", color: "var(--dim)", width: 44, textAlign: "right" }}>
+                      {bye ? `bye ${bye}` : ""}
+                    </span>
+                  </div>
+                );
+              })}
+              <div style={{ padding: "var(--s3) var(--s4)" }}>
+                <span className="eyebrow" style={{ letterSpacing: "0.1em" }}>
+                  {myPicks.length} of {roster.length} filled
+                  {needs.length > 0 && <> · still need {needs.join(", ")}</>}
+                </span>
               </div>
-            </div>
-          ))}
+            </>
+          ) : (
+            <>
+              {myPicks.length === 0 && <div className="empty">You haven&apos;t drafted anyone yet.</div>}
+              {myPicks.map((p) => (
+                <div className="row" key={p.player_id}>
+                  <span className="num eyebrow" style={{ width: 26 }}>R{p.round}</span>
+                  <span className="pos" data-p={p.position}>{p.position}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <PlayerBadge
+                      id={p.player_id}
+                      name={p.player_name}
+                      position={p.position}
+                      team={p.nfl_team}
+                      espnId={p.espn_id}
+                      size={30}
+                      onOpen={onOpen}
+                      sub={
+                        <>
+                          <span>{p.nfl_team ?? "FA"}</span>
+                          {p.is_autopick && <span>Auto</span>}
+                        </>
+                      }
+                    />
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
         </div>
       )}
     </div>
@@ -216,13 +288,16 @@ export function Pool(props: Props) {
 }
 
 function PlayerRow({
-  p, canPick, busy, queued, onDraft, onQueue,
+  p, canPick, busy, queued, taken, onOpen, onDraft, onQueue,
 }: {
   p: PoolPlayer; canPick: boolean; busy: boolean; queued: boolean;
+  /** Team that drafted him, when he is off the board. */
+  taken: string | null;
+  onOpen?: (playerId: string) => void;
   onDraft: () => void; onQueue: () => void;
 }) {
   return (
-    <div className="row" data-hover="true">
+    <div className="row" data-hover="true" style={taken ? { opacity: 0.5 } : undefined}>
       <span className="num" style={{ width: 26, fontSize: "var(--t-micro)", color: "var(--faint)", textAlign: "right" }}>
         {p.overall_rank ?? "–"}
       </span>
@@ -236,6 +311,7 @@ function PlayerRow({
           team={p.nfl_team}
           espnId={p.espn_id}
           size={32}
+          onOpen={onOpen}
           sub={
             <>
               <span>{p.nfl_team ?? "FA"}</span>
@@ -254,16 +330,25 @@ function PlayerRow({
 
       <Proj p={p} />
 
-      <button className="btn" data-v="ghost" data-size="icon" onClick={onQueue}
-        style={queued ? { color: "var(--gold)" } : undefined}
-        title={queued ? "Remove from queue" : "Add to queue"}
-        aria-label={queued ? "Remove from queue" : "Add to queue"}>
-        <Star size={15} fill={queued ? "var(--gold)" : "none"} />
-      </button>
+      {taken ? (
+        <span className="eyebrow" style={{ maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: "right" }}
+          title={taken}>
+          {taken}
+        </span>
+      ) : (
+        <>
+          <button className="btn" data-v="ghost" data-size="icon" onClick={onQueue}
+            style={queued ? { color: "var(--gold)" } : undefined}
+            title={queued ? "Remove from queue" : "Add to queue"}
+            aria-label={queued ? "Remove from queue" : "Add to queue"}>
+            <Star size={15} fill={queued ? "var(--gold)" : "none"} />
+          </button>
 
-      <button className="btn" data-v="primary" data-size="sm" disabled={!canPick || busy} onClick={onDraft}>
-        Draft
-      </button>
+          <button className="btn" data-v="primary" data-size="sm" disabled={!canPick || busy} onClick={onDraft}>
+            Draft
+          </button>
+        </>
+      )}
     </div>
   );
 }
