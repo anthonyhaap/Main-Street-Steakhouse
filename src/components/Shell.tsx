@@ -3,21 +3,27 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import {
-  BarChart3, CircleDollarSign, Crown, Home, LogOut, MessageCircle, MoreHorizontal,
-  Radio, Shield, Swords, Users, X,
+  BarChart3, CircleDollarSign, Crown, Landmark, LogOut, MessageCircle, MoreHorizontal,
+  Radio, Shield, Swords, Users, UtensilsCrossed, X,
 } from "lucide-react";
 import { useCrests, useSession } from "@/lib/session";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import type { WireStatus } from "@/lib/live";
 import { Seal } from "@/components/ui";
 
+/**
+ * The first four are the tab bar on a phone, in thumb order: the briefing,
+ * the scores, your lineup, the table. Everything else is one tap further.
+ */
 const NAV = [
-  { href: "/",           label: "League",     Icon: Home },
-  { href: "/draft",      label: "Draft",      Icon: Swords },
+  { href: "/",           label: "Tonight",    Icon: UtensilsCrossed },
   { href: "/matchups",   label: "Scores",     Icon: Radio },
   { href: "/team",       label: "My Team",    Icon: Shield },
   { href: "/standings",  label: "Standings",  Icon: BarChart3 },
+  { href: "/draft",      label: "Draft",      Icon: Swords },
+  { href: "/history",    label: "History",    Icon: Landmark },
   { href: "/players",    label: "Players",    Icon: Users },
   { href: "/chat",       label: "Chat",       Icon: MessageCircle },
   { href: "/challenges", label: "Challenges", Icon: CircleDollarSign },
@@ -56,13 +62,16 @@ export function Crest({ size = 38 }: { size?: number }) {
 
 export function TopBar({ status }: { status?: WireStatus }) {
   const path = usePathname();
+  const router = useRouter();
   const { team, league, isCommissioner } = useSession();
   const crestOf = useCrests();
   const [more, setMore] = useState(false);
   const close = () => setMore(false);
 
   const showAdmin = isCommissioner || !league?.commissioner_id;
-  const items = showAdmin ? [...NAV, { href: "/admin", label: "Commish", Icon: Crown }] : NAV;
+  const items = showAdmin
+    ? [...NAV, { href: "/league", label: "League", Icon: Crown }, { href: "/admin", label: "Commish", Icon: Crown }]
+    : [...NAV, { href: "/league", label: "League", Icon: Crown }];
   const tabs = items.slice(0, TAB_COUNT);
   const rest = items.slice(TAB_COUNT);
   const restActive = rest.some((i) => isOn(path, i.href));
@@ -114,7 +123,15 @@ export function TopBar({ status }: { status?: WireStatus }) {
 
       <nav className="tabbar" aria-label="Primary">
         {tabs.map(({ href, label, Icon }) => (
-          <Link key={href} href={href} className="tabbar__item" data-on={isOn(path, href)} onClick={close}>
+          <Link
+            key={href}
+            href={href}
+            className="tabbar__item"
+            data-on={isOn(path, href)}
+            onClick={close}
+            // The next screen starts loading on the touch, not the tap.
+            onTouchStart={() => router.prefetch(href)}
+          >
             <Icon strokeWidth={1.75} />
             {label}
           </Link>

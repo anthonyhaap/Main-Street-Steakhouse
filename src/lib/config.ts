@@ -27,3 +27,14 @@ export const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_Nx2d2lz-N84EDNtMpaTXpw_d
 export const LEAGUE_ID = "11111111-1111-1111-1111-111111111111";
 export const DRAFT_ID = "22222222-2222-2222-2222-222222222222";
 export const SEASON = 2026;
+
+/**
+ * Where the league lives. The home screen changes personality by day of the
+ * week — Tuesday is a recap, Wednesday is waivers, Sunday is a scoreboard —
+ * and that day is decided here, not on whichever phone is asking. A manager
+ * checking scores from a hotel in Denver still sees the league's Tuesday.
+ */
+export const LEAGUE_TZ = "America/New_York";
+
+/** Where share links point. Set once; the group chat unfurls against it. */
+export const SITE_URL = "https://steakhouse.football";

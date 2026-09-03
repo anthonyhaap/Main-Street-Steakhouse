@@ -33,6 +33,10 @@ Scheduled `pg_cron` jobs do the work nobody is watching:
 | `player-pool`  | daily 08:40 | `ff_load_sleeper_players()` — bio, depth chart, injury designation |
 | `stats-settle` | daily 09:17 | `ff_settle_recent_weeks()` — re-pulls for stat corrections |
 
+The web app's request boundary is `src/proxy.ts` (Next 16 renamed middleware
+to proxy). Everything is behind the session except `/login`, `/join`, `/auth`,
+`/share`, `/splash`, `/preview` and the manifest.
+
 ### Live updates
 
 `src/lib/live.ts` is the contract: *whenever* you open the app you see current
@@ -153,6 +157,84 @@ the next cron run.
 **Managers have names.** `teams.manager_name` is what the league sees under a
 team everywhere; the email is only shown on the invite row in `/admin`.
 
+### Tonight's Table
+
+`/` is no longer a dashboard. It is one card, typeset like a reservation, that
+answers the three questions a manager has when the app opens: who am I
+playing, am I winning, what do I do now. Everything else on the screen — the
+six tables as a swipe carousel, the standings as a place card — is below it.
+
+One RPC feeds it. `ff_briefing(league_id)` returns my matchup with live and
+projected totals and each starter's game state, my record and seed, the
+all-time head-to-head against tonight's opponent, last week's result, the
+week's slate, the lineup's problems, and the state of the NFL calendar. The
+page is **server-rendered** from that call on the session cookie, so the HTML
+that arrives already says "Week 3 · You vs. Dave"; `useLive` then takes over
+with the server payload as its initial state and refetches under the usual
+contract. The skeleton has the card's exact silhouette, so nothing shifts.
+
+`src/lib/briefing.ts` turns the facts into words, and is pure:
+
+| function | decides |
+|----------|---------|
+| `phaseOf` | the personality: `draft`, `preseason`, `lineup`, `waivers` (Wednesday), `recap` (Tuesday), `live`, `monday`, `settled` |
+| `headline` | "Week 3 · You vs. Dave", "You beat Mike." |
+| `narrative` | the one true line: "You've dropped three straight to Dave. Sunday's the rematch.", "You need 11.4 from McBride. He's projected 12.4." |
+| `action` | the one thing to do, never two: fill the empty slot, check on the questionable starter, watch it live, send the recap |
+| `recapText` | the Tuesday recap in the house voice, for the group chat |
+
+The day of the week is the league's (`LEAGUE_TZ`), not the phone's. The NFL
+slate decides the rest: any game in progress is Sunday whatever the calendar
+says, and a Monday with only your tight end left to play is written as a
+number he has to reach. `/preview/tonight` renders every day from one fixture.
+
+Two things the card does on a phone that the old dashboard did not. On login,
+once per session, an ink curtain with a gold monogram etches in and the card's
+rules draw before the text fades up — a little over a second, set by an inline
+script before first paint so it never flashes, `pointer-events: none` so it
+never blocks a tap, and skipped entirely under `prefers-reduced-motion`. And on
+a Sunday the projected numbers become live numbers: a score that ticks up
+counts rather than snaps, flashes gold when it is yours and goes dim when it is
+his, and taps an Android wrist through `navigator.vibrate`.
+
+**It is an app on the phone.** `manifest.ts` declares standalone display,
+`/splash/<w>x<h>.png` draws the ink launch screen at whatever size an iPhone
+asks for (Satori, no PNGs in the repo), the layout lists them per device, and
+`InstallNudge` shows the two taps once on a first mobile visit. The tab bar
+carries four items — Tonight, Scores, My Team, Standings — with everything
+else behind More; pull to refresh works in the installed app only, where the
+browser's own is absent. Fraunces and Inter arrive through `next/font`, so the
+headline has an optical-size axis and every score sits in tabular figures.
+
+### The wall
+
+"Est. 2016" is on the crest, and `/history` is the room that proves it: a
+plaque of champions, a 12×12 all-time head-to-head grid painted as a heat map,
+rivalries the numbers found on their own, the longest runs and the worst
+beatings, and a card for every manager with a title the record earned
+("Three-time finalist. Never won.").
+
+`league_history` holds the seasons before this app, keyed by **manager name**
+rather than team row, because teams are re-created every year and people are
+not. The current season joins in from `matchups` through `teams.manager_name`,
+so the wall and the briefing's "all-time against Dave" line are live from week
+two of 2026 whether or not the old seasons are in yet. They go in once, from
+`/admin`: one CSV line per game, `season,week,round,home_manager,…`, through
+`ff_import_history`, which replaces any season it is handed so a corrected
+sheet can be pasted again. `ff_history` assembles the wall; `/preview/history`
+renders ten invented seasons through it.
+
+### The share card
+
+`/share/matchup/[id]` is the one public page in the league. It reads through
+`ff_share_card`, the only function anon may call, which returns two names,
+two managers, two scores, the week and the top scorer for a matchup addressed
+by an unguessable id — and nothing else. Its `opengraph-image` is drawn per
+matchup in ink and gold with Fraunces (`public/fonts/`), so the link unfurls
+in the group chat as a card. The recap button on Tuesday's briefing opens the
+phone's share sheet with the week's results written in the house voice and
+that link at the bottom; where there is no share sheet, it copies.
+
 ### The scoreboard
 
 `/matchups` is the screen the league actually watches on a Sunday, and it was
@@ -168,7 +250,12 @@ doing what he is doing. `roster_points` now carries `espn_id` for the headshot,
 the same one-line join `draft_pool` and `draft_board` already use.
 
 `/preview/standings` and `/preview/admin` render the standings board and the
-rule editors from fixtures.
+rule editors from fixtures. The commissioner's old dashboard — readiness
+checklist, roll call, automation health — lives on at `/league`.
+
+The `/preview` routes are public. They read nothing from the database; every
+one is an invented league rendered through the real components, which is what
+lets `tests/e2e/tonight.spec.ts` assert the card's sentences without a session.
 
 ## Setup
 

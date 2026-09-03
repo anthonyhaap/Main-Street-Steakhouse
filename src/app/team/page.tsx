@@ -33,7 +33,7 @@ export default function TeamPage() {
     return data as TeamHub;
   }, [team, week]);
 
-  const { data: hub, status, error, refetch } = useLive<TeamHub | null>(fetcher, {
+  const { data: hub, status, error, refetch, mutate } = useLive<TeamHub | null>(fetcher, {
     tables: ["rosters", "matchups"],
     channel: "my-team",
     pollMs: 30000,
@@ -57,14 +57,30 @@ export default function TeamPage() {
     const assignments: Record<string, string> = { [moving.player_id]: target.slot };
     if (target.player) assignments[target.player.player_id] = moving.slot;
 
+    // Optimistic: the row moves on the tap, not on the round trip. The
+    // server's answer replaces it either way — the refetch below confirms
+    // the move, and an error puts the old lineup back.
+    const before = hub;
+    if (hub) {
+      const swapped = hub.roster.map((p) =>
+        p.player_id === moving.player_id ? { ...p, slot: target.slot }
+        : target.player && p.player_id === target.player.player_id ? { ...p, slot: moving.slot }
+        : p);
+      mutate({ ...hub, roster: swapped });
+    }
+    setMoving(null);
+
     setBusy(true);
     const { error: rpcError } = await supabaseBrowser().rpc("ff_set_lineup", {
       p_team_id: team.id, p_week: week, p_assignments: assignments,
     });
     setBusy(false);
-    setMoving(null);
-    if (rpcError) toast("error", rpcError.message);
-    else toast("ok", `${moving.full_name} → ${target.slot === "BN" ? "bench" : target.slot}.`);
+    if (rpcError) {
+      mutate(before);
+      toast("error", rpcError.message);
+    } else {
+      toast("ok", `${moving.full_name} → ${target.slot === "BN" ? "bench" : target.slot}.`);
+    }
     await refetch();
   }
 
