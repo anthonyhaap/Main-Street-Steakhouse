@@ -68,3 +68,4 @@
 20260902141320 roster_points_faces
 20260902150241 team_crests
 20260903020039 tonights_table
+20260903140455 tonights_table_second_sitting

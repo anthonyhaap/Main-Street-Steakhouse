@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
-import { useLive } from "@/lib/live";
+import { useLive, useServerClock } from "@/lib/live";
 import { useSession } from "@/lib/session";
 import { LEAGUE_ID, SITE_URL } from "@/lib/config";
 import { crestUrl } from "@/lib/crest";
@@ -30,12 +30,16 @@ export function Tonight({ initial, serverNow }: { initial: Briefing | null; serv
   const toast = useToast();
 
   // The clock starts at the server's time so the first client render agrees
-  // with the HTML, then ticks on its own.
+  // with the HTML, then ticks in server time: `useServerClock` measures the
+  // offset against ff_now(), and until it has, the briefing's own timestamp
+  // stands in. A phone forty seconds fast never sees a different day.
   const [now, setNow] = useState(serverNow);
+  const { serverNow: clockNow, synced } = useServerClock();
+  const skew = useRef(0);
   useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 1000);
+    const id = setInterval(() => setNow(synced ? clockNow() : Date.now() + skew.current), 1000);
     return () => clearInterval(id);
-  }, []);
+  }, [synced, clockNow]);
 
   const fetcher = useCallback(async (): Promise<Briefing> => {
     const { data, error } = await supabaseBrowser().rpc("ff_briefing", { p_league_id: LEAGUE_ID });
@@ -51,6 +55,10 @@ export function Tonight({ initial, serverNow }: { initial: Briefing | null; serv
     enabled: ready,
     initial,
   });
+
+  useEffect(() => {
+    if (data?.now) skew.current = new Date(data.now).getTime() - Date.now();
+  }, [data]);
 
   /* ---------------------------------------------------------- live ticks */
   const prev = useRef<{ my: number; opp: number } | null>(null);

@@ -96,8 +96,13 @@ const base = (now: number, done = now): Briefing => {
       my_starters: mine, opp_starters: theirs, my_empty_slots: 0, opponent: opp,
     },
     last: {
-      week: 2, my_points: 132.4, opp_points: 118.9,
+      week: 2, matchup_id: "w2m0", my_points: 132.4, opp_points: 118.9,
       opponent: { team_id: "t11", name: "Brisket Brigade", manager_name: "Mike", logo_path: null },
+      board: [[0, 10], [8, 4], [1, 5], [2, 11], [3, 6], [7, 9]].map(([a, b], i) => ({
+        id: `w2m${i}`, week: 2, home_team_id: TEAMS[a].id, away_team_id: TEAMS[b].id,
+        home_points: i === 0 ? 132.4 : 101.2 + i * 6.1, away_points: i === 0 ? 118.9 : 96.6 + i * 9.8,
+        home_proj: 0, away_proj: 0, mine: i === 0,
+      })),
       league_high: { team_id: "t9", name: "Sirloin Syndicate", manager_name: "Kai", points: 161.2 },
       my_week_rank: 3, top_scorer: { full_name: "Jonathan Taylor", position: "RB", points: 31.2 },
     },

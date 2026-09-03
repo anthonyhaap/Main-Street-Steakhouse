@@ -70,12 +70,16 @@ export type BriefMatchup = {
 
 export type BriefLast = {
   week: number;
+  /** The recapped game, for the share link; `matchup` is the week ahead. */
+  matchup_id: string;
   my_points: number;
   opp_points: number;
   opponent: { team_id: string; name: string; manager_name: string | null; logo_path: string | null };
   league_high: { team_id: string; name: string; manager_name: string | null; points: number } | null;
   my_week_rank: number;
   top_scorer: { full_name: string; position: string; points: number } | null;
+  /** Every result of that week. By Tuesday `board` has moved on to the next. */
+  board: BoardRow[];
 };
 
 export type BriefHistory = {
@@ -518,7 +522,8 @@ export function recapText(b: Briefing, origin: string): string {
   const week = b.last?.week ?? b.week;
   const lines: string[] = [`${b.league.name} · Week ${week}`];
 
-  const rows = b.board.filter((r) => r.week === week);
+  // Last week's results come with `last`; `board` is already the week ahead.
+  const rows = (b.last?.board ?? b.board).filter((r) => r.week === week);
   for (const r of rows) {
     const h = nameOf(r.home_team_id), a = nameOf(r.away_team_id);
     const hp = Number(r.home_points), ap = Number(r.away_points);
@@ -529,7 +534,8 @@ export function recapText(b: Briefing, origin: string): string {
   if (b.last?.league_high) {
     lines.push("", `Tonight's Specials: ${who(b.last.league_high)}, ${fmt(b.last.league_high.points)} points.`);
   }
-  if (b.matchup) lines.push(`${origin}/share/matchup/${b.matchup.id}`);
+  const link = b.last?.matchup_id ?? b.matchup?.id;
+  if (link) lines.push(`${origin}/share/matchup/${link}`);
   return lines.join("\n");
 }
 
