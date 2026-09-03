@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  BarChart3, CircleDollarSign, Crown, Home, LogOut, MessageCircle, MoreHorizontal,
+  BarChart3, CircleDollarSign, ClipboardList, Crown, Home, LogOut, MessageCircle, MoreHorizontal,
   Radio, Shield, Swords, Users, X,
 } from "lucide-react";
 import { useCrests, useSession } from "@/lib/session";
@@ -15,6 +15,7 @@ import { Seal } from "@/components/ui";
 const NAV = [
   { href: "/",           label: "League",     Icon: Home },
   { href: "/draft",      label: "Draft",      Icon: Swords },
+  { href: "/mock-draft", label: "Mock Draft", Icon: ClipboardList },
   { href: "/matchups",   label: "Scores",     Icon: Radio },
   { href: "/team",       label: "My Team",    Icon: Shield },
   { href: "/standings",  label: "Standings",  Icon: BarChart3 },

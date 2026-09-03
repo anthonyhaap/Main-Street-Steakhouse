@@ -130,6 +130,15 @@ from real players with an invented wire, the player card from a verbatim
 snapshot of one real response, the draft pool from ten real rows — so any of
 them can be inspected without a session.
 
+### Mock drafts
+
+`/mock-draft` is a private, browser-only rehearsal room. A manager chooses any
+seat in the league's snake order, drafts from the same current player pool and
+sees the same board, queue, projections and roster-needs views as draft night.
+The other tables select by market rank while still completing a legal roster.
+Mocks never call a write RPC, so restarting or completing one cannot change the
+live draft, queues or rosters.
+
 ### The season
 
 **Standings carry playoff odds.** `ff_playoff_outlook` returns the table, the
