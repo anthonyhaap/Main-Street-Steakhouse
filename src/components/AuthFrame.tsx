@@ -20,10 +20,10 @@ export function AuthFrame({ children }: { children: React.ReactNode }) {
         <div className="auth__houseInner">
           <Image
             className="auth__logo"
-            src="/logo-full.png"
+            src="/logo-full.svg"
             alt="Main Street Steakhouse — Est. 2016 — Members Only"
-            width={782}
-            height={874}
+            width={800}
+            height={892}
             priority
           />
 
@@ -46,10 +46,10 @@ export function AuthFrame({ children }: { children: React.ReactNode }) {
       <section className="auth__work">
         <Image
           className="auth__logoSm"
-          src="/logo-full.png"
+          src="/logo-full.svg"
           alt="Main Street Steakhouse"
-          width={782}
-          height={874}
+          width={800}
+          height={892}
           priority
         />
         <div className="auth__form">{children}</div>
