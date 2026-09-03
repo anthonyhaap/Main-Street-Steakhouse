@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test:e2e": "playwright test",
-    "check:migrations": "node scripts/check-migrations.mjs"
+    "check:migrations": "node scripts/check-migrations.mjs",
+    "build:logo": "python3 scripts/logo/build.py"
   },
   "dependencies": {
     "@supabase/ssr": "^0.8.0",

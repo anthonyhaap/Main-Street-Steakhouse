@@ -44,3 +44,7 @@ next-env.d.ts
 test-results/
 playwright-report/
 supabase/.temp/
+
+# fonts fetched by scripts/logo/build.py
+scripts/logo/fonts/
+__pycache__/
