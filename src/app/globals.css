@@ -619,56 +619,6 @@ body {
 .hero__clock .score { font-size: clamp(2.4rem, 7vw, 3.6rem); }
 .hero__clock[data-urgent="true"] .score { color: var(--lose); }
 
-/* --- the plaque -------------------------------------------------------- */
-/* A sign on the wall, not a card: no shadow, no hover, one wine edge. It sits
-   between the hero and the KPIs, which is the only place on this page where a
-   band of prose is not in the way of somebody trying to run a league. */
-.lt {
-  display: grid;
-  align-items: center;
-  gap: clamp(var(--s3), 2vw, var(--s5));
-  grid-template-columns: auto minmax(0, 1fr);
-  padding: var(--s4) clamp(var(--s4), 2.2vw, var(--s5));
-  border: 1px solid var(--rule);
-  border-left: 3px solid var(--wine);
-  border-radius: var(--r);
-  background: linear-gradient(180deg, #fffdf8, #faf5ea);
-}
-/* Narrow, the stats take a row of their own underneath. They have to be told
-   to span, or the two-column track sizes them against the badge and squeezes
-   the note down to one word a line. */
-.lt__stats { grid-column: 1 / -1; }
-@media (min-width: 920px) {
-  .lt { grid-template-columns: auto minmax(0, 1fr) auto; }
-  .lt__stats { grid-column: auto; }
-}
-
-.lt__num {
-  display: grid; place-items: center;
-  width: 44px; height: 44px;
-  border-radius: 50%;
-  border: 1px solid var(--gold-lit);
-  background: var(--wine);
-  color: var(--ink-0);
-  font: 400 1.15rem/1 var(--serif);
-}
-
-.lt__say p {
-  margin: 6px 0 0;
-  font: 400 var(--t-body)/1.55 var(--serif);
-  color: var(--muted);
-  text-wrap: pretty;
-}
-
-.lt__stats {
-  display: flex; flex-wrap: wrap;
-  gap: var(--s3) clamp(var(--s4), 2.4vw, var(--s6));
-  margin: 0;
-}
-.lt__stats > div { display: grid; gap: 2px; }
-.lt__stats dt { order: 2; font-size: var(--t-micro); color: var(--dim); letter-spacing: 0.04em; }
-.lt__stats dd { order: 1; margin: 0; font: 400 1.15rem/1 var(--serif); color: var(--gold); }
-
 /* --- readiness dial ---------------------------------------------------- */
 .dial { display: grid; place-items: center; gap: var(--s3); justify-items: center; }
 .dial__svg { width: 168px; height: 168px; transform: rotate(-90deg); }
