@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -40,20 +41,6 @@ export function Wire({ status }: { status?: WireStatus }) {
   );
 }
 
-/** The crest and wordmark, rebuilt from the logo so it stays crisp at 38px. */
-export function Crest({ size = 38 }: { size?: number }) {
-  return (
-    <span className="mark__seal" style={{ width: size, height: size }}>
-      <svg viewBox="0 0 64 64" fill="none" aria-hidden focusable="false">
-        <circle cx="32" cy="32" r="28.5" stroke="var(--gold-lit)" strokeWidth="3" />
-        <ellipse cx="32" cy="21" rx="8.5" ry="2.6" stroke="var(--cream)" strokeWidth="2.4" />
-        <path d="M32 22.5V45" stroke="var(--cream)" strokeWidth="2.6" strokeLinecap="round" />
-        <ellipse cx="32" cy="45.5" rx="13" ry="3.4" stroke="var(--cream)" strokeWidth="2.4" />
-      </svg>
-    </span>
-  );
-}
-
 export function TopBar({ status }: { status?: WireStatus }) {
   const path = usePathname();
   const { team, league, isCommissioner } = useSession();
@@ -71,11 +58,10 @@ export function TopBar({ status }: { status?: WireStatus }) {
     <>
       <header className="topbar">
         <Link href="/" className="mark" aria-label="Main Street Steakhouse — league home">
-          <Crest />
-          <span className="mark__words">
-            <b>Main Street</b>
-            <i>Steakhouse</i>
-          </span>
+          {/* Both cut from the same outlines as /logo-full.svg, so the header
+              and the badge can't drift apart. Phones get the mark alone. */}
+          <Image className="mark__lockup" src="/logo-lockup.svg" alt="" width={248} height={40} priority />
+          <Image className="mark__seal" src="/mark.svg" alt="" width={64} height={64} priority />
         </Link>
 
         <nav className="nav" aria-label="Primary">

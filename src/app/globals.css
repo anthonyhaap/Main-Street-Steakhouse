@@ -194,36 +194,22 @@ body {
   text-decoration: none;
   flex-shrink: 0;
 }
+.mark__lockup {
+  display: block;
+  height: 38px; width: auto;
+  flex-shrink: 0;
+}
 .mark__seal {
-  display: grid;
-  place-items: center;
+  display: none;
   width: 38px; height: 38px;
   flex-shrink: 0;
   transition: transform 0.25s var(--ease);
 }
-.mark__seal img, .mark__seal svg { width: 100%; height: 100%; display: block; }
 .mark:hover .mark__seal { transform: rotate(-6deg) scale(1.04); }
-
-.mark__words {
-  display: grid;
-  gap: 1px;
-  font-family: var(--serif);
-  line-height: 1;
+@media (max-width: 560px) {
+  .mark__lockup { display: none; }
+  .mark__seal { display: block; }
 }
-.mark__words b {
-  font: 700 11px/1 var(--sans);
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  color: var(--cream);
-}
-.mark__words i {
-  font: 700 14px/1 var(--serif);
-  font-style: normal;
-  letter-spacing: 0.13em;
-  text-transform: uppercase;
-  color: var(--wine);
-}
-@media (max-width: 560px) { .mark__words { display: none; } }
 
 .nav { display: flex; gap: 2px; margin-left: auto; }
 @media (max-width: 1080px) { .nav { display: none; } }
