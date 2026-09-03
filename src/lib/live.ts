@@ -17,6 +17,16 @@ type Options = {
   enabled?: boolean;
 };
 
+type OptionsWithInitial<T> = Options & {
+  /**
+   * What the server already rendered. The hook starts from it instead of
+   * null, so a server-rendered screen never flashes a skeleton over data it
+   * has in hand — and still refetches on mount, because the contract is
+   * "current state", not "whatever the server saw a moment ago".
+   */
+  initial?: T | null;
+};
+
 /**
  * The contract this hook exists to keep: *whenever* you open the app, you see
  * current state — not whatever was true when a socket last delivered an event.
@@ -32,13 +42,13 @@ type Options = {
  * duplicated, and out-of-order events — the failure mode that makes most
  * homegrown draft rooms disagree with each other at pick 40.
  */
-export function useLive<T>(fetcher: () => Promise<T>, opts: Options) {
-  const { tables, channel, pollMs = 20000, enabled = true } = opts;
+export function useLive<T>(fetcher: () => Promise<T>, opts: OptionsWithInitial<T>) {
+  const { tables, channel, pollMs = 20000, enabled = true, initial = null } = opts;
 
-  const [data, setData] = useState<T | null>(null);
+  const [data, setData] = useState<T | null>(initial);
   const [status, setStatus] = useState<WireStatus>("connecting");
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(initial === null);
 
   const fetcherRef = useRef(fetcher);
   fetcherRef.current = fetcher;
@@ -132,7 +142,9 @@ export function useLive<T>(fetcher: () => Promise<T>, opts: Options) {
     return () => clearInterval(id);
   }, [enabled, pollMs, refetch]);
 
-  return { data, status, error, loading, refetch };
+  // `mutate` is for optimism: show the move now, let the next refetch confirm
+  // it. Never a substitute for the fetch, only a head start on it.
+  return { data, status, error, loading, refetch, mutate: setData };
 }
 
 /**

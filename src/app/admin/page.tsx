@@ -2,8 +2,9 @@
 
 import { useCallback, useState } from "react";
 import {
-  Crown, Dices, Link2, ListChecks, Mail, Save, Scale, ScrollText, Send, Timer,
+  Crown, Dices, Landmark, Link2, ListChecks, Mail, Save, Scale, ScrollText, Send, Timer,
 } from "lucide-react";
+import { HistoryImport } from "@/components/admin/HistoryImport";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { useLive } from "@/lib/live";
 import { useSession } from "@/lib/session";
@@ -235,6 +236,17 @@ export default function AdminPage() {
                   </button>
                 </div>
               </div>
+            </section>
+
+            <section className="card">
+              <div className="card__head">
+                <div>
+                  <h2>The wall</h2>
+                  <div className="eyebrow" style={{ marginTop: 5 }}>Seasons before this app, 2016 onward</div>
+                </div>
+                <Landmark size={17} color="var(--gold)" />
+              </div>
+              <HistoryImport />
             </section>
           </>
         )}
