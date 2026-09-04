@@ -191,8 +191,9 @@ slate decides the rest: any game in progress is Sunday whatever the calendar
 says, and a Monday with only your tight end left to play is written as a
 number he has to reach. `/preview/tonight` renders every day from one fixture.
 
-Two things the card does on a phone that the old dashboard did not. On login,
-once per session, an ink curtain with a gold monogram etches in and the card's
+Two things the card does on a phone that the old dashboard did not. On the
+first visit of a session — the doors below take the place of it on the way in
+from sign-in — an ink curtain with a gold monogram etches in and the card's
 rules draw before the text fades up — a little over a second, set by an inline
 script before first paint so it never flashes, `pointer-events: none` so it
 never blocks a tap, and skipped entirely under `prefers-reduced-motion`. And on
@@ -508,6 +509,30 @@ queues are visible only to their owner and the commissioner.
 
 Supabase URL and publishable key are hardcoded in `src/lib/config.ts` — see the
 comment there for why env vars were removed.
+
+### The doors
+
+Signing in is the one moment the app can afford some theatre, so it takes it.
+On the way out of `/login` and `/join` two black doors close over the form,
+lean on the latch, and swing open towards you into white smoke; the house mark
+is drawn once across both leaves in brass, so it splits down the seam as they
+part. The page changes underneath while the screen is still white, and the
+smoke thins on the far side to reveal wherever you were going.
+
+`DoorsHost` lives in the root layout rather than on the two auth screens
+because the whole point is that it outlasts them — a layout is the only thing
+in an App Router tree that survives the `router.push` it is covering. The
+screens themselves only call `enterThroughDoors(go)`; that hands `go` back
+1.4s in, and takes the overlay off the screen at 2.4s whether or not the route
+ever arrived, so nothing can be left sitting on top of the app. Under
+`prefers-reduced-motion` it navigates immediately and mounts nothing. Going
+through the doors also marks the ink curtain seen for the session, because the
+two of them back to back is the same beat played twice.
+
+`/logo-full.png` is ink on paper and would be invisible on a black door, so the
+crest is redrawn as inline SVG in cream and gold at the logo's own proportions,
+its ring cut as the two arcs the wordmark leaves behind. `/preview/doors` plays
+the whole thing on demand against a stand-in for the room behind it.
 
 ## Migrations and the GitHub integration
 

@@ -3,6 +3,7 @@ import { Fraunces, Inter } from "next/font/google";
 import { SessionProvider } from "@/lib/session";
 import { ToastHost } from "@/components/ui";
 import { CURTAIN_SCRIPT } from "@/components/Curtain";
+import { DoorsHost } from "@/components/Doors";
 import "./globals.css";
 
 /**
@@ -85,6 +86,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             <div className="shell">{children}</div>
           </ToastHost>
         </SessionProvider>
+        {/* The way in from /login and /join. Mounted here, above the router,
+            because it has to outlive the screen that opens it. */}
+        <DoorsHost />
       </body>
     </html>
   );

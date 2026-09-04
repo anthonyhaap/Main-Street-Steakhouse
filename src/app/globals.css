@@ -1690,6 +1690,263 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
   to   { opacity: 1; transform: none; }
 }
 
+
+/* ============================================================================
+   THE DOORS — the way in, once, from /login and /join
+   ----------------------------------------------------------------------------
+   Two black leaves with the crest cut across them in brass. They hold for a
+   beat, swing out into white smoke, and hand the screen over while it is still
+   white — the route changes under the veil, and the smoke thins on the far
+   side. The beats here are the constants in components/Doors.tsx: 1150ms of
+   door, white by 1400ms, gone at 2400ms. Change one, change both.
+   ========================================================================== */
+
+.doors {
+  position: fixed; inset: 0;
+  z-index: 300;
+  overflow: hidden;
+  perspective: 1500px;
+  perspective-origin: 50% 46%;
+  background: #050403;
+  /* Deliberately not pointer-events: none. This one is a door, not a curtain;
+     nothing behind it should take a second submit on the way through. */
+  animation: door-out 780ms ease 1620ms both;
+}
+
+@keyframes door-out {
+  0%   { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* ------------------------------------------------------ the room, and light */
+
+.doors__room {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(84% 74% at 50% 58%, #ffffff 0%, #fffaf0 38%, #efe6d6 64%, #cbbca6 82%, transparent 96%),
+    radial-gradient(30% 22% at 50% 50%, #fffdf7 0%, transparent 70%);
+  opacity: 0;
+  animation: door-room 1500ms cubic-bezier(0.5, 0.02, 0.3, 1) both;
+}
+
+@keyframes door-room {
+  0%   { opacity: 0; transform: scale(0.8); }
+  14%  { opacity: 0.06; }
+  46%  { opacity: 0.42; }
+  72%  { opacity: 0.85; }
+  100% { opacity: 1; transform: scale(1.06); }
+}
+
+.doors__seam {
+  position: absolute; top: 0; bottom: 0; left: 50%;
+  width: 3px; margin-left: -1.5px;
+  background: linear-gradient(180deg, transparent, var(--gold-lit) 22%, #fff6e0 50%, var(--gold-lit) 78%, transparent);
+  filter: blur(1px);
+  opacity: 0;
+  animation: door-seam 460ms ease-out both;
+}
+
+@keyframes door-seam {
+  0%   { opacity: 0; }
+  38%  { opacity: 0.85; }
+  100% { opacity: 0; }
+}
+
+/* -------------------------------------------------------------- the smoke -- */
+
+.doors__smoke { position: absolute; inset: 0; }
+
+.doors__puff {
+  position: absolute;
+  left: 50%; top: 58%;
+  width: 40vmax; height: 40vmax;
+  margin: -20vmax 0 0 -20vmax;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 50%, #ffffff 0%, #fffdf8cc 34%, #f4ece0 55%, transparent 72%);
+  filter: blur(28px);
+  opacity: 0;
+  animation: door-puff 1750ms cubic-bezier(0.24, 0.58, 0.3, 1) both;
+}
+
+/* Six plumes on slightly different clocks — one column of smoke reads as fog,
+   several out of step read as smoke. */
+.doors__puff[data-i="0"] { animation-delay: 300ms; --dx: -32vw; --dy: -14vh; --end: 2.6; }
+.doors__puff[data-i="1"] { animation-delay: 380ms; --dx:  30vw; --dy: -18vh; --end: 2.8; }
+.doors__puff[data-i="2"] { animation-delay: 460ms; --dx:  -9vw; --dy: -32vh; --end: 3.1; }
+.doors__puff[data-i="3"] { animation-delay: 540ms; --dx:  16vw; --dy:  10vh; --end: 2.7; }
+.doors__puff[data-i="4"] { animation-delay: 640ms; --dx: -21vw; --dy:  17vh; --end: 2.9; }
+.doors__puff[data-i="5"] { animation-delay: 740ms; --dx:   4vw; --dy:  -5vh; --end: 3.4; }
+
+@keyframes door-puff {
+  0%   { opacity: 0;   transform: translate3d(0, 0, 0) scale(0.2); }
+  26%  { opacity: 0.4; }
+  70%  { opacity: 0.8; }
+  100% { opacity: 0.9; transform: translate3d(var(--dx), var(--dy), 0) scale(var(--end)); }
+}
+
+/* -------------------------------------------------------------- the leaves */
+
+.doors__leaf {
+  position: absolute; top: 0; bottom: 0;
+  width: 50.2%;              /* a hair of overlap so no seam pixel shows through */
+  overflow: hidden;          /* the leaf is a window onto a viewport-wide face */
+  box-shadow: 0 0 60px #000000b3;
+}
+
+.doors__leaf[data-side="l"] {
+  left: 0;
+  transform-origin: left center;
+  background: linear-gradient(96deg, #000000 0%, #191412 38%, #100c0a 72%, #050403 100%);
+  animation:
+    door-swing-l 1150ms cubic-bezier(0.62, 0.02, 0.34, 1) both,
+    door-gone 260ms linear 1190ms both;
+}
+.doors__leaf[data-side="r"] {
+  right: 0;
+  transform-origin: right center;
+  background: linear-gradient(264deg, #000000 0%, #191412 38%, #100c0a 72%, #050403 100%);
+  animation:
+    door-swing-r 1150ms cubic-bezier(0.62, 0.02, 0.34, 1) both,
+    door-gone 260ms linear 1190ms both;
+}
+
+/* Edge on, a leaf is still a 200px slab of black parked against the frame. It
+   slides the last of itself out of shot, and goes under the white for good. */
+@keyframes door-gone { to { opacity: 0; } }
+
+/* The hold is inside the keyframes, not a delay, so the leaf can lean on the
+   latch first — a door takes a moment to decide to open. Each leaf is hinged on
+   its outer edge and swings its inner edge towards the viewer, which is what
+   puts you in the doorway rather than watching one from across the street.
+   Nothing passes 88deg; at 90 you are looking at the back of a door that has
+   no back. */
+@keyframes door-swing-l {
+  0%   { transform: rotateY(0deg);    filter: brightness(1); }
+  11%  { transform: rotateY(-0.8deg); filter: brightness(1.16); }
+  15%  { transform: rotateY(1.6deg); }
+  84%  { transform: rotateY(80deg); }
+  100% { transform: translateX(-52%) rotateY(88deg); filter: brightness(0.3); }
+}
+@keyframes door-swing-r {
+  0%   { transform: rotateY(0deg);   filter: brightness(1); }
+  11%  { transform: rotateY(0.8deg); filter: brightness(1.16); }
+  15%  { transform: rotateY(-1.6deg); }
+  84%  { transform: rotateY(-80deg); }
+  100% { transform: translateX(52%) rotateY(-88deg); filter: brightness(0.3); }
+}
+
+.doors__grain {
+  position: absolute; inset: 0;
+  background:
+    repeating-linear-gradient(90deg, #ffffff08 0 1px, transparent 1px 4px),
+    repeating-linear-gradient(90deg, #00000040 0 2px, transparent 2px 11px);
+  opacity: 0.55;
+}
+
+.doors__panel {
+  position: absolute; inset: 3.4% 7%;
+  border: 1px solid #c99c3f33;
+  border-radius: 3px;
+  box-shadow:
+    inset 0 0 0 7px #ffffff08,
+    inset 0 0 90px #000000a6,
+    0 1px 0 #ffffff0d;
+}
+
+.doors__handle {
+  position: absolute; top: 74%;
+  width: 10px; height: 132px; margin-top: -66px;
+  border-radius: 5px;
+  background: linear-gradient(90deg, #7a5a17, #e2c37a 35%, #fff3d2 50%, #c99c3f 68%, #6c4d12);
+  box-shadow: 0 0 14px #c99c3f4d, 0 2px 6px #000000a6;
+}
+.doors__leaf[data-side="l"] .doors__handle { right: 22px; }
+.doors__leaf[data-side="r"] .doors__handle { left: 22px; }
+
+/* Twice the leaf's width is exactly the viewport, so the plate inside lands at
+   the centre of the screen on both faces and the seam cuts it in half. */
+.doors__face {
+  position: absolute; top: 0;
+  width: 200%; height: 100%;
+  display: grid;
+  place-items: center;
+}
+.doors__leaf[data-side="l"] .doors__face { left: 0; }
+.doors__leaf[data-side="r"] .doors__face { right: 0; }
+
+/* ------------------------------------------------------------- the plate -- */
+
+.doors__plate {
+  width: min(72vw, 34vh, 340px);
+  height: auto;
+  transform: translateY(-8vh);   /* eye level, and clear of the push bars */
+}
+.doors__ring   { fill: none; stroke: var(--gold-lit); stroke-width: 9; }
+.doors__mark   { fill: none; stroke: #efe4cf; stroke-width: 8; }
+.doors__word {
+  fill: #f6efdf;
+  font: 700 96px var(--serif);
+  text-anchor: middle;
+}
+.doors__word[data-lit] { fill: var(--gold-lit); font-size: 112px; }
+.doors__est {
+  fill: #c9bda4;
+  font: 500 44px var(--sans);
+  letter-spacing: 6px;
+  text-anchor: middle;
+}
+
+/* --------------------------------------------------------------- the veil --
+   White by the handoff and white from then on — the overlay's own dissolve is
+   what takes it away. Everything the far side does, the route landing and its
+   first paint, happens under here. It comes up late and fast on purpose: a
+   black door under a half-drawn white sheet is a grey door. */
+
+.doors__veil {
+  position: absolute; inset: 0;
+  background: #ffffff;
+  opacity: 0;
+  animation: door-veil 1400ms linear both;
+}
+
+@keyframes door-veil {
+  0%   { opacity: 0; }
+  68%  { opacity: 0; }
+  80%  { opacity: 0.14; }
+  90%  { opacity: 0.6; }
+  100% { opacity: 1; }
+}
+
+.doors__wisp {
+  position: absolute;
+  left: 50%; top: 60%;
+  width: 70vmax; height: 70vmax;
+  margin: -35vmax 0 0 -35vmax;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 50%, #e8e2d6 0%, #f2ece1 42%, transparent 70%);
+  filter: blur(40px);
+  opacity: 0;
+  animation: door-wisp 2400ms ease-out both;
+}
+.doors__wisp[data-i="0"] { --dx: -16vw; }
+.doors__wisp[data-i="1"] { --dx:  12vw; animation-duration: 2600ms; }
+.doors__wisp[data-i="2"] { --dx:   2vw; animation-duration: 2250ms; }
+
+/* The last of it, drifting up off the top of the screen while the overlay
+   itself dissolves — the smoke thinning as you come through. */
+@keyframes door-wisp {
+  0%   { opacity: 0;    transform: translate3d(0, 24vh, 0) scale(0.7); }
+  58%  { opacity: 0.5; }
+  100% { opacity: 0.34; transform: translate3d(var(--dx), -28vh, 0) scale(1.6); }
+}
+
+/* A manager who has asked for less motion never mounts any of this — see
+   enterThroughDoors — but a media query that changes mid-animation should not
+   leave a room spinning either. */
+@media (prefers-reduced-motion: reduce) {
+  .doors { display: none; }
+}
+
 /* ============================================================================
    TONIGHT'S TABLE — the reservation card
    ========================================================================== */

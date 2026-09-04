@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Check, Lock } from "lucide-react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { AuthFrame } from "@/components/AuthFrame";
+import { enterThroughDoors } from "@/components/Doors";
 
 function JoinForm() {
   const router = useRouter();
@@ -64,8 +65,13 @@ function JoinForm() {
     }
 
     await supabase.rpc("ff_link_me");
-    router.push("/welcome");
-    router.refresh();
+
+    // The doors take the screen from here, and the form lets go under the white.
+    enterThroughDoors(() => {
+      setBusy(false);
+      router.push("/welcome");
+      router.refresh();
+    });
   }
 
   return (
