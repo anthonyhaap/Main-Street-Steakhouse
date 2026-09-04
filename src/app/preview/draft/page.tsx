@@ -67,6 +67,7 @@ export default function DraftPreviewPage() {
       <main className="page" data-width="narrow">
         <Pool
           pool={POOL}
+          currentPick={11}
           draftedIds={drafted}
           takenBy={takenBy}
           slots={["QB", "RB", "RB", "WR", "WR", "TE", "FLEX", "K", "DST", "BN", "BN", "BN", "BN", "BN", "BN"]}
@@ -85,6 +86,11 @@ export default function DraftPreviewPage() {
           playerId={openId}
           card={CARD}
           onClose={() => setOpenId(null)}
+          preview={
+            <div className="note" data-kind="ok">
+              Taken at pick 11 now, he&apos;d grade <b>Steal</b> — 29 picks past his ADP.
+            </div>
+          }
           actions={
             <>
               <button className="btn" data-size="sm">Queue</button>

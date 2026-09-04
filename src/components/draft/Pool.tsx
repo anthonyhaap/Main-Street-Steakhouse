@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { ChevronDown, ChevronUp, Search, Star, X } from "lucide-react";
 import { PlayerBadge } from "@/components/PlayerBadge";
-import { fillRoster } from "@/lib/draft";
+import { fillRoster, gradePick, marketRankOf, type PickGrade } from "@/lib/draft";
 import type { BoardPick, PoolPlayer } from "@/lib/types";
 
 const POSITIONS = ["ALL", "QB", "RB", "WR", "TE", "K", "DST"] as const;
@@ -32,6 +32,10 @@ function Proj({ p }: { p: PoolPlayer }) {
 
 type Props = {
   pool: PoolPlayer[];
+  /** The pick on the clock right now, so an available player can be graded
+      as if he were taken this instant — the "is this a reach or a gift"
+      read a manager actually needs before clicking Draft. */
+  currentPick: number;
   draftedIds: Set<string>;
   /** Who took whom, for the drafted rows and the "taken" state. */
   takenBy?: Map<string, string>;
@@ -49,7 +53,7 @@ type Props = {
 };
 
 export function Pool(props: Props) {
-  const { pool, draftedIds, takenBy, queue, myPicks, slots, needs, canPick, busy, onOpen } = props;
+  const { pool, currentPick, draftedIds, takenBy, queue, myPicks, slots, needs, canPick, busy, onOpen } = props;
   const [tab, setTab] = useState<Tab>("available");
   const [pos, setPos] = useState<(typeof POSITIONS)[number]>("ALL");
   const [sort, setSort] = useState<Sort>("rank");
@@ -151,6 +155,7 @@ export function Pool(props: Props) {
               <PlayerRow key={p.id} p={p} canPick={canPick} busy={busy}
                 queued={queueIds.includes(p.id)}
                 taken={draftedIds.has(p.id) ? (takenBy?.get(p.id) ?? "Taken") : null}
+                grade={draftedIds.has(p.id) ? null : gradePick(currentPick, marketRankOf(p))}
                 onOpen={onOpen}
                 onDraft={() => props.onDraft(p)}
                 onQueue={() => props.onQueueChange(
@@ -288,14 +293,17 @@ export function Pool(props: Props) {
 }
 
 function PlayerRow({
-  p, canPick, busy, queued, taken, onOpen, onDraft, onQueue,
+  p, canPick, busy, queued, taken, grade, onOpen, onDraft, onQueue,
 }: {
   p: PoolPlayer; canPick: boolean; busy: boolean; queued: boolean;
   /** Team that drafted him, when he is off the board. */
   taken: string | null;
+  /** How he'd grade if drafted at the current pick — only worth showing when he's a bargain. */
+  grade: PickGrade | null;
   onOpen?: (playerId: string) => void;
   onDraft: () => void; onQueue: () => void;
 }) {
+  const value = grade?.tone === "ok" ? grade : null;
   return (
     <div className="row" data-hover="true" style={taken ? { opacity: 0.5 } : undefined}>
       <span className="num" style={{ width: 26, fontSize: "var(--t-micro)", color: "var(--faint)", textAlign: "right" }}>
@@ -318,6 +326,12 @@ function PlayerRow({
               {p.position_rank ? <span>{p.position}{p.position_rank}</span> : null}
               {p.bye_week ? <span>Bye {p.bye_week}</span> : null}
               {p.adp ? <span className="num">ADP {Number(p.adp).toFixed(1)}</span> : null}
+              {value && (
+                <span className="badge" data-tone="ok" style={{ minHeight: 17, fontSize: 9 }}
+                  title={`${Math.abs(value.delta)} picks past his ADP`}>
+                  {value.label}
+                </span>
+              )}
               {p.injury_status && (
                 <span className="badge" data-tone="warn" style={{ minHeight: 17, fontSize: 9 }}>
                   {p.injury_status}

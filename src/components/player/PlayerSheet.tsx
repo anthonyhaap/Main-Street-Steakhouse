@@ -32,11 +32,15 @@ const feet = (inches: number | null) =>
  * A fixture can be handed in as `card` so the sheet renders without a session.
  */
 export function PlayerSheet({
-  playerId, card: given, onClose, actions,
+  playerId, card: given, onClose, preview, actions,
 }: {
   playerId: string;
   card?: PlayerCard;
   onClose: () => void;
+  /** A note above the buttons — the draft room uses it for "here's the grade
+      if you take him at the current pick." Whatever it is, the sheet just
+      renders it; it carries no opinion about drafts. */
+  preview?: React.ReactNode;
   /** Draft / queue buttons, supplied by the room that opened the sheet. */
   actions?: React.ReactNode;
 }) {
@@ -197,6 +201,8 @@ export function PlayerSheet({
             </>
           )}
         </div>
+
+        {preview && <div style={{ padding: "0 var(--s4) var(--s3)" }}>{preview}</div>}
 
         {/* ------------------------------------------------------- foot -- */}
         <div style={{

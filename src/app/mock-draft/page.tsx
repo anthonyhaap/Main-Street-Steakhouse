@@ -7,7 +7,7 @@ import { Pool } from "@/components/draft/Pool";
 import { PlayerSheet } from "@/components/player/PlayerSheet";
 import { TopBar } from "@/components/Shell";
 import { SkeletonRows, useToast } from "@/components/ui";
-import { rosterNeeds, snakeSlot } from "@/lib/draft";
+import { gradePick, marketRankOf, rosterNeeds, snakeSlot } from "@/lib/draft";
 import { LEAGUE_ID } from "@/lib/config";
 import { mockOpponentPick } from "@/lib/mock-draft";
 import { useSession } from "@/lib/session";
@@ -177,9 +177,9 @@ export default function MockDraftPage() {
               </div>
             </div>
             <div className="draft-grid">
-              <div className="draft-pane" data-show={view === "board"}><Board draft={draft} teams={teams} picks={picks} myTeamId={myTeamId} onOpen={setOpenId} /></div>
+              <div className="draft-pane" data-show={view === "board"}><Board draft={draft} teams={teams} picks={picks} myTeamId={myTeamId} poolById={byId} onOpen={setOpenId} /></div>
               <div className="draft-pane" data-show={view === "pool"}>
-                <Pool pool={pool} draftedIds={draftedIds} takenBy={takenBy} queue={queue} myPicks={myPicks} slots={slots} needs={needs} canPick={myTurn} busy={false} onOpen={setOpenId} onDraft={draftPlayer} onQueueChange={setQueueIds} />
+                <Pool pool={pool} currentPick={currentPick} draftedIds={draftedIds} takenBy={takenBy} queue={queue} myPicks={myPicks} slots={slots} needs={needs} canPick={myTurn} busy={false} onOpen={setOpenId} onDraft={draftPlayer} onQueueChange={setQueueIds} />
               </div>
             </div>
           </>
@@ -200,7 +200,28 @@ export default function MockDraftPage() {
           .draft-pane > * { max-height: calc(100dvh - 250px); }
         }
       `}</style>
-      {openId && <PlayerSheet playerId={openId} onClose={() => setOpenId(null)} actions={myTurn && !draftedIds.has(openId) ? <button className="btn" data-v="primary" data-size="sm" onClick={() => { const player = byId.get(openId); if (player) { draftPlayer(player); setOpenId(null); } }}>Draft player</button> : undefined} />}
+      {openId && (() => {
+        const drafted = draftedIds.has(openId);
+        const grade = !drafted ? gradePick(currentPick, marketRankOf(byId.get(openId))) : null;
+        return (
+          <PlayerSheet
+            playerId={openId}
+            onClose={() => setOpenId(null)}
+            preview={grade && grade.label !== "On plan" && (
+              <div className="note" data-kind={grade.tone === "danger" ? "error" : grade.tone === "ok" ? "ok" : "info"}>
+                Taken at pick {currentPick} now, he&apos;d grade <b>{grade.label}</b> —{" "}
+                {Math.abs(grade.delta)} picks {grade.delta > 0 ? "past" : "ahead of"} his ADP.
+              </div>
+            )}
+            actions={myTurn && !drafted ? (
+              <button className="btn" data-v="primary" data-size="sm"
+                onClick={() => { const player = byId.get(openId); if (player) { draftPlayer(player); setOpenId(null); } }}>
+                Draft player
+              </button>
+            ) : undefined}
+          />
+        );
+      })()}
     </>
   );
 }

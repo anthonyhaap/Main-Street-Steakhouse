@@ -7,7 +7,8 @@ import { useLive, useServerClock, useTicker } from "@/lib/live";
 import { useSession } from "@/lib/session";
 import { DRAFT_ID, LEAGUE_ID } from "@/lib/config";
 import type { BoardPick, Draft, PoolPlayer, Team } from "@/lib/types";
-import { rosterNeeds, teamAtPick, upcomingPicksFor } from "@/lib/draft";
+import { gradePick, marketRankOf, rosterNeeds, teamAtPick, upcomingPicksFor } from "@/lib/draft";
+import { playPickMade, playQueueSniped, playYourTurn, useSoundMuted } from "@/lib/sound";
 import { TopBar } from "@/components/Shell";
 import { Clock } from "@/components/draft/Clock";
 import { Board } from "@/components/draft/Board";
@@ -75,28 +76,41 @@ export default function DraftPage() {
   const nextUp = data ? teamAtPick(data.draft.current_pick + 1, data.teams, teamCount) : undefined;
   const myTurn = !!team && !!onClock && onClock.id === team.id && data?.draft.status === "active";
 
-  // Announce other people's picks so you can look away from the board.
+  const byId = useMemo(() => new Map(pool.map((p) => [p.id, p])), [pool]);
+  const [soundMuted, setSoundMuted] = useSoundMuted();
+
+  // Announce every pick so you can look away from the board — and grade it
+  // against ADP, so "he took Bijan" carries whether that was a steal or a
+  // reach without a trip to the player card.
   const lastPick = data?.picks[data.picks.length - 1];
   useEffect(() => {
     if (!lastPick) return;
     if (lastSeenPick === null) { setLastSeenPick(lastPick.pick_number); return; }
     if (lastPick.pick_number > lastSeenPick) {
       setLastSeenPick(lastPick.pick_number);
-      if (lastPick.team_id !== team?.id) {
-        toast("info", `${lastPick.team_name} took ${lastPick.player_name}`);
+      const grade = gradePick(lastPick.pick_number, marketRankOf(byId.get(lastPick.player_id)));
+      const gradeText = grade && grade.label !== "On plan" ? ` — ${grade.label}` : "";
+
+      if (lastPick.team_id === team?.id) {
+        playPickMade();
+      } else if (data?.queueIds.includes(lastPick.player_id)) {
+        playQueueSniped();
+        toast("error", `${lastPick.team_name} just took ${lastPick.player_name} off your queue${gradeText}`);
+      } else {
+        playPickMade();
+        toast("info", `${lastPick.team_name} took ${lastPick.player_name}${gradeText}`);
       }
     }
-  }, [lastPick, lastSeenPick, team?.id, toast]);
+  }, [lastPick, lastSeenPick, team?.id, toast, byId, data?.queueIds]);
 
   useEffect(() => {
-    if (myTurn) toast("ok", "You're on the clock.");
+    if (myTurn) { playYourTurn(); toast("ok", "You're on the clock."); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [myTurn]);
 
   const draftedIds = useMemo(() => new Set((data?.picks ?? []).map((p) => p.player_id)), [data]);
   const takenBy = useMemo(() => new Map((data?.picks ?? []).map((p) => [p.player_id, p.team_name])), [data]);
   const myPicks = useMemo(() => (data?.picks ?? []).filter((p) => p.team_id === team?.id), [data, team]);
-  const byId = useMemo(() => new Map(pool.map((p) => [p.id, p])), [pool]);
   const queue = useMemo(
     () => (data?.queueIds ?? []).map((id) => byId.get(id)).filter(Boolean) as PoolPlayer[],
     [data, byId],
@@ -213,6 +227,8 @@ export default function DraftPage() {
           onPause={() => call("ff_pause_draft", { p_draft_id: DRAFT_ID }, "Draft paused.")}
           onResume={() => call("ff_resume_draft", { p_draft_id: DRAFT_ID }, "Draft resumed.")}
           onUndo={() => call("ff_undo_last_pick", { p_draft_id: DRAFT_ID }, "Last pick undone.")}
+          soundMuted={soundMuted}
+          onToggleSound={() => setSoundMuted(!soundMuted)}
         />
 
         <div data-only="narrow" style={{ display: "flex", justifyContent: "center" }}>
@@ -227,11 +243,12 @@ export default function DraftPage() {
 
         <div className="draft-grid">
           <div className="draft-pane" data-show={view === "board"}>
-            <Board draft={data.draft} teams={data.teams} picks={data.picks} myTeamId={team?.id ?? null} onOpen={setOpenId} />
+            <Board draft={data.draft} teams={data.teams} picks={data.picks} myTeamId={team?.id ?? null} poolById={byId} onOpen={setOpenId} />
           </div>
           <div className="draft-pane" data-show={view === "pool"}>
             <Pool
               pool={pool}
+              currentPick={data.draft.current_pick}
               draftedIds={draftedIds}
               takenBy={takenBy}
               queue={queue}
@@ -252,10 +269,19 @@ export default function DraftPage() {
         const p = byId.get(openId);
         const drafted = draftedIds.has(openId);
         const queued = data.queueIds.includes(openId);
+        // What he'd grade if taken right now — the same read the board gives
+        // after the fact, offered before you click Draft instead of after.
+        const grade = !drafted && p ? gradePick(data.draft.current_pick, marketRankOf(p)) : null;
         return (
           <PlayerSheet
             playerId={openId}
             onClose={() => setOpenId(null)}
+            preview={grade && grade.label !== "On plan" && (
+              <div className="note" data-kind={grade.tone === "danger" ? "error" : grade.tone === "ok" ? "ok" : "info"}>
+                Taken at pick {data.draft.current_pick}, he&apos;d grade <b>{grade.label}</b> —{" "}
+                {Math.abs(grade.delta)} picks {grade.delta > 0 ? "past" : "ahead of"} his ADP.
+              </div>
+            )}
             actions={
               drafted ? (
                 <span className="badge" data-tone="neutral">Taken · {takenBy.get(openId)}</span>
