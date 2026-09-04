@@ -105,6 +105,54 @@ export type BoardRow = {
   mine: boolean;
 };
 
+/* ------------------------------------------------------------ clubhouse -- */
+/** Shape of ff_clubhouse_feed(league_id, limit) — the room, for the front page. */
+
+export type RoomLine = {
+  id: string;
+  body: string;
+  created_at: string;
+  author: string;
+  mine: boolean;
+  matchup_id: string | null;
+  /** The game it was said about, when it was said on a matchup card. */
+  about: { week: number; home: string; away: string; mine: boolean } | null;
+};
+
+export type RoomFeed = {
+  /** The thread on my own table this week. Null when I have no game. */
+  mine: {
+    matchup_id: string;
+    week: number;
+    count: number;
+    last: { body: string; created_at: string; author: string; mine: boolean } | null;
+  } | null;
+  recent: RoomLine[];
+  count_7d: number;
+  now: string;
+};
+
+/**
+ * What the room has to say for itself, in one line.
+ *
+ * The empty case is the important one: a league that has never said anything
+ * needs an invitation, not a zero. Everything else is a volume reading, which
+ * is what tells a manager whether opening the clubhouse is worth the tap.
+ */
+export function roomLine(f: RoomFeed | null): string {
+  if (!f) return "";
+  if (f.recent.length === 0) return "Nobody has said anything yet. Somebody has to go first.";
+  if (f.count_7d === 0) return "Quiet this week.";
+  return `${f.count_7d} line${f.count_7d === 1 ? "" : "s"} this week.`;
+}
+
+/** "three about your table", for the card's own thread. */
+export function aboutMyTable(f: RoomFeed | null): string | null {
+  const n = f?.mine?.count ?? 0;
+  if (n === 0) return null;
+  return `${n} about your table`;
+}
+
 export type Briefing = {
   league: {
     id: string;

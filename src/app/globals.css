@@ -99,7 +99,7 @@
   --bottom-nav: 0px;
 }
 
-@media (max-width: 1080px) {
+@media (max-width: 1180px) {
   :root { --bottom-nav: 64px; }
 }
 
@@ -238,17 +238,20 @@ body {
 }
 @media (max-width: 560px) { .mark__words { display: none; } }
 
-.nav { display: flex; gap: 2px; margin-left: auto; }
-@media (max-width: 1080px) { .nav { display: none; } }
+.nav { display: flex; gap: 2px; margin-left: auto; min-width: 0; }
+@media (max-width: 1180px) { .nav { display: none; } }
 
+/* Sentence case, no tracking. "MATCHUPS" at 0.13em is a third wider than
+   "Matchups" and harder to scan, and eleven of them plus a wordmark plus a
+   crest no longer fit a 1200px laptop. Narrower and more legible is the same
+   fix twice. */
 .nav__item {
   position: relative;
-  padding: var(--s2) var(--s3);
-  font: 700 var(--t-micro)/1 var(--sans);
-  letter-spacing: 0.13em;
-  text-transform: uppercase;
+  padding: var(--s2) 10px;
+  font: 600 var(--t-small)/1 var(--sans);
   color: var(--muted);
   text-decoration: none;
+  white-space: nowrap;
   border-radius: 999px;
   transition: color 0.18s var(--ease), background 0.18s var(--ease);
 }
@@ -284,7 +287,7 @@ body {
   box-shadow: 0 -6px 24px #1b18140f;
   padding-bottom: env(safe-area-inset-bottom);
 }
-@media (max-width: 1080px) { .tabbar { display: flex; } }
+@media (max-width: 1180px) { .tabbar { display: flex; } }
 
 .tabbar__item {
   flex: 1;
@@ -925,7 +928,7 @@ a.kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); border-c
   gap: var(--s2);
   pointer-events: none;
 }
-@media (min-width: 1081px) { .toasts { left: auto; max-width: 380px; } }
+@media (min-width: 1181px) { .toasts { left: auto; max-width: 380px; } }
 
 .toast {
   pointer-events: auto;
@@ -2343,3 +2346,70 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
 }
 .chat__on:hover { color: var(--wine); text-decoration: underline; text-underline-offset: 2px; }
 .chat__on svg { color: var(--gold); flex-shrink: 0; }
+
+/* ============================================================================
+   THE ROOM — the clubhouse, under the card
+
+   Chat and challenges were rooms people had to remember to visit. The last few
+   things said in the league now sit on the front page, and a line said on a
+   matchup arrives with the game it was said about.
+   ========================================================================== */
+
+/* `.club`, not `.room`: the carousel of six tables already wears `.room`,
+   and `.room__head` is the heading row both of them share. */
+.club { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s3); }
+.club > * { min-width: 0; }
+
+.club__mine {
+  display: flex; align-items: center; gap: 8px;
+  padding: var(--s3) var(--s4);
+  background: var(--gold-haze);
+  border: 1px solid var(--gold-dim);
+  border-radius: var(--r);
+  color: inherit; text-decoration: none;
+  font-size: var(--t-small);
+}
+.club__mine:hover { border-color: var(--gold-lit); }
+.club__mine svg { color: var(--gold); flex-shrink: 0; }
+.club__mine b { font-weight: 600; flex-shrink: 0; }
+.club__quote {
+  min-width: 0; color: var(--dim); font-style: italic;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.club__lines {
+  list-style: none; margin: 0; padding: 0;
+  background: var(--ink-1);
+  border: 1px solid var(--rule);
+  border-radius: var(--r);
+  box-shadow: var(--shadow-1);
+  overflow: hidden;
+}
+.club__lines li { padding: var(--s3) var(--s4); }
+.club__lines li + li { border-top: 1px solid var(--rule-soft); }
+.club__lines li[data-mine="true"] { background: var(--gold-haze); }
+.club__said { display: flex; align-items: baseline; gap: 8px; }
+.club__said b { font-weight: 600; font-size: var(--t-small); }
+.club__said time { font-size: var(--t-small); color: var(--faint); }
+.club__lines p {
+  margin: 3px 0 0; font-size: var(--t-body); line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.club__on {
+  display: inline-block; margin-top: 5px;
+  font-size: var(--t-small); color: var(--dim); text-decoration: none;
+}
+.club__on:hover { color: var(--wine); text-decoration: underline; text-underline-offset: 2px; }
+
+.club__empty {
+  margin: 0; padding: var(--s4);
+  background: var(--ink-1); border: 1px solid var(--rule); border-radius: var(--r);
+  font-size: var(--t-small); color: var(--dim);
+}
+
+.club__foot {
+  display: flex; align-items: baseline; justify-content: space-between; gap: var(--s3);
+  font-size: var(--t-small); color: var(--dim);
+}
+.club__foot a { color: var(--wine); text-decoration: none; font-weight: 600; }
+.club__foot a:hover { text-decoration: underline; text-underline-offset: 2px; }

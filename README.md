@@ -183,6 +183,9 @@ contract. The skeleton has the card's exact silhouette, so nothing shifts.
 | `action` | the one thing to do, never two: fill the empty slot, check on the questionable starter, watch it live, send the recap |
 | `recapText` | the Tuesday recap in the house voice, for the group chat |
 
+Under it: the six tables as a swipe carousel, **Overheard** (below), and the
+standings as a place card.
+
 The day of the week is the league's (`LEAGUE_TZ`), not the phone's. The NFL
 slate decides the rest: any game in progress is Sunday whatever the calendar
 says, and a Monday with only your tight end left to play is written as a
@@ -311,6 +314,36 @@ the league id ships inside the client bundle. Every sibling RPC is
 authenticated-only. `20260904020439` corrects the grant and, so a future
 mistake cannot re-open it, makes the function refuse a caller with no
 `auth.uid()` outright rather than leaning on the grant the way its siblings do.
+
+### The room, on the front page
+
+Tonight's Table answers three questions in the first second. The clubhouse is
+not one of them — it is the thing that makes a manager open the app a fourth
+time on a Tuesday — so **Overheard** sits under the card: the last four lines
+said anywhere in the league, and, above them, the thread on your own table with
+the last thing said in it.
+
+A line said on a matchup card arrives with the game it was said about and links
+to that week's board; a line said in the room carries nothing. The feed is one
+call, `ff_clubhouse_feed`, and it is deliberately a *second* call made in the
+browser after the card is painted, for three reasons in order of weight: it is
+a secondary feed and should arrive after the card, not with it; it refetches on
+`league_messages` alone, where folding it into the briefing would re-run the
+head-to-head history and the playoff seeding every time somebody typed a
+sentence; and restating a four-hundred-line function to add a footnote to it is
+how a working function gets broken.
+
+`RoomBoard` is pure and `Room` is the live one around it, so `/preview/tonight`
+renders the feed from a fixture. The section is `.club`, not `.room`: the
+carousel of six tables already wears that class.
+
+**Two things this found.** The desktop nav had eleven destinations in uppercase
+at 0.13em tracking, and after *Scores → Matchups* and *Chat → Clubhouse* it no
+longer fit a 1200px laptop — the header scrolled sideways. The items are now
+sentence case at normal tracking, which is both a third narrower and the
+legibility fix the review asked for, and the breakpoint where the tab bar hands
+over moved from 1080px to 1180px. `tests/e2e/tonight.spec.ts` now asserts that
+the page never scrolls sideways at either viewport.
 
 ### Odds that admit what they don't know
 

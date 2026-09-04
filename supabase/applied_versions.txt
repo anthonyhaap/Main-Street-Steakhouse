@@ -74,3 +74,4 @@
 20260904012640 sunday_scoreboard
 20260904015610 table_talk
 20260904020439 scoreboard_needs_a_session
+20260904021320 clubhouse_feed

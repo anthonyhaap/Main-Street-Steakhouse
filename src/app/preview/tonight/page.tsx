@@ -13,7 +13,8 @@ import { useState } from "react";
 import { TopBar } from "@/components/Shell";
 import { TonightsTable } from "@/components/tonight/TonightsTable";
 import { Carousel } from "@/components/tonight/Carousel";
-import { phaseOf, type Briefing, type BriefStarter } from "@/lib/briefing";
+import { RoomBoard } from "@/components/tonight/Room";
+import { phaseOf, type Briefing, type BriefStarter, type RoomFeed } from "@/lib/briefing";
 
 const T = (id: string, name: string, manager: string | null) => ({ id, name, manager_name: manager, logo_path: null });
 const TEAMS = [
@@ -174,6 +175,35 @@ const SCENES: Scene[] = [
   } },
 ];
 
+/**
+ * The room under the card. Read-only, like everything here: the front page
+ * only ever reads the clubhouse — saying something happens in the room or on
+ * the matchup card, both of which need a session.
+ */
+function room(now: number): RoomFeed {
+  const ago = (mins: number) => new Date(now - mins * 60_000).toISOString();
+  return {
+    mine: {
+      matchup_id: "m1", week: 3, count: 3,
+      last: { body: "Nacua's a game-time call and you know it.", created_at: ago(9), author: "Dave", mine: false },
+    },
+    recent: [
+      { id: "r1", body: "Nacua's a game-time call and you know it.", created_at: ago(9),
+        author: "Dave", mine: false, matchup_id: "m1",
+        about: { week: 3, home: "Gridiron Butchers", away: "The Porterhouse", mine: true } },
+      { id: "r2", body: "Whoever has Kraft, I'm sorry.", created_at: ago(64),
+        author: "Priya", mine: false, matchup_id: null, about: null },
+      { id: "r3", body: "Waivers run Wednesday night. Get your claims in.", created_at: ago(190),
+        author: "You", mine: true, matchup_id: null, about: null },
+      { id: "r4", body: "That was the worst bench decision of my life.", created_at: ago(1500),
+        author: "Marcus", mine: false, matchup_id: "m2",
+        about: { week: 2, home: "Prime Cut", away: "Wagyu Warriors", mine: false } },
+    ],
+    count_7d: 14,
+    now: new Date(now).toISOString(),
+  };
+}
+
 export default function TonightPreview() {
   const [key, setKey] = useState("thu");
   const scene = SCENES.find((s) => s.key === key) ?? SCENES[0];
@@ -200,6 +230,7 @@ export default function TonightPreview() {
       <main className="page tonight" data-width="narrow">
         <TonightsTable b={b} now={now} onShare={() => alert("Share sheet")} />
         <Carousel b={b} live={phase === "live"} />
+        <RoomBoard feed={room(now)} now={now} />
         <p className="eyebrow tonight__foot">Main Street Steakhouse · Est. 2016 · Members Only</p>
       </main>
     </>
