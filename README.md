@@ -201,7 +201,7 @@ his, and taps an Android wrist through `navigator.vibrate`.
 `/splash/<w>x<h>.png` draws the ink launch screen at whatever size an iPhone
 asks for (Satori, no PNGs in the repo), the layout lists them per device, and
 `InstallNudge` shows the two taps once on a first mobile visit. The tab bar
-carries four items — Tonight, Scores, My Team, Standings — with everything
+carries four items — Tonight, Matchups, My Team, Standings — with everything
 else behind More; pull to refresh works in the installed app only, where the
 browser's own is absent. Fraunces and Inter arrive through `next/font`, so the
 headline has an optical-size axis and every score sits in tabular figures.
@@ -235,23 +235,77 @@ in the group chat as a card. The recap button on Tuesday's briefing opens the
 phone's share sheet with the week's results written in the house voice and
 that link at the bottom; where there is no share sheet, it copies.
 
-### The scoreboard
+### The Sunday board
 
-`/matchups` is the screen the league actually watches on a Sunday, and it was
-the only one with no fixture behind it: its markup lived inside the component
-that fetched its own data, so it could not be looked at without a session, a
-finished draft and a live week. `Scoreboard` is that markup, split out, and
-`/preview/matchups` renders it from three invented games.
+`/matchups` is the screen the league actually watches on a Sunday, and for a
+long time it was a schedule: two names, two numbers and a caret. True, and
+nearly useless — the numbers a manager watches are the ones that say where a
+game is *going*.
 
-Splitting it also settled an inconsistency. Expanded lineups printed player
-names as plain strings — the one place in the app where a name was not a
-`PlayerBadge`, on the page where you most want to tap a name and see why he is
-doing what he is doing. `roster_points` now carries `espn_id` for the headshot,
-the same one-line join `draft_pool` and `draft_board` already use.
+One RPC feeds it now. `ff_scoreboard(league_id, week)` returns every table in
+the week with both lineups on it: each starter's points, his projection, his
+real game's state and kickoff, plus each side's projected total, how much of it
+is still to come, how many men are in action, and that side's best day so far.
+It also returns when the numbers were last written, which the page prints.
+
+`src/lib/scoreboard.ts` turns those facts into the screen, and is pure:
+
+| function | decides |
+|----------|---------|
+| `cardState` | `pre`, `live`, `between`, `settled` — the card's personality |
+| `projectedFinal` | points plus what is left, counting a man already playing for the part of his projection he has not reached |
+| `winOdds` | the live probability: the projected margin over the spread still to come, through a normal CDF |
+| `cardLine` | the one sentence — "You need 5.9 from Robinson. He's projected 8.0." |
+| `slateLine` | "6 games on now, 2 still to kick." |
+| `freshness` | "Scores 1 min ago · projections 5h ago" |
+
+The odds model is deliberately simple and the card says so: each starter still
+to play is an independent swing with a standard deviation of 65% of his
+projection, floored at five points, halved for a man whose game is already on.
+It is not a simulation of the NFL; it is an honest reading of how much can
+still change, and it collapses to a certainty when the last game ends. The
+split is always printed as two percentages as well as drawn as a bar, so the
+card reads the same to someone who cannot separate wine from gold.
+
+Hierarchy is the other half of it: your game is one card at the top, three
+times the size, and the other five are a list. Changing week never blanks the
+screen — the board you were looking at stays, dimmed, until the next lands.
+
+`/preview/matchups` runs a whole invented Sunday through the real component:
+before the draft, nothing kicked, the one o'clock games on, the late window,
+and Monday with one man left. `tests/e2e/scoreboard.spec.ts` asserts the
+sentences and the odds off that fixture.
+
+### Odds that admit what they don't know
+
+The playoff simulation on `/standings` did exactly what it was asked before the
+draft — drew twelve identical teams from one distribution and reported that all
+of them had about a coin flip's chance, with a projected 7–7 apiece. Every
+number correct, and the screen a lie: analytical theatre about a league that
+has not happened yet.
+
+`oddsCanSeparate` is the gate. Until a result exists or a drafted roster can be
+projected from, the board withholds the odds, drops the columns that would be
+zeros, lists the teams alphabetically so the order claims nothing, and says
+that odds unlock after the draft. A league that has drafted but not kicked off
+still gets its odds, with the note that they lean entirely on projected
+lineups. The same rule applies on the Sunday board: no rosters, no odds bar.
 
 `/preview/standings` and `/preview/admin` render the standings board and the
-rule editors from fixtures. The commissioner's old dashboard — readiness
+rule editors from fixtures; the standings preview switches between the
+preseason state and week 11. The commissioner's old dashboard — readiness
 checklist, roll call, automation health — lives on at `/league`.
+
+### What the tabs are called
+
+Two names were doing two jobs each. "Scores" is the week's matchups, and
+calling it Scores made it read as a results page rather than the screen you
+watch: the tab is **Matchups**. And the room is the **Clubhouse** everywhere in
+the app except the tab that opened it, which said Chat; a product with two
+names for one place has neither. Commish tools keep their place in the bar and
+lose their equality — a rule before them and a crown on them — because sitting
+them at the same weight as My Team told eleven managers to read past that whole
+end of the bar.
 
 The `/preview` routes are public. They read nothing from the database; every
 one is an invented league rendered through the real components, which is what

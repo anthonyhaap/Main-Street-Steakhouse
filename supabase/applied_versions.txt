@@ -71,3 +71,4 @@
 20260903140455 tonights_table_second_sitting
 20260904003458 historical_final_standings
 20260904004514 draft_order_manual
+20260904012640 sunday_scoreboard

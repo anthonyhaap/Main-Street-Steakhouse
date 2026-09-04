@@ -255,6 +255,21 @@ body {
 .nav__item:hover { color: var(--cream); background: #1b18140a; }
 .nav__item[data-on="true"] { color: var(--wine); background: var(--wine-wash); }
 
+/* The commissioner's room, set apart from the manager's destinations by a
+   rule and a crown rather than by being hidden — eleven people should be
+   able to see who runs the league, and read past it. */
+.nav__item[data-role="commish"] {
+  display: inline-flex; align-items: center; gap: 5px;
+  margin-left: var(--s3);
+  padding-left: calc(var(--s3) + 1px);
+  border-left: 1px solid var(--rule);
+  border-radius: 0 999px 999px 0;
+  color: var(--dim);
+}
+.nav__item[data-role="commish"] svg { color: var(--gold); }
+.nav__item[data-role="commish"]:hover { color: var(--gold); background: var(--gold-haze); }
+.nav__item[data-role="commish"][data-on="true"] { color: var(--gold); background: var(--gold-haze); }
+
 .tabbar {
   position: fixed;
   bottom: 0; left: 0; right: 0;
@@ -2049,4 +2064,204 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
     display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
     line-height: 1.25;
   }
+}
+
+/* ============================================================================
+   THE SUNDAY BOARD — /matchups, where the league spends its afternoon
+
+   One card is your game and it is three times the size of the others. The
+   rest are a list. Every number that says where a game is *going* — the
+   projected final, the win probability, who is still to play — is on the
+   card without expanding it, because the thing you want at 4pm is never one
+   tap away on someone else's phone.
+   ========================================================================== */
+
+.sb-board { display: grid; gap: clamp(var(--s4), 2.5vw, var(--s5)); }
+
+.sb-slate {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: var(--s3); flex-wrap: wrap;
+  padding: 0 2px;
+}
+.sb-slate p { margin: 0; font-size: var(--t-small); color: var(--muted); }
+.sb-slate__fresh { font-size: var(--t-small); color: var(--dim); white-space: nowrap; }
+.sb-slate__fresh b { font-weight: 600; color: var(--muted); }
+
+.sb-list { display: grid; gap: var(--s3); }
+.sb-rest { display: grid; }
+
+.sb {
+  display: grid;
+  gap: var(--s3);
+  padding: var(--s4) var(--s5);
+  background: var(--ink-1);
+  border: 1px solid var(--rule);
+  border-radius: var(--r);
+  box-shadow: var(--shadow-1);
+}
+.sb[data-hero="true"] {
+  gap: var(--s4);
+  padding: clamp(var(--s5), 3vw, var(--s6));
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-2);
+}
+.sb[data-hero="true"][data-mine="true"] { border-color: var(--gold-dim); }
+.sb[data-state="live"] { border-left: 3px solid var(--wine); }
+
+.sb__top { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); }
+
+/* --- the two sides ------------------------------------------------------ */
+.sb__sides {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: var(--s3);
+  align-items: center;
+}
+.sb__side { display: grid; gap: 6px; min-width: 0; }
+.sb__sides > .sb__side:last-child { justify-items: end; text-align: right; }
+.sb__sides > .sb__side:last-child .sb__who { flex-direction: row-reverse; }
+
+.sb__who { display: flex; align-items: center; gap: 10px; min-width: 0; max-width: 100%; }
+.sb__id { min-width: 0; }
+.sb__id b {
+  display: block; font-weight: 600; font-size: var(--t-body); line-height: 1.25;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.sb__id i {
+  display: block; font-style: normal; font-size: var(--t-small); color: var(--dim);
+  margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.sb__side[data-lead="false"] .sb__id b { color: var(--muted); font-weight: 500; }
+
+.sb__pts { display: grid; gap: 2px; }
+.sb__pts b {
+  font-family: var(--sans); font-weight: 500; font-size: 1.5rem; line-height: 1;
+  letter-spacing: -0.03em; color: var(--muted);
+}
+.sb[data-hero="true"] .sb__pts b { font-size: clamp(2.1rem, 1.5rem + 2.4vw, 3.1rem); }
+.sb__side[data-lead="true"] .sb__pts b { color: var(--gold); }
+.sb__proj { font-size: var(--t-small); color: var(--dim); }
+
+.sb__vs { font: 700 var(--t-micro) var(--sans); letter-spacing: 0.2em; color: var(--faint); }
+
+.sb__flag {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: var(--t-small); font-weight: 600; color: var(--lose);
+}
+.sb__flag svg { flex-shrink: 0; }
+
+/* --- win probability ---------------------------------------------------- */
+.sb__odds { display: grid; gap: 6px; }
+.sb__odds-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s3); }
+.sb__odds-src { font-size: var(--t-small); color: var(--dim); }
+.sb__bar {
+  display: flex; height: 8px; border-radius: 999px; overflow: hidden;
+  background: var(--ink-3); border: 1px solid var(--rule-soft);
+}
+.sb__bar > i { display: block; height: 100%; transition: width 0.5s var(--ease); }
+.sb__bar > i[data-side="away"] { background: var(--wine); }
+.sb__bar > i[data-side="home"] { background: var(--gold-lit); }
+.sb__odds-nums { display: flex; justify-content: space-between; gap: var(--s3); }
+.sb__odds-nums span { font-size: var(--t-small); color: var(--dim); }
+.sb__odds-nums span[data-on="true"] { color: var(--cream); font-weight: 600; }
+
+/* --- the sentence ------------------------------------------------------- */
+.sb__line {
+  margin: 0;
+  font: 400 var(--t-body)/1.55 var(--serif);
+  color: var(--cream);
+  text-wrap: pretty;
+}
+.sb[data-hero="true"] .sb__line {
+  font-size: clamp(1.05rem, 0.95rem + 0.5vw, 1.3rem);
+  line-height: 1.45;
+}
+
+/* --- the stat strip ----------------------------------------------------- */
+.sb__strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr));
+  gap: 1px;
+  background: var(--rule);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-sm);
+  overflow: hidden;
+}
+.sb__stat { display: grid; gap: 3px; padding: var(--s3) var(--s4); background: var(--ink-1); }
+.sb__stat b { font-family: var(--sans); font-weight: 500; font-size: 1.2rem; letter-spacing: -0.02em; }
+.sb__stat-label { font-size: var(--t-small); color: var(--muted); font-weight: 600; }
+.sb__stat-foot { font-size: var(--t-small); color: var(--dim); line-height: 1.4; }
+
+/* --- top performers ----------------------------------------------------- */
+.sb__tops {
+  display: grid; grid-template-columns: 1fr 1fr; gap: var(--s3);
+  padding-top: var(--s2); border-top: 1px solid var(--rule-soft);
+}
+.sb__tops > :last-child { justify-self: end; text-align: right; }
+.sb__top-perf {
+  display: inline-flex; align-items: center; gap: 6px; min-width: 0;
+  font-size: var(--t-small); color: var(--muted);
+}
+.sb__top-perf svg { color: var(--gold); flex-shrink: 0; }
+.sb__top-perf b { font-weight: 600; color: var(--cream); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sb__top-none { font-size: var(--t-small); color: var(--faint); }
+
+/* --- lineups ------------------------------------------------------------ */
+.sb__toggle {
+  display: inline-flex; align-items: center; gap: 8px;
+  justify-self: start;
+  min-height: 44px; padding: 8px 2px;
+  border: 0; background: none; cursor: pointer;
+  font: 600 var(--t-small) var(--sans); color: var(--muted);
+}
+.sb__toggle:hover { color: var(--wine); }
+
+.sb__lineups {
+  display: grid; gap: 1px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  background: var(--rule); border: 1px solid var(--rule); border-radius: var(--r-sm);
+  overflow: hidden;
+}
+.sb__lineup { background: var(--ink-1); padding-bottom: 6px; }
+.sb__lineup-head {
+  display: flex; align-items: baseline; justify-content: space-between; gap: var(--s3);
+  padding: var(--s3) var(--s4); border-bottom: 1px solid var(--rule-soft);
+}
+.sb__lineup-tot { font-size: var(--t-body); font-weight: 600; }
+
+.sb__plr {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  gap: 10px; align-items: center;
+  padding: 7px var(--s4);
+}
+.sb__plr + .sb__plr { border-top: 1px solid var(--rule-soft); }
+.sb__plr[data-final="true"] { opacity: 0.72; }
+.sb__plr[data-bye="true"] { background: #b3341f08; }
+.sb__plr-who { min-width: 0; display: grid; gap: 2px; }
+.sb__plr-pts { display: grid; justify-items: end; gap: 1px; }
+.sb__plr-pts b { font-family: var(--sans); font-weight: 600; font-size: var(--t-body); }
+.sb__plr-pts span { font-size: var(--t-small); color: var(--dim); }
+
+.sb__mark { display: inline-flex; align-items: center; gap: 5px; font-size: var(--t-small); color: var(--dim); }
+.sb__mark[data-state="live"] { color: var(--wine); font-weight: 600; }
+.sb__mark[data-state="final"] { color: var(--faint); }
+.sb__hurt { color: var(--lose); font-weight: 700; }
+.sb__pip {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--wine);
+  animation: sb-pip 1.6s ease-in-out infinite;
+}
+@keyframes sb-pip { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+@media (max-width: 520px) {
+  .sb { padding: var(--s4); }
+  /* The "vs" is decoration a phone cannot afford: the two sides need every
+     pixel of the width for names that are already being ellipsed. */
+  .sb__vs { display: none; }
+  .sb__sides { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s2); }
+  .sb__tops { grid-template-columns: 1fr; }
+  /* "from the projected remainder" earns its place on a laptop and steals a
+     line from the label on a phone. The odds are explained on /standings. */
+  .sb__odds-src { display: none; }
+  .sb__tops > :last-child { justify-self: start; text-align: left; }
 }

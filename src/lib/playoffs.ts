@@ -56,6 +56,30 @@ export const SIMS = 4000;
 export const rankKey = (t: Pick<OutlookTeam, "wins" | "ties">) =>
   Number(t.wins) + Number(t.ties) / 2;
 
+/**
+ * Whether the simulation has anything to say.
+ *
+ * Run it on twelve 0–0 teams with no rosters and it does exactly what it is
+ * asked: draws every team from the same distribution and reports that they all
+ * have about a coin flip's chance, with a projected 7–7 apiece. Every number is
+ * correct and the screen is a lie — it looks like analysis of a league that has
+ * not happened yet.
+ *
+ * So the odds are withheld until something can tell the teams apart: a result,
+ * or at least a drafted roster to project from. This is the one case; a league
+ * that has drafted but not kicked off still gets odds, with the board saying
+ * they lean entirely on projected lineups.
+ */
+export function oddsCanSeparate(o: Outlook): boolean {
+  if (o.matchups.some((m) => m.played)) return true;
+  const strengths = o.teams
+    .map((t) => Number(t.proj_ppg))
+    .filter((v) => Number.isFinite(v) && v > 0);
+  if (strengths.length < o.teams.length) return false;
+  // Rosters exist but every one prices the same — nothing to separate them.
+  return Math.max(...strengths) - Math.min(...strengths) >= 1;
+}
+
 export function projectPlayoffs(
   o: Outlook,
   sims = SIMS,
