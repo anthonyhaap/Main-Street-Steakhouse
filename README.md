@@ -554,15 +554,36 @@ fail on it, and that migration was confirmed to fix both. A complete 66-file
 replay was *not* executed — it cannot be driven from the tooling used here — so
 the first real proof will be the next preview branch Supabase builds.
 
-**A caveat about file contents.** Comparing every file against its recorded
-statement turned up something the section below understates: roughly two dozen
-files are *documented* versions of what was applied — the same SQL with a
-header and comments written when it was checked in, and in a few cases
-(`historical_final_standings` most of all) substantially more SQL than the
-recorded statement holds. Only the 29 recovered files and the ones written
-since are byte-exact. Nothing checks contents, so this has never mattered for
-production; it does mean a rebuilt database is built from the *files*, and the
-files are the better record of intent.
+**The files were then compared against what actually ran, and two had drifted.**
+Only 29 files are byte-identical to their recorded statement. The rest differ,
+and almost all of it is nothing: 17 differ only in line endings or a trailing
+newline, 5 only in comments, and the rest only because the SQL editor reflowed
+the statement onto one line or spelled a dollar-quote `$fn$` instead of `$$`.
+Normalize those away and 62 of 66 files say exactly what was run.
+
+Two did not, and both would have made a rebuilt database quietly wrong:
+
+- `20260829120826_player_card` had lost a `nulls last` from the depth-chart
+  ordering. `desc` alone sorts nulls *first* in Postgres, so a rebuilt
+  `ff_player_card` would have ordered the depth chart differently from the live
+  one. Production has the `nulls last`; the file now does too.
+- `20260826023254_harden_commissioner_authorization` was missing the two
+  `revoke` statements it ends with. The live project has `ff_current_week`
+  revoked from `public` and `anon`; a database built from this directory would
+  have left it callable by anyone. That is a security migration that had been
+  checked in with its security half removed.
+
+Four files still differ for reasons that are argued rather than accidental, and
+they are listed in `CONTENT_EXCEPTIONS` in the check script: two where the file
+adds something harmless (an idempotent `revoke`, a `comment on function`), and
+two applied through the Supabase SQL editor, which recorded no usable
+statements at all — `historical_final_standings` recorded the sentence
+*"Applied from the checked-in migration through the Supabase SQL editor."*
+instead of SQL, and `team_hub_projections` recorded nothing. For those two the
+file is the only record of the migration, and the live schema was checked by
+hand to confirm it matches.
+
+**This is now checked, not remembered.** See the content check below.
 
 So the invariant is one-way, and CI enforces it. `npm run check:migrations` —
 run on every pull request touching `supabase/migrations/` by
@@ -589,10 +610,21 @@ while the database has never heard of it. The output says which mode ran.
 The offline floor is kept deliberately, because a gate that needs a credential
 stops working the day the credential expires.
 
-Neither mode compares **contents**. A file correctly named for a recorded
-version whose body is something else passes either way; catching that means
-hashing against `schema_migrations.statements`, which is a bigger check than
-this one.
+**With the database, it also compares contents.** The dump carries each
+migration's statements alongside its version and name, and every file is
+compared against the SQL that ran under it. This is the failure that hides the
+longest: the version is already in the history, so the file never runs against
+production and nothing breaks — but a preview branch replays the *file*, and
+builds a database that is not a copy of production. It is what had happened to
+`player_card` and `harden_commissioner_authorization` above.
+
+The comparison normalizes what a migration legitimately picks up on the way to
+being checked in — line endings, statements reflowed onto one line, comments,
+`$fn$` versus `$$` — so only a real difference in the SQL fails, and a file that
+is the documented version of what ran still passes. Files that differ for a
+known reason are listed in `CONTENT_EXCEPTIONS` in the script, each with the
+argument for it; they warn instead of failing, so the list stays visible and
+short. Offline the bodies are not checked at all, and the output says so.
 
 #### Turning on the database-verified mode
 

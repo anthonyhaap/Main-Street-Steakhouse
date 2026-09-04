@@ -37,9 +37,19 @@
  * floor still holds, which is why the ledger exists at all: a gate that needs a
  * credential is a gate that stops working the day the credential expires.
  *
- * Neither mode compares CONTENTS. A file correctly named for a recorded version
- * whose body is something else passes either way; catching that means hashing
- * against schema_migrations.statements, which is a bigger check than this one.
+ * With `--remote` the dump also carries each migration's statements, and the
+ * FILE is compared against them. That is the third way this went wrong: a file
+ * correctly named for a recorded version whose body is something else passes
+ * every check above. It never runs against production — the version is already
+ * in the history — so nothing breaks and nobody notices, but a preview branch
+ * replays the file, and quietly builds a database that is not a copy of
+ * production. Two were found that way: a missing `nulls last`, and a pair of
+ * revokes that had been dropped from a security migration.
+ *
+ * The comparison normalizes what the SQL editor, psql and a documenting hand
+ * legitimately change — line endings, reflowed statements, comments, $fn$ vs $$
+ * — so only a real difference in the SQL fails. Files that differ for a known
+ * and argued reason are listed in CONTENT_EXCEPTIONS.
  *
  * Usage:
  *   node scripts/check-migrations.mjs
@@ -70,13 +80,19 @@ if (remoteIdx !== -1 && !remotePath) {
 const errors = [];
 const warnings = [];
 
-/** version -> name, from ledger-shaped text. Comments and blanks ignored. */
+/**
+ * version -> { name, sql }, from ledger-shaped text. Comments and blanks ignored.
+ *
+ * A third field is optional and only the --remote dump carries it: the migration's
+ * recorded statements, base64 encoded because they contain newlines and quotes.
+ * `sql` is null for the committed ledger, which records names and nothing else.
+ */
 function parseLedger(text, label) {
   const out = new Map();
   for (const [i, raw] of text.split("\n").entries()) {
     const line = raw.trim();
     if (!line || line.startsWith("#")) continue;
-    const m = /^(\d{14})\s+(\S+)$/.exec(line);
+    const m = /^(\d{14})\s+(\S+)(?:\s+([A-Za-z0-9+/=]*))?$/.exec(line);
     if (!m) {
       errors.push(`${label}:${i + 1}: expected "<14-digit version> <name>", got: ${line}`);
       continue;
@@ -85,10 +101,63 @@ function parseLedger(text, label) {
       errors.push(`${label}:${i + 1}: version ${m[1]} listed twice`);
       continue;
     }
-    out.set(m[1], m[2]);
+    const sql = m[3] ? Buffer.from(m[3], "base64").toString("utf8") : null;
+    out.set(m[1], { name: m[2], sql });
   }
   return out;
 }
+
+/**
+ * The same migration, written two ways, should compare equal.
+ *
+ * What a file says and what the database recorded differ for reasons that are
+ * not drift: the SQL editor reflows statements onto one line, `psql` and the
+ * dashboard disagree about line endings, `$fn$` and `$$` are the same quote,
+ * and a file is often the documented version of what was run. None of that
+ * changes what the migration does, so none of it should fail a build. Anything
+ * left after this is a real difference in the SQL.
+ */
+function normalizeSql(s) {
+  return s
+    .replace(/\r\n?/g, "\n")
+    .replace(/\/\*[\s\S]*?\*\//g, " ") // /* */ and /** */ comments
+    .replace(/--[^\n]*/g, " ") // -- comments
+    .replace(/\$[a-zA-Z_]\w*\$/g, "$$$$") // $fn$ / $body$ -> $$
+    .replace(/\s+/g, " ")
+    .replace(/\s*([(),;])\s*/g, "$1")
+    .trim()
+    .toLowerCase();
+}
+
+/**
+ * Files whose body legitimately differs from the statements recorded for them.
+ *
+ * Every entry is a case where the FILE is the more complete text, checked by
+ * hand against the live schema. They are listed rather than normalized away so
+ * that the list stays short and each exception has to be argued for.
+ */
+const CONTENT_EXCEPTIONS = new Map([
+  [
+    "20260826022327",
+    "file also revokes ff_backfill_bye_weeks from public/anon, which 20260826023254 " +
+      "did on the live project. Idempotent, and it belongs beside the function.",
+  ],
+  [
+    "20260827034158",
+    "file adds `comment on function ff_league_pulse`, which is documentation the " +
+      "live project never had.",
+  ],
+  [
+    "20260904003458",
+    "recorded statement is the note 'Applied from the checked-in migration through " +
+      "the Supabase SQL editor.' — prose, not SQL. The file is the migration.",
+  ],
+  [
+    "20260829051500",
+    "applied through the SQL editor, which recorded no statements at all. The live " +
+      "ff_team_hub matches this file's, so the file is the migration.",
+  ],
+]);
 
 const recorded = parseLedger(readFileSync(LEDGER, "utf8"), "applied_versions.txt");
 
@@ -100,7 +169,7 @@ let remote = null;
 if (remotePath) {
   remote = parseLedger(readFileSync(remotePath, "utf8"), remotePath);
 
-  for (const [version, name] of recorded) {
+  for (const [version, { name }] of recorded) {
     const actual = remote.get(version);
     if (actual === undefined) {
       errors.push(
@@ -108,10 +177,10 @@ if (remotePath) {
           `    has NOT recorded. Adding a version to the ledger does not apply a migration.\n` +
           `    Apply it, then take the version the database assigns.`,
       );
-    } else if (actual !== name) {
+    } else if (actual.name !== name) {
       errors.push(
         `applied_versions.txt has version ${version} as "${name}"; the database\n` +
-          `    recorded it as "${actual}".`,
+          `    recorded it as "${actual.name}".`,
       );
     }
   }
@@ -150,9 +219,10 @@ for (const file of files.sort()) {
   // file on its own and cannot fail one the database actually knows.
   const truth = remote ?? recorded;
   const source = remote ? "the database" : "supabase/applied_versions.txt";
-  const name = truth.get(version);
+  const entry = truth.get(version);
+  const name = entry?.name;
 
-  if (name === undefined) {
+  if (entry === undefined) {
     errors.push(
       `${file}: version ${version} is not in ${source}.\n` +
         `    The integration would treat this as new work and run it against production.\n` +
@@ -165,6 +235,32 @@ for (const file of files.sort()) {
       `${file}: version ${version} is recorded in ${source} under the name "${name}",\n` +
         `    not "${slug}". Rename the file to ${version}_${name}.sql, or correct the ledger.`,
     );
+  }
+
+  // ------------------------------------------ the file against what was run
+  // Only possible with --remote, which carries the statements. A file named for
+  // a recorded version whose BODY is something else passes every check above:
+  // it never runs against production, but it is what a preview branch builds
+  // from, so the branch quietly stops being a copy of production.
+  if (entry?.sql != null) {
+    const wanted = normalizeSql(entry.sql);
+    const got = normalizeSql(readFileSync(join(DIR, file), "utf8"));
+    if (wanted !== got) {
+      const why = CONTENT_EXCEPTIONS.get(version);
+      if (why) {
+        warnings.push(`${file}: body differs from the recorded statements. Known and allowed:\n    ${why}`);
+      } else {
+        errors.push(
+          `${file}: the body does not match the statements the database recorded for\n` +
+            `    version ${version} (compared with comments, line breaks and $tag$ quoting\n` +
+            `    normalized away, so this is a real difference in the SQL).\n` +
+            `    This file has already been applied, so production is unaffected — but a\n` +
+            `    preview branch replays THIS text, and would build a different database.\n` +
+            `    Correct the file to what was run, or add ${version} to CONTENT_EXCEPTIONS\n` +
+            `    in this script with the reason.`,
+        );
+      }
+    }
   }
 
   // Not an error: 20260829020645 and 20260829021500 are both recorded as
@@ -200,14 +296,21 @@ if (errors.length) {
 
 const truth = remote ?? recorded;
 const unfiled = [...truth.keys()].filter((v) => !byVersion.has(v)).length;
+const compared = [...byVersion.keys()].filter((v) => truth.get(v)?.sql != null).length;
 console.log(
   `supabase/migrations: ${byVersion.size} file${byVersion.size === 1 ? "" : "s"}, ` +
     `each matching a version recorded in ${remote ? "the database" : "the ledger"} ` +
     `(${truth.size} recorded, ${unfiled} with no file, which is fine).`,
 );
+if (compared) {
+  console.log(
+    `contents: ${compared} file${compared === 1 ? "" : "s"} compared against the statements the ` +
+      `database recorded, ${CONTENT_EXCEPTIONS.size} known exceptions allowed.`,
+  );
+}
 if (!remote) {
   console.log(
-    "note: ledger checked against itself only. Configure SUPABASE_DB_URL in CI to " +
-      "check it against the database.",
+    "note: ledger checked against itself only, and bodies not checked at all. " +
+      "Configure SUPABASE_DB_URL in CI to check both against the database.",
   );
 }
