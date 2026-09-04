@@ -2413,3 +2413,31 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
 }
 .club__foot a { color: var(--wine); text-decoration: none; font-weight: 600; }
 .club__foot a:hover { text-decoration: underline; text-underline-offset: 2px; }
+
+/* --- the house ---------------------------------------------------------- */
+/* The Weekly Special is written by the league itself and set like a column:
+   a gold rule, the serif, and the line breaks it was composed with. */
+
+.club__lines li[data-kind="house"],
+.rows .row[data-kind="house"] {
+  background: var(--ink-2);
+  box-shadow: inset 3px 0 0 var(--gold-lit);
+}
+.club__lines li[data-kind="house"] p,
+.chat__body {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.club__lines li[data-kind="house"] p {
+  font-family: var(--serif);
+  font-size: var(--t-body);
+  line-height: 1.65;
+}
+.club__lines li[data-kind="house"] .club__said b,
+.rows .row[data-kind="house"] .eyebrow {
+  color: var(--gold);
+}
+.rows .row[data-kind="house"] .chat__body {
+  font-family: var(--serif);
+  line-height: 1.65;
+}

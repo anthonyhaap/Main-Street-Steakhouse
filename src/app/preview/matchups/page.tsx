@@ -163,6 +163,7 @@ const THREAD: ThreadMessage[] = [
   created_at: new Date(NOW - (minsAgo as number) * 60_000).toISOString(),
   edited_at: null,
   author_id: `u-${i}`,
+  kind: "manager" as const,
   mine: manager === "Ray",
   author_team_id: `t-${i}`,
   author_name: team as string,

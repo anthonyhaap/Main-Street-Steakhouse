@@ -87,7 +87,8 @@ export type ThreadMessage = {
   body: string;
   created_at: string;
   edited_at: string | null;
-  author_id: string;
+  author_id: string | null;
+  kind: "manager" | "house";
   mine: boolean;
   author_team_id: string | null;
   author_name: string;

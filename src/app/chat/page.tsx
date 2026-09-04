@@ -51,7 +51,8 @@ export default function ChatPage() {
     tables: ["league_messages"], channel: "league-chat", pollMs: 30000, enabled: ready,
   });
 
-  const nameOf = (id: string) => teams.find((team) => team.owner_id === id)?.name ?? "League manager";
+  const nameOf = (id: string | null) =>
+    teams.find((team) => team.owner_id === id)?.name ?? "League manager";
   const teamName = (id: string) => teams.find((team) => team.id === id)?.name ?? "—";
 
   /** "Week 11 · Prime Cut vs Gridiron Butchers", and where to read it. */
@@ -109,12 +110,14 @@ export default function ChatPage() {
                 const game = gameOf(message.matchup_id);
                 return (
                   <div className="row" key={message.id} data-mine={message.author_id === user?.id}
-                    style={{ alignItems: "flex-start" }}>
+                    data-kind={message.kind} style={{ alignItems: "flex-start" }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div className="eyebrow" style={{ marginBottom: 5 }}>
-                        {message.author_id === user?.id ? "You" : nameOf(message.author_id)}
+                        {message.kind === "house" ? "The House"
+                          : message.author_id === user?.id ? "You"
+                          : nameOf(message.author_id)}
                       </div>
-                      <div style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{message.body}</div>
+                      <div className="chat__body">{message.body}</div>
                       {game && (
                         <Link href={game.href} className="chat__on">
                           <MessageCircle size={11} /> on {game.label}

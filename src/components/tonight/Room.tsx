@@ -58,11 +58,12 @@ export function RoomBoard({ feed, now }: { feed: Feed; now: number }) {
       ) : (
         <ul className="club__lines">
           {feed.recent.map((line) => (
-            <li key={line.id} data-mine={line.mine}>
+            <li key={line.id} data-mine={line.mine} data-kind={line.kind}>
               <span className="club__said">
                 <b>{line.mine ? "You" : line.author}</b>
                 <time dateTime={line.created_at}>{freshness(line.created_at, now)}</time>
               </span>
+              {/* The recap arrives as written: a title, the card, the notes. */}
               <p>{line.body}</p>
               {line.about && (
                 <Link className="club__on" href={`/matchups?week=${line.about.week}`}>
@@ -88,7 +89,7 @@ export function RoomBoard({ feed, now }: { feed: Feed; now: number }) {
 export function Room({ now, enabled }: { now: number; enabled: boolean }) {
   const fetcher = useCallback(async (): Promise<Feed> => {
     const { data, error } = await supabaseBrowser()
-      .rpc("ff_clubhouse_feed", { p_league_id: LEAGUE_ID, p_limit: 4 });
+      .rpc("ff_clubhouse_feed", { p_league_id: LEAGUE_ID, p_limit: 5 });
     if (error) throw new Error(error.message);
     return data as Feed;
   }, []);

@@ -175,6 +175,23 @@ const SCENES: Scene[] = [
   } },
 ];
 
+/** The house's Tuesday column, exactly as `ff_recap_body` composes it. */
+const RECAP = [
+  "The Weekly Special · Week 2",
+  "",
+  "Tom 130.1 — Nate 83.9",
+  "Dave 142.6 — Marcus 118.2",
+  "Sam 104.2 — Kai 103.4",
+  "Owen 104.2 — Priya 99.1",
+  "",
+  "Tonight's Specials: Dave, 142.6.",
+  "Sent back to the kitchen: Nate, 83.9.",
+  "The Bill: Tom by 46.2 over Nate.",
+  "Last Call: Sam edged Kai by 0.8.",
+  "Left on the pass: Priya sat Trey McBride (22.4) and lost by 5.1.",
+  "Player of the week: Puka Nacua (LAR), 34.2, for Dave.",
+].join("\n");
+
 /**
  * The room under the card. Read-only, like everything here: the front page
  * only ever reads the clubhouse — saying something happens in the room or on
@@ -189,14 +206,17 @@ function room(now: number): RoomFeed {
     },
     recent: [
       { id: "r1", body: "Nacua's a game-time call and you know it.", created_at: ago(9),
-        author: "Dave", mine: false, matchup_id: "m1",
+        author: "Dave", mine: false, kind: "manager", matchup_id: "m1",
         about: { week: 3, home: "Gridiron Butchers", away: "The Porterhouse", mine: true } },
       { id: "r2", body: "Whoever has Kraft, I'm sorry.", created_at: ago(64),
-        author: "Priya", mine: false, matchup_id: null, about: null },
+        author: "Priya", mine: false, kind: "manager", matchup_id: null, about: null },
       { id: "r3", body: "Waivers run Wednesday night. Get your claims in.", created_at: ago(190),
-        author: "You", mine: true, matchup_id: null, about: null },
-      { id: "r4", body: "That was the worst bench decision of my life.", created_at: ago(1500),
-        author: "Marcus", mine: false, matchup_id: "m2",
+        author: "You", mine: true, kind: "manager", matchup_id: null, about: null },
+      // What ff_recap_body writes, verbatim, every Tuesday at nine.
+      { id: "r4", body: RECAP, created_at: ago(1500),
+        author: "The House", mine: false, kind: "house", matchup_id: null, about: null },
+      { id: "r5", body: "That was the worst bench decision of my life.", created_at: ago(2100),
+        author: "Marcus", mine: false, kind: "manager", matchup_id: "m2",
         about: { week: 2, home: "Prime Cut", away: "Wagyu Warriors", mine: false } },
     ],
     count_7d: 14,

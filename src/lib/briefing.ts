@@ -114,6 +114,8 @@ export type RoomLine = {
   created_at: string;
   author: string;
   mine: boolean;
+  /** `house` is written by the league itself — the Tuesday recap. */
+  kind: "manager" | "house";
   matchup_id: string | null;
   /** The game it was said about, when it was said on a matchup card. */
   about: { week: number; home: string; away: string; mine: boolean } | null;

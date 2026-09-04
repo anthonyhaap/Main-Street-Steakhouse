@@ -65,7 +65,7 @@ test("the clubhouse is on the front page, with what it was said about", async ({
 
   // Not "the room" — that is the carousel one section up.
   await expect(club.getByText("Overheard")).toBeVisible();
-  await expect(club.locator(".club__lines li")).toHaveCount(4);
+  await expect(club.locator(".club__lines li")).toHaveCount(5);
 
   // Your own table's thread, with the last line in it, one tap from the board.
   const mine = club.locator(".club__mine");
@@ -83,6 +83,30 @@ test("the clubhouse is on the front page, with what it was said about", async ({
   await expect(roomLine.locator(".club__on")).toHaveCount(0);
 
   await expect(club.getByText("14 lines this week.")).toBeVisible();
+});
+
+test("the house writes the week up, and it reads as a column", async ({ page }) => {
+  await page.goto("/preview/tonight");
+  const house = page.locator('.club__lines li[data-kind="house"]');
+
+  await expect(house).toHaveCount(1);
+  await expect(house.locator(".club__said b")).toHaveText("The House");
+  await expect(house).toContainText("The Weekly Special · Week 2");
+
+  // The card, then the notes. Every line ff_recap_body composes.
+  await expect(house).toContainText("Tom 130.1 — Nate 83.9");
+  await expect(house).toContainText("Tonight's Specials: Dave, 142.6.");
+  await expect(house).toContainText("The Bill: Tom by 46.2 over Nate.");
+  await expect(house).toContainText("Last Call: Sam edged Kai by 0.8.");
+  await expect(house).toContainText("Left on the pass: Priya sat Trey McBride (22.4) and lost by 5.1.");
+  await expect(house).toContainText("Player of the week: Puka Nacua (LAR), 34.2, for Dave.");
+
+  // Written by the league, so it is nobody's line and carries no matchup.
+  await expect(house).toHaveAttribute("data-mine", "false");
+  await expect(house.locator(".club__on")).toHaveCount(0);
+
+  // The line breaks it was composed with survive to the screen.
+  await expect(house.locator("p")).toHaveCSS("white-space", "pre-wrap");
 });
 
 test("the primary nav fits the header it is in", async ({ page }, testInfo) => {

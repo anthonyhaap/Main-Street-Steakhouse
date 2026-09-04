@@ -179,7 +179,9 @@ export type Matchup = {
 export type LeagueMessage = {
   id: string;
   league_id: string;
-  author_id: string;
+  /** Null on a house post: the league wrote it, not a manager. */
+  author_id: string | null;
+  kind: "manager" | "house";
   matchup_id: string | null;
   body: string;
   created_at: string;

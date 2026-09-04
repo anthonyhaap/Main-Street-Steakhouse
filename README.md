@@ -345,6 +345,54 @@ legibility fix the review asked for, and the breakpoint where the tab bar hands
 over moved from 1080px to 1180px. `tests/e2e/tonight.spec.ts` now asserts that
 the page never scrolls sideways at either viewport.
 
+### The Weekly Special
+
+The recap existed twice and neither one was a post. `recapText` writes the week
+for a share sheet, which needs somebody to press share; Tuesday's briefing tells
+*you* what happened to *you*. Neither leaves anything behind for the league to
+argue with on Wednesday. So the house writes it, once a week, into the clubhouse.
+
+| function | does |
+|----------|------|
+| `ff_week_recap` | the facts: every result, the high and the low, the widest margin, the closest game, the week's best player, and the bench decision that cost somebody the game |
+| `ff_recap_body` | those facts as prose, in the house voice |
+| `ff_publish_recap` | writes the recap and posts it — idempotent on (league, week) |
+| `ff_post_weekly_recaps` | the `weekly-recap` cron, daily at 13:00 UTC |
+
+```
+The Weekly Special · Week 11
+
+Tom 130.1 — Nate 83.9
+Dave 142.6 — Marcus 118.2
+Sam 104.2 — Kai 103.4
+
+Tonight's Specials: Dave, 142.6.
+Sent back to the kitchen: Nate, 83.9.
+The Bill: Tom by 46.2 over Nate.
+Last Call: Sam edged Kai by 0.8.
+Left on the pass: Priya sat Trey McBride (22.4) and lost by 5.1.
+Player of the week: Puka Nacua (LAR), 34.2, for Dave.
+```
+
+The bench line is the one with a test in it. Naming the highest-scoring reserve
+of the week is trivia; the line only earns its place when sitting him actually
+lost the game, so it names a **loser whose best reserve beat their worst starter
+by more than the margin of defeat**, and stays silent otherwise.
+
+Two decisions worth knowing. The prose is a separate immutable function from the
+facts, so the words can be tested without a played week — which is the only way
+this got tested at all, the league having not kicked off yet. And the cron runs
+**daily**, not on Tuesdays: the guard decides when a week is actually over, so a
+flexed game, a holiday or a missed run still gets its recap the day the week
+finishes. `/admin` has the same button for the week the scheduler missed.
+
+A house post is a message with **no author**: `league_messages.author_id` lost
+its NOT NULL and gained a `kind`, with a check constraint that keeps the two in
+step (`(kind = 'house') = (author_id is null)`) — a manager's line must still be
+signed. The alternative was posting as the commissioner, which is a lie about
+who wrote it. It renders in Overheard and in the clubhouse as a column: a gold
+rule, the serif, and the line breaks it was composed with.
+
 ### Odds that admit what they don't know
 
 The playoff simulation on `/standings` did exactly what it was asked before the
