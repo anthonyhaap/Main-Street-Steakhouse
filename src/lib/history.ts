@@ -39,6 +39,19 @@ export type HistoryBlowout = { season: number; week: number; round: string; winn
 export type HistoryHigh = { season: number; week: number; manager: string; points: number; opponent: string };
 export type HistoryRivalry = { a: string; b: string; games: number; a_wins: number; b_wins: number; playoff: number; avg_margin: number; score: number };
 
+export type HistoricalStanding = {
+  season: number;
+  final_rank: number;
+  team_name: string | null;
+  manager_names: string | null;
+  wins: number | null;
+  losses: number | null;
+  ties: number | null;
+  points_for: number | null;
+  points_against: number | null;
+  moves: number | null;
+};
+
 export type History = {
   league: { id: string; name: string; season: number; est: number };
   games: number;

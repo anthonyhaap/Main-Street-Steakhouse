@@ -3,7 +3,7 @@
 import { Flame, Landmark, Swords, Trophy, Zap } from "lucide-react";
 import { Seal, SkeletonRows } from "@/components/ui";
 import { crestUrl } from "@/lib/crest";
-import { cellOf, heat, titleOf, type History } from "@/lib/history";
+import { cellOf, heat, titleOf, type HistoricalStanding, type History } from "@/lib/history";
 
 /**
  * The room with "Est. 2016" on the door.
@@ -14,8 +14,9 @@ import { cellOf, heat, titleOf, type History } from "@/lib/history";
  * a card for every manager with a title the record earned. This is the page
  * that gets screenshotted into the group chat, so it is built to be.
  */
-export function HistoryWall({ history, myManager = null, importable = false }: {
+export function HistoryWall({ history, historicalStandings = [], myManager = null, importable = false }: {
   history: History | null;
+  historicalStandings?: HistoricalStanding[];
   /** The viewer's manager name, to pick their card and row out. */
   myManager?: string | null;
   /** Show the commissioner where the old seasons go. */
@@ -35,6 +36,10 @@ export function HistoryWall({ history, myManager = null, importable = false }: {
   const names = managers.map((m) => m.manager);
   const est = h.league.est;
   const seasons = h.seasons.filter((s) => s.champion || s.in_progress);
+  const standingsBySeason = (historicalStandings ?? []).reduce<Record<number, HistoricalStanding[]>>((grouped, row) => {
+    (grouped[row.season] ??= []).push(row);
+    return grouped;
+  }, {});
 
   return (
     <main className="page wall" data-width="mid">
@@ -69,6 +74,51 @@ export function HistoryWall({ history, myManager = null, importable = false }: {
           </div>
         )}
       </section>
+
+      {Object.keys(standingsBySeason).length > 0 && (
+        <section className="card">
+          <div className="card__head">
+            <div>
+              <h2>Final standings</h2>
+              <div className="eyebrow" style={{ marginTop: 5 }}>Regular season · imported from ESPN</div>
+            </div>
+            <Landmark size={17} color="var(--gold)" />
+          </div>
+          <div style={{ display: "grid" }}>
+            {Object.entries(standingsBySeason)
+              .sort(([a], [b]) => Number(b) - Number(a))
+              .map(([season, rows], seasonIndex) => {
+                const noResults = rows.length === 1 && rows[0].final_rank === 0;
+                return (
+                  <details key={season} open={seasonIndex === 0} style={{ borderTop: "1px solid var(--line)" }}>
+                    <summary style={{ cursor: "pointer", padding: "var(--s3) var(--s4)", fontWeight: 700 }}>
+                      {season} <span className="eyebrow" style={{ marginLeft: 8 }}>{noResults ? "No results" : `${rows.length} teams`}</span>
+                    </summary>
+                    {noResults ? (
+                      <div className="empty">ESPN records every team at 0–0 for this season.</div>
+                    ) : (
+                      <div className="scroll" style={{ padding: "0 var(--s4) var(--s4)" }}>
+                        <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 620 }}>
+                          <thead><tr><th>RK</th><th style={{ textAlign: "left" }}>TEAM</th><th>REC</th><th>PF</th><th>PA</th><th>MOVES</th></tr></thead>
+                          <tbody>{rows.map((row) => (
+                            <tr key={row.final_rank}>
+                              <td className="num" style={{ textAlign: "center" }}>{row.final_rank}</td>
+                              <td><b>{row.team_name}</b><small style={{ display: "block", color: "var(--muted)" }}>{row.manager_names}</small></td>
+                              <td className="num" style={{ textAlign: "center" }}>{row.wins}–{row.losses}{row.ties ? `–${row.ties}` : ""}</td>
+                              <td className="num" style={{ textAlign: "right" }}>{Number(row.points_for).toFixed(2)}</td>
+                              <td className="num" style={{ textAlign: "right" }}>{Number(row.points_against).toFixed(2)}</td>
+                              <td className="num" style={{ textAlign: "center" }}>{row.moves ?? "—"}</td>
+                            </tr>
+                          ))}</tbody>
+                        </table>
+                      </div>
+                    )}
+                  </details>
+                );
+              })}
+          </div>
+        </section>
+      )}
 
       {/* ================================================ the rivalries == */}
       {h.rivalries.length > 0 && (
