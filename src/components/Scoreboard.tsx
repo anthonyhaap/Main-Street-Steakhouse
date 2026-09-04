@@ -31,13 +31,22 @@ import {
   type WinOdds,
 } from "@/lib/scoreboard";
 
-export function Scoreboard({ board, now }: { board: Board; now: number }) {
+export function Scoreboard({ board, now, talk }: {
+  board: Board;
+  now: number;
+  /**
+   * The thread for a card. A slot rather than a component, because the live
+   * one fetches and posts and this file has to stay renderable from a fixture
+   * — `/preview/matchups` passes a read-only thread through the same hole.
+   */
+  talk?: (c: ScoreCard) => React.ReactNode;
+}) {
   const mine = board.matchups.find((m) => m.mine) ?? null;
   const rest = board.matchups.filter((m) => m !== mine);
 
   return (
     <>
-      {mine && <Card key={mine.id} c={mine} now={now} myTeamId={board.my_team_id} hero />}
+      {mine && <Card key={mine.id} c={mine} now={now} myTeamId={board.my_team_id} talk={talk} hero />}
       {rest.length > 0 && (
         <section className="sb-rest" aria-label="The rest of the league">
           <div className="room__head">
@@ -46,7 +55,7 @@ export function Scoreboard({ board, now }: { board: Board; now: number }) {
           </div>
           <div className="sb-list">
             {rest.map((c) => (
-              <Card key={c.id} c={c} now={now} myTeamId={board.my_team_id} />
+              <Card key={c.id} c={c} now={now} myTeamId={board.my_team_id} talk={talk} />
             ))}
           </div>
         </section>
@@ -57,8 +66,12 @@ export function Scoreboard({ board, now }: { board: Board; now: number }) {
 
 /* ------------------------------------------------------------------ card -- */
 
-function Card({ c, now, myTeamId, hero = false }: {
-  c: ScoreCard; now: number; myTeamId: string | null; hero?: boolean;
+function Card({ c, now, myTeamId, talk, hero = false }: {
+  c: ScoreCard;
+  now: number;
+  myTeamId: string | null;
+  talk?: (c: ScoreCard) => React.ReactNode;
+  hero?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const state = cardState(c);
@@ -138,6 +151,9 @@ function Card({ c, now, myTeamId, hero = false }: {
           ))}
         </div>
       )}
+
+      {/* Last, because it is the one thing on the card that grows. */}
+      {talk?.(c)}
     </article>
   );
 }

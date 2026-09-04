@@ -72,3 +72,5 @@
 20260904003458 historical_final_standings
 20260904004514 draft_order_manual
 20260904012640 sunday_scoreboard
+20260904015610 table_talk
+20260904020439 scoreboard_needs_a_session

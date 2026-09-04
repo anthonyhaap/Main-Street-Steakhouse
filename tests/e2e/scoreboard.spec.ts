@@ -67,6 +67,40 @@ test("the numbers say when they were written", async ({ page }) => {
   await expect(page.getByText(/Scores .*(ago|not yet scored)/)).toBeVisible();
 });
 
+test("the argument happens on the game it is about", async ({ page }) => {
+  await page.goto("/preview/matchups");
+  await page.getByRole("button", { name: "Late window", exact: true }).click();
+
+  const hero = page.locator(".sb[data-hero='true']");
+
+  // The closed line carries the count and the last thing said, so a quiet
+  // thread and a loud one do not look the same.
+  await expect(hero.locator(".sb__talk-n")).toHaveText("4");
+  await expect(hero.locator(".sb__talk-teaser")).toContainText("Kicker's on bye");
+
+  const messages = hero.locator(".talk__msg");
+  await expect(messages).toHaveCount(4);
+  await expect(messages.first()).toContainText("Starting Robinson over Gibbs is a choice.");
+
+  // Who said it, and from which side of the game.
+  await expect(messages.first()).toHaveAttribute("data-mine", "true");
+  await expect(messages.nth(1)).toHaveAttribute("data-side", "away");
+  // A third party heckling somebody else's table belongs to neither side.
+  await expect(messages.nth(2)).not.toHaveAttribute("data-side", /home|away/);
+
+  // A fixture has no session, so it gets the thread and no way to post.
+  await expect(hero.locator(".talk__form")).toHaveCount(0);
+});
+
+test("a game nobody has talked about invites the first line", async ({ page }) => {
+  await page.goto("/preview/matchups");
+  await page.getByRole("button", { name: "Late window", exact: true }).click();
+
+  const quiet = page.locator(".sb-list .sb").first();
+  await expect(quiet.locator(".sb__talk-n")).toHaveCount(0);
+  await expect(quiet.locator(".sb__talk-teaser")).toHaveText("Say something about this one");
+});
+
 test("playoff odds are withheld until the draft", async ({ page }) => {
   await page.goto("/preview/standings");
 

@@ -276,6 +276,42 @@ before the draft, nothing kicked, the one o'clock games on, the late window,
 and Monday with one man left. `tests/e2e/scoreboard.spec.ts` asserts the
 sentences and the odds off that fixture.
 
+### Table talk
+
+`league_messages.matchup_id` had been on the table since the clubhouse was
+built and nothing had ever written to it. That column is the whole feature: a
+comment belongs to the game it is about, so the argument lives on the
+scoreboard card instead of in a room people have to remember to visit.
+
+Every card carries a thread. Closed, it is one line — the count and the last
+thing said, both of which `ff_scoreboard` already returns, so a quiet table and
+a loud one do not look the same. Opened, `ff_matchup_thread` fetches it with
+each author resolved to their team and to which side of the game they sit on,
+and `ff_send_matchup_message` posts, behind the same RPC boundary as every
+other write. The membership check is the league, not the two managers playing:
+heckling somebody else's table is the point.
+
+The thread is not fetched until somebody opens it — six threads polled every
+fifteen seconds through a Sunday would be six times the traffic for a screen
+nobody is reading. `league_messages` is on the board's realtime watch list, so
+a line said about any game lights up its count without a reload.
+
+It reads in both directions. A matchup comment still appears in the clubhouse,
+captioned with the game it was said about and linking back to that week's
+board — moving the argument onto the scoreboard would be no improvement if it
+then vanished from the room everyone reads.
+
+`TalkThread` is pure and `MatchupTalk` is the live one around it, which is what
+lets `/preview/matchups` render a real argument from a fixture with no session:
+an `onSend` that isn't there is the read-only thread a signed-out reader gets.
+
+**One thing this found.** `ff_scoreboard` had shipped without a grant line, so
+it kept Postgres' default of EXECUTE to PUBLIC — which here means `anon`, and
+the league id ships inside the client bundle. Every sibling RPC is
+authenticated-only. `20260904020439` corrects the grant and, so a future
+mistake cannot re-open it, makes the function refuse a caller with no
+`auth.uid()` outright rather than leaning on the grant the way its siblings do.
+
 ### Odds that admit what they don't know
 
 The playoff simulation on `/standings` did exactly what it was asked before the

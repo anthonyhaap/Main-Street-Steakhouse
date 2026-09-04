@@ -69,10 +69,47 @@ export type ScoreSide = {
   mine: boolean;
 };
 
+/* ------------------------------------------------------------ table talk -- */
+
+/** The last thing said about a game, for the closed card. */
+export type TalkLine = {
+  body: string;
+  created_at: string;
+  author: string;
+  mine: boolean;
+} | null;
+
+export type Talk = { count: number; last: TalkLine };
+
+/** One line in a thread. Shape of ff_matchup_thread's `messages`. */
+export type ThreadMessage = {
+  id: string;
+  body: string;
+  created_at: string;
+  edited_at: string | null;
+  author_id: string;
+  mine: boolean;
+  author_team_id: string | null;
+  author_name: string;
+  author_manager: string | null;
+  author_logo: string | null;
+  /** Which side of this game the author sits on, if either. */
+  side: "home" | "away" | null;
+};
+
+/** Shape of ff_matchup_thread(matchup_id). */
+export type MatchupThread = {
+  matchup_id: string;
+  week: number;
+  messages: ThreadMessage[];
+  now: string;
+};
+
 export type ScoreCard = {
   id: string;
   week: number;
   mine: boolean;
+  talk: Talk;
   home: ScoreSide;
   away: ScoreSide;
 };
@@ -403,6 +440,20 @@ export function stillToPlay(s: ScoreSide): ScoreStarter[] {
     .filter((p) => !p.final)
     .sort((a, b) => (a.kickoff_at ?? "").localeCompare(b.kickoff_at ?? ""));
 }
+
+/**
+ * What the closed thread says about itself. A count alone is a number; the
+ * count with the last line in it is a reason to open the thread.
+ */
+export function talkTeaser(t: Talk | undefined): string {
+  if (!t || t.count === 0) return "Say something about this one";
+  const who = t.last?.mine ? "You" : t.last?.author ?? "Someone";
+  return t.last ? `${who}: ${t.last.body}` : `${t.count} said`;
+}
+
+/** "3 lines", "1 line" — the badge on a closed thread. */
+export const talkCount = (t: Talk | undefined) =>
+  `${t?.count ?? 0} line${(t?.count ?? 0) === 1 ? "" : "s"}`;
 
 /**
  * A lineup with a hole in it on a Sunday is the loudest thing on the page — but

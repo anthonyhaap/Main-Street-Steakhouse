@@ -2265,3 +2265,81 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
   .sb__odds-src { display: none; }
   .sb__tops > :last-child { justify-self: start; text-align: left; }
 }
+
+/* --- table talk --------------------------------------------------------- */
+/* The argument, on the game it is about. Closed it is one line with the last
+   thing said in it; open it is the thread and a box to answer in. */
+
+/* `minmax(0, 1fr)` and not `1fr`: a grid child defaults to min-width auto, so
+   the one-line teaser below — which is deliberately nowrap — would otherwise
+   size the track to the whole sentence and push the card past the phone. */
+.sb__talk {
+  border-top: 1px solid var(--rule-soft);
+  padding-top: var(--s3);
+  display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s3);
+}
+.sb__talk > * { min-width: 0; }
+
+.sb__talk-open {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; min-height: 44px; padding: 6px 2px;
+  border: 0; background: none; cursor: pointer; text-align: left;
+  font: 600 var(--t-small) var(--sans); color: var(--muted);
+}
+.sb__talk-open:hover { color: var(--wine); }
+.sb__talk-open svg { color: var(--gold); flex-shrink: 0; }
+.sb__talk-label { flex-shrink: 0; }
+.sb__talk-n {
+  display: inline-grid; place-items: center;
+  min-width: 20px; height: 20px; padding: 0 6px; flex-shrink: 0;
+  border-radius: 999px; background: var(--wine); color: #fdf7ee;
+  font: 700 var(--t-micro)/1 var(--sans); font-variant-numeric: tabular-nums;
+}
+.sb__talk-teaser {
+  min-width: 0; flex: 1;
+  font-weight: 400; font-style: italic; color: var(--dim);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.talk { display: grid; gap: var(--s3); }
+.talk__empty { margin: 0; font-size: var(--t-small); color: var(--dim); }
+.talk__error { margin: 0; font-size: var(--t-small); color: var(--lose); }
+
+.talk__list {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; gap: 2px;
+  max-height: 42vh; overflow-y: auto;
+}
+.talk__msg {
+  display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--r-sm);
+  border-left: 2px solid transparent;
+}
+.talk__msg[data-mine="true"] { background: var(--gold-haze); border-left-color: var(--gold-lit); }
+.talk__msg[data-side="home"]:not([data-mine="true"]) { border-left-color: var(--gold-dim); }
+.talk__msg[data-side="away"]:not([data-mine="true"]) { border-left-color: var(--wine-hair); }
+.talk__body { min-width: 0; }
+.talk__who { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.talk__who b { font-weight: 600; font-size: var(--t-small); }
+.talk__who time { font-size: var(--t-small); color: var(--faint); }
+.talk__side {
+  font: 700 9px/1 var(--sans); letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--dim); font-style: normal;
+}
+.talk__body p {
+  margin: 3px 0 0; font-size: var(--t-body); line-height: 1.5;
+  white-space: pre-wrap; overflow-wrap: anywhere;
+}
+
+.talk__form { display: flex; gap: var(--s2); }
+.talk__form .field { flex: 1; min-width: 0; }
+
+/* A clubhouse line that was said about a game carries the game with it. */
+.chat__on {
+  display: inline-flex; align-items: center; gap: 5px;
+  margin-top: 6px;
+  font-size: var(--t-small); color: var(--dim); text-decoration: none;
+}
+.chat__on:hover { color: var(--wine); text-decoration: underline; text-underline-offset: 2px; }
+.chat__on svg { color: var(--gold); flex-shrink: 0; }

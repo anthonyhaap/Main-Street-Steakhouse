@@ -16,9 +16,11 @@
  */
 
 import { useState } from "react";
+import { MessageCircle } from "lucide-react";
 import { TopBar } from "@/components/Shell";
 import { Scoreboard } from "@/components/Scoreboard";
-import { freshness, slateLine, type ScoreCard, type ScoreSide, type ScoreStarter, type Scoreboard as Board } from "@/lib/scoreboard";
+import { TalkThread } from "@/components/matchup/Talk";
+import { freshness, slateLine, talkTeaser, type ScoreCard, type ScoreSide, type ScoreStarter, type Scoreboard as Board, type Talk, type ThreadMessage } from "@/lib/scoreboard";
 
 /** Sunday of week 11, 1:07pm Eastern, as a fixed clock. */
 const NOW = Date.parse("2026-11-22T18:07:00Z");
@@ -145,23 +147,59 @@ function side(
   };
 }
 
+/**
+ * An argument, invented. Read-only here: `TalkThread` without an `onSend` is
+ * the thread a signed-out reader gets, which is also the one a fixture can
+ * render — the post itself needs a session and a database.
+ */
+const THREAD: ThreadMessage[] = [
+  ["Ray", "The Porterhouse", "home", "Starting Robinson over Gibbs is a choice.", 52],
+  ["Dev", "Dry Aged Dynasty", "away", "It's called conviction. Look it up.", 41],
+  ["Marcus", "Prime Cut", null, "It's called being three points from last.", 12],
+  ["Ray", "The Porterhouse", "home", "Kicker's on bye, Dev. Check your K.", 3],
+].map(([manager, team, side, body, minsAgo], i) => ({
+  id: `msg-${i}`,
+  body: body as string,
+  created_at: new Date(NOW - (minsAgo as number) * 60_000).toISOString(),
+  edited_at: null,
+  author_id: `u-${i}`,
+  mine: manager === "Ray",
+  author_team_id: `t-${i}`,
+  author_name: team as string,
+  author_manager: manager as string,
+  author_logo: null,
+  side: side as "home" | "away" | null,
+}));
+
+const TALK: Talk = {
+  count: THREAD.length,
+  last: {
+    body: THREAD[THREAD.length - 1].body,
+    created_at: THREAD[THREAD.length - 1].created_at,
+    author: "Ray",
+    mine: true,
+  },
+};
+
+const QUIET: Talk = { count: 0, last: null };
+
 function board(stage: Stage): Board {
   // A league that has not drafted is in week one, whatever the rest of the
   // fixture's Sunday says.
   const wk = stage === "undrafted" ? 1 : 11;
   const cards: ScoreCard[] = [
     {
-      id: "m1", week: wk, mine: true,
+      id: "m1", week: wk, mine: true, talk: TALK,
       away: side("t4", "Dry Aged Dynasty", "Dev", 2, stage, { wins: 7 }),
       home: side(MY_TEAM, "The Porterhouse", "Ray", 5, stage, { solo: stage === "monday", wins: 6 }),
     },
     {
-      id: "m2", week: wk, mine: false,
+      id: "m2", week: wk, mine: false, talk: QUIET,
       away: side("t1", "Prime Cut", "Marcus", 1, stage, { wins: 9 }),
       home: side("t2", "Gridiron Butchers", "Anthony", 8, stage, { wins: 4 }),
     },
     {
-      id: "m3", week: wk, mine: false,
+      id: "m3", week: wk, mine: false, talk: QUIET,
       away: side("t5", "Bone-In Bandits", "Tom", 3, stage, { wins: 5 }),
       home: side("t6", "Wagyu Warriors", "Nate", 11, stage, { wins: 5 }),
     },
@@ -192,6 +230,29 @@ function board(stage: Stage): Board {
     now: new Date(NOW).toISOString(),
     generated_at: new Date(NOW).toISOString(),
   };
+}
+
+/** The closed line and, opened, the thread — with no way to post from here. */
+function FixtureTalk({ card }: { card: ScoreCard }) {
+  const [open, setOpen] = useState(card.talk.count > 0);
+  const messages = card.talk.count > 0 ? THREAD : [];
+  return (
+    <div className="sb__talk">
+      <button className="sb__talk-open" onClick={() => setOpen((v) => !v)} aria-expanded={open}>
+        <MessageCircle size={14} />
+        <span className="sb__talk-label">Table talk</span>
+        {card.talk.count > 0 && <span className="sb__talk-n">{card.talk.count}</span>}
+        <span className="sb__talk-teaser">{talkTeaser(card.talk)}</span>
+      </button>
+      {open && (
+        <TalkThread
+          messages={messages}
+          now={NOW}
+          emptyLine="Nobody has said anything about this one yet."
+        />
+      )}
+    </div>
+  );
 }
 
 export default function MatchupsPreviewPage() {
@@ -231,7 +292,11 @@ export default function MatchupsPreviewPage() {
           </span>
         </div>
 
-        <Scoreboard board={b} now={NOW} />
+        <Scoreboard
+          board={b}
+          now={NOW}
+          talk={(c) => <FixtureTalk card={c} />}
+        />
       </main>
     </>
   );

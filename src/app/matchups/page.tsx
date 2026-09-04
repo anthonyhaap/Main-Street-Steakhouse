@@ -10,6 +10,7 @@ import { TopBar } from "@/components/Shell";
 import { SkeletonRows } from "@/components/ui";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { Scoreboard } from "@/components/Scoreboard";
+import { MatchupTalk } from "@/components/matchup/Talk";
 
 /**
  * The Sunday board.
@@ -31,7 +32,15 @@ export default function MatchupsPage() {
 
   useEffect(() => {
     if (!ready) return;
-    void supabaseBrowser().rpc("ff_current_week").then(({ data }) => setWeek((data as number) ?? 1));
+    // A clubhouse line about week 11 links here with ?week=11, and the URL
+    // saves the round trip. Read from `location` rather than
+    // `useSearchParams`, which would opt the whole route out of static
+    // rendering for one optional number.
+    const asked = Number(new URLSearchParams(window.location.search).get("week"));
+    const wanted = Number.isInteger(asked) && asked >= 1
+      ? Promise.resolve(asked)
+      : supabaseBrowser().rpc("ff_current_week").then(({ data }) => (data as number) ?? 1);
+    void wanted.then(setWeek);
   }, [ready]);
 
   // Fifteen seconds while football is on, a minute when it is not. Realtime
@@ -50,7 +59,9 @@ export default function MatchupsPage() {
   }, [week]);
 
   const { data, status, error, refetch } = useLive<Board>(fetcher, {
-    tables: ["matchups", "rosters", "nfl_games"],
+    // `league_messages` is on the list so a line said about somebody else's
+    // game lights up its count on this screen without a reload.
+    tables: ["matchups", "rosters", "nfl_games", "league_messages"],
     channel: "scoreboard",
     pollMs: hot ? 15000 : 60000,
     enabled: ready && week !== null,
@@ -134,7 +145,11 @@ export default function MatchupsPage() {
 
           {shown && shown.matchups.length > 0 && (
             <div style={{ opacity: stale ? 0.55 : 1, transition: "opacity .2s var(--ease)" }}>
-              <Scoreboard board={shown} now={clock} />
+              <Scoreboard
+                board={shown}
+                now={clock}
+                talk={(c) => <MatchupTalk card={c} now={clock} onPosted={refetch} />}
+              />
             </div>
           )}
         </main>
