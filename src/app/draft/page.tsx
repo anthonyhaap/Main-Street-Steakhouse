@@ -284,7 +284,10 @@ export default function DraftPage() {
             )}
             actions={
               drafted ? (
-                <span className="badge" data-tone="neutral">Taken · {takenBy.get(openId)}</span>
+                <>
+                  {queued && <Star size={14} fill="none" style={{ color: "var(--faint)" }} aria-hidden />}
+                  <span className="badge" data-tone="neutral">Taken · {takenBy.get(openId)}</span>
+                </>
               ) : (
                 <>
                   {team && (
