@@ -33,12 +33,22 @@ jobs:
       # psql ships on the runner. coalesce guards a null name: it would
       # otherwise collapse the whole row to NULL, print a blank line, and drop
       # that version from the comparison silently.
+      #
+      # The third field is the migration's own statements, so the check can
+      # compare each FILE against what actually ran. base64 because the SQL is
+      # full of newlines and quotes and this has to survive as one line;
+      # `translate` strips the wrapping newlines encode() adds every 76 chars.
+      # A migration with no recorded statements yields an empty third field,
+      # which the parser reads as "nothing to compare".
       - name: read the recorded migration history
         if: env.SUPABASE_DB_URL != ''
         run: |
           set -euo pipefail
           psql "$SUPABASE_DB_URL" --no-psqlrc -Atc \
-            "select version || ' ' || coalesce(name, '(unnamed)')
+            "select version || ' ' || coalesce(name, '(unnamed)') || ' ' ||
+                    coalesce(translate(encode(convert_to(
+                      array_to_string(statements, ';' || chr(10)), 'UTF8'), 'base64'),
+                      chr(10) || chr(13), ''), '')
                from supabase_migrations.schema_migrations order by version" \
             > "$RUNNER_TEMP/remote.txt"
           echo "rows: $(wc -l < "$RUNNER_TEMP/remote.txt")"

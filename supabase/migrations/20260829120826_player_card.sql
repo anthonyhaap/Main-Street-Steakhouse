@@ -187,7 +187,7 @@ begin
   -- ------------------------------------------------------------ depth chart --
   -- His own club's room at his position, in the coaching staff's order, with
   -- what each man has been worth. This is the context an injury headline needs.
-  select coalesce(jsonb_agg(d order by (d->>'order')::int nulls last, (d->>'avg_points')::numeric desc), '[]'::jsonb)
+  select coalesce(jsonb_agg(d order by (d->>'order')::int nulls last, (d->>'avg_points')::numeric desc nulls last), '[]'::jsonb)
     into v_depth
     from (
       select jsonb_build_object(

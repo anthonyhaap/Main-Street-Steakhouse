@@ -20,3 +20,11 @@ begin
   end if;
 end;
 $fn$;
+
+-- A helper added earlier was granted to PUBLIC by default. It only reads the
+-- schedule, but nothing unauthenticated needs to run it. Both revokes ran on
+-- the live project as part of this migration; the ff_backfill_bye_weeks one
+-- also appears in 20260826022327, where it is a no-op the second time.
+revoke all on function public.ff_backfill_bye_weeks(int) from public, anon;
+revoke all on function public.ff_current_week() from public, anon;
+grant execute on function public.ff_current_week() to authenticated;
