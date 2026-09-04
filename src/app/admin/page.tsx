@@ -76,6 +76,27 @@ export default function AdminPage() {
     [refresh, toast],
   );
 
+  /**
+   * The Weekly Special, by hand.
+   *
+   * The cron writes it at nine every morning for the newest finished week, so
+   * this exists for the week the cron missed — a delayed correction, a night
+   * the scheduler was down — and for the commissioner who wants to see it land
+   * rather than trust that it will. It reports what actually happened, because
+   * the interesting answer here is "already written", which is not an error.
+   */
+  const [recapWeek, setRecapWeek] = useState<number | null>(null);
+  const postRecap = useCallback(async (week: number) => {
+    setBusy(true);
+    const { data: out, error } = await supabaseBrowser()
+      .rpc("ff_publish_recap", { p_league_id: LEAGUE_ID, p_week: week });
+    setBusy(false);
+    if (error) return toast("error", error.message);
+    const r = out as { posted?: boolean; reason?: string } | null;
+    if (r?.posted) toast("ok", `Week ${week} is in the clubhouse.`);
+    else toast("info", `Nothing posted — ${r?.reason ?? "no result"}.`);
+  }, [toast]);
+
   // Two steps on purpose. The rule set is versioned by week and every week is
   // already priced with the rules in force for it; the rescore rewrites the
   // matchup totals so the standings agree now rather than after the next cron.
@@ -145,6 +166,38 @@ export default function AdminPage() {
 
         {iAmCommish && (
           <>
+            <section className="card">
+              <div className="card__head">
+                <h2>The Weekly Special</h2>
+                <ScrollText size={17} color="var(--gold)" />
+              </div>
+              <div className="card__body">
+                <p className="prose" style={{ marginTop: 0, fontSize: "var(--t-small)" }}>
+                  The house writes up each week the morning after it finishes and posts it
+                  to the clubhouse — every result, the high and the low, the widest margin,
+                  the closest game, and the bench decision that cost somebody the game.
+                  Posting the same week twice does nothing, so this is safe to press.
+                </p>
+                <div style={{ display: "flex", gap: "var(--s2)", flexWrap: "wrap", marginTop: "var(--s4)", alignItems: "center" }}>
+                  <label className="eyebrow" htmlFor="recap-week">Week</label>
+                  <input
+                    id="recap-week"
+                    className="field num"
+                    type="number"
+                    min={1}
+                    max={20}
+                    style={{ width: 90 }}
+                    value={recapWeek ?? Math.max(1, data.week - 1)}
+                    onChange={(e) => setRecapWeek(Number(e.target.value) || 1)}
+                  />
+                  <button className="btn" disabled={busy}
+                    onClick={() => postRecap(recapWeek ?? Math.max(1, data.week - 1))}>
+                    Post the recap
+                  </button>
+                </div>
+              </div>
+            </section>
+
             <section className="card">
               <div className="card__head">
                 <div>

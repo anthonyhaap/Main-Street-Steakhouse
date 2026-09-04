@@ -11,6 +11,7 @@
 #   select version || ' ' || name
 #     from supabase_migrations.schema_migrations order by version;
 #
+20260809014900 enable_extensions
 20260809015006 core_schema
 20260809015038 draft_functions_and_escape_hatch
 20260809015258 players_gsis_canonical_id
@@ -72,3 +73,8 @@
 20260904003458 historical_final_standings
 20260904004514 draft_order_manual
 20260904012008 draft_reset
+20260904012640 sunday_scoreboard
+20260904015610 table_talk
+20260904020439 scoreboard_needs_a_session
+20260904021320 clubhouse_feed
+20260904022842 weekly_special

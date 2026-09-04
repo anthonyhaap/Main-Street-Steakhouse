@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { Trophy } from "lucide-react";
 import type { Outlook } from "@/lib/types";
-import { SIMS, projectPlayoffs, rankKey, type PlayoffProjection } from "@/lib/playoffs";
+import { SIMS, oddsCanSeparate, projectPlayoffs, rankKey, type PlayoffProjection } from "@/lib/playoffs";
 import { Seal, SkeletonRows, fmtPts } from "@/components/ui";
 import { Meter } from "@/components/dash";
 
@@ -21,11 +21,20 @@ export function StandingsBoard({ outlook, myTeamId, crestOf }: {
    */
   crestOf?: (teamId: string) => string | null;
 }) {
-  const proj = useMemo(() => (outlook ? projectPlayoffs(outlook) : null), [outlook]);
+  // Before the draft there is nothing to tell twelve 0–0 teams apart, and the
+  // simulation says so by producing twelve coin flips. Withhold it rather than
+  // dress it up: see `oddsCanSeparate`.
+  const separable = outlook ? oddsCanSeparate(outlook) : true;
+  const proj = useMemo(
+    () => (outlook && separable ? projectPlayoffs(outlook) : null),
+    [outlook, separable],
+  );
   const byId = useMemo(() => new Map((proj ?? []).map((p) => [p.team_id, p])), [proj]);
 
   const rows = useMemo(() => {
     if (!outlook) return [];
+    // Nothing has happened yet: alphabetical, so the order claims nothing.
+    if (!separable) return [...outlook.teams].sort((a, b) => a.name.localeCompare(b.name));
     return [...outlook.teams].sort(
       (a, b) =>
         rankKey(b) - rankKey(a)
@@ -33,14 +42,17 @@ export function StandingsBoard({ outlook, myTeamId, crestOf }: {
         || (byId.get(b.id)?.playoff_pct ?? 0) - (byId.get(a.id)?.playoff_pct ?? 0)
         || a.name.localeCompare(b.name),
     );
-  }, [outlook, byId]);
+  }, [outlook, byId, separable]);
 
   const left = outlook
     ? outlook.matchups.filter((m) => !m.played && m.week <= outlook.regular_season_weeks).length
     : 0;
   const started = outlook?.matchups.some((m) => m.played) ?? false;
-  const showBye = (outlook?.playoff_byes ?? 0) > 0;
-  const heads = ["", "Team", "W", "L", "T", "PF", "PA", "Diff", "Proj.", "Playoffs", ...(showBye ? ["Bye"] : [])];
+  const showBye = (outlook?.playoff_byes ?? 0) > 0 && separable;
+  const heads = separable
+    ? ["", "Team", "W", "L", "T", "PF", "PA", "Diff", "Proj.", "Playoffs", ...(showBye ? ["Bye"] : [])]
+    // Every other column is a zero in every row. A column of zeros is not data.
+    : ["", "Team", "W", "L", "T"];
 
   return (
     <div className="card">
@@ -68,7 +80,9 @@ export function StandingsBoard({ outlook, myTeamId, crestOf }: {
       {outlook && outlook.matchups.length > 0 && (
         <>
           <div className="note" data-kind="info">
-            {left === 0
+            {!separable
+              ? "Playoff odds unlock after the draft. Until every seat has a roster there is nothing to tell twelve 0–0 teams apart — the simulation would hand all of them a coin flip and a projected 7–7, which looks like analysis and is not."
+              : left === 0
               ? "The regular season is in the books. Seeds are final."
               : started
               ? `Odds come from ${SIMS.toLocaleString()} simulated seasons, using results so far and what each lineup is projected to score. ${left} regular-season game${left === 1 ? "" : "s"} left.`
@@ -76,7 +90,10 @@ export function StandingsBoard({ outlook, myTeamId, crestOf }: {
           </div>
 
           <div className="scroll" style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: showBye ? 860 : 780 }}>
+            <table style={{
+              width: "100%", borderCollapse: "collapse",
+              minWidth: !separable ? 380 : showBye ? 860 : 780,
+            }}>
               <thead>
                 <tr>
                   {heads.map((h, i) => (
@@ -97,7 +114,9 @@ export function StandingsBoard({ outlook, myTeamId, crestOf }: {
                   const pf = Number(t.points_for), pa = Number(t.points_against);
                   const diff = pf - pa;
                   const mine = t.id === myTeamId;
-                  const cutoff = i + 1 === outlook.playoff_teams;
+                  // A cut line drawn across an alphabetical list would be a
+                  // claim about six teams that nothing has happened to.
+                  const cutoff = separable && i + 1 === outlook.playoff_teams;
                   const byeLine = showBye && i + 1 === outlook.playoff_byes;
                   return (
                     <tr key={t.id} style={{
@@ -106,7 +125,9 @@ export function StandingsBoard({ outlook, myTeamId, crestOf }: {
                         : byeLine ? "1px dashed var(--gold-dim)"
                         : "1px solid var(--rule-soft)",
                     }}>
-                      <td className="num eyebrow" style={{ padding: "var(--s3) var(--s4)" }}>{i + 1}</td>
+                      <td className="num eyebrow" style={{ padding: "var(--s3) var(--s4)" }}>
+                        {separable ? i + 1 : "–"}
+                      </td>
                       <td style={{ padding: "var(--s3) var(--s4)" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: "var(--s2)" }}>
                           <Seal name={t.name} src={crestOf?.(t.id) ?? null} mine={mine} size={28} />
@@ -123,16 +144,20 @@ export function StandingsBoard({ outlook, myTeamId, crestOf }: {
                       <td className="num" style={cell}>{t.wins}</td>
                       <td className="num" style={cell}>{t.losses}</td>
                       <td className="num" style={{ ...cell, color: "var(--dim)" }}>{t.ties}</td>
-                      <td className="num" style={cell}>{fmtPts(pf)}</td>
-                      <td className="num" style={{ ...cell, color: "var(--muted)" }}>{fmtPts(pa)}</td>
-                      <td className="num" style={{ ...cell, color: diff >= 0 ? "var(--win)" : "var(--lose)" }}>
-                        {diff >= 0 ? "+" : ""}{diff.toFixed(1)}
-                      </td>
-                      <td className="num" style={{ ...cell, color: "var(--muted)" }} title="Projected final record">
-                        {p ? `${p.proj_wins.toFixed(1)}–${p.proj_losses.toFixed(1)}` : "—"}
-                      </td>
-                      <td style={cell}><Odds p={p} kind="playoff" /></td>
-                      {showBye && <td style={cell}><Odds p={p} kind="bye" /></td>}
+                      {separable && (
+                        <>
+                          <td className="num" style={cell}>{fmtPts(pf)}</td>
+                          <td className="num" style={{ ...cell, color: "var(--muted)" }}>{fmtPts(pa)}</td>
+                          <td className="num" style={{ ...cell, color: diff >= 0 ? "var(--win)" : "var(--lose)" }}>
+                            {diff >= 0 ? "+" : ""}{diff.toFixed(1)}
+                          </td>
+                          <td className="num" style={{ ...cell, color: "var(--muted)" }} title="Projected final record">
+                            {p ? `${p.proj_wins.toFixed(1)}–${p.proj_losses.toFixed(1)}` : "—"}
+                          </td>
+                          <td style={cell}><Odds p={p} kind="playoff" /></td>
+                          {showBye && <td style={cell}><Odds p={p} kind="bye" /></td>}
+                        </>
+                      )}
                     </tr>
                   );
                 })}
@@ -141,9 +166,15 @@ export function StandingsBoard({ outlook, myTeamId, crestOf }: {
           </div>
 
           <div className="card__body" style={{ paddingTop: "var(--s3)", display: "flex", gap: "var(--s4)", flexWrap: "wrap" }}>
-            <span className="eyebrow"><i style={swatch("var(--gold-lit)")} /> Playoff line</span>
-            {showBye && <span className="eyebrow"><i style={{ ...swatch("transparent"), borderTop: "1px dashed var(--gold-dim)" }} /> Bye line</span>}
-            <span className="eyebrow" style={{ marginLeft: "auto" }}>Proj. is the expected final record</span>
+            {separable ? (
+              <>
+                <span className="eyebrow"><i style={swatch("var(--gold-lit)")} /> Playoff line</span>
+                {showBye && <span className="eyebrow"><i style={{ ...swatch("transparent"), borderTop: "1px dashed var(--gold-dim)" }} /> Bye line</span>}
+                <span className="eyebrow" style={{ marginLeft: "auto" }}>Proj. is the expected final record</span>
+              </>
+            ) : (
+              <span className="eyebrow">Listed alphabetically · no seeding until week one</span>
+            )}
           </div>
         </>
       )}

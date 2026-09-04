@@ -59,6 +59,68 @@ test("the six tables swipe, yours first", async ({ page }) => {
   await expect(tables.first()).toHaveAttribute("data-mine", "true");
 });
 
+test("the clubhouse is on the front page, with what it was said about", async ({ page }) => {
+  await page.goto("/preview/tonight");
+  const club = page.locator(".club");
+
+  // Not "the room" — that is the carousel one section up.
+  await expect(club.getByText("Overheard")).toBeVisible();
+  await expect(club.locator(".club__lines li")).toHaveCount(5);
+
+  // Your own table's thread, with the last line in it, one tap from the board.
+  const mine = club.locator(".club__mine");
+  await expect(mine).toContainText("3 about your table");
+  await expect(mine).toContainText("Nacua's a game-time call");
+  await expect(mine).toHaveAttribute("href", "/matchups?week=3");
+
+  // A line said on a matchup carries the game, and says so from your side.
+  await expect(club.getByRole("link", { name: /on your game · week 3/ })).toBeVisible();
+  await expect(club.getByRole("link", { name: /on Wagyu Warriors vs Prime Cut · week 2/ }))
+    .toHaveAttribute("href", "/matchups?week=2");
+
+  // A line said in the room carries nothing.
+  const roomLine = club.locator(".club__lines li", { hasText: "Whoever has Kraft" });
+  await expect(roomLine.locator(".club__on")).toHaveCount(0);
+
+  await expect(club.getByText("14 lines this week.")).toBeVisible();
+});
+
+test("the house writes the week up, and it reads as a column", async ({ page }) => {
+  await page.goto("/preview/tonight");
+  const house = page.locator('.club__lines li[data-kind="house"]');
+
+  await expect(house).toHaveCount(1);
+  await expect(house.locator(".club__said b")).toHaveText("The House");
+  await expect(house).toContainText("The Weekly Special · Week 2");
+
+  // The card, then the notes. Every line ff_recap_body composes.
+  await expect(house).toContainText("Tom 130.1 — Nate 83.9");
+  await expect(house).toContainText("Tonight's Specials: Dave, 142.6.");
+  await expect(house).toContainText("The Bill: Tom by 46.2 over Nate.");
+  await expect(house).toContainText("Last Call: Sam edged Kai by 0.8.");
+  await expect(house).toContainText("Left on the pass: Priya sat Trey McBride (22.4) and lost by 5.1.");
+  await expect(house).toContainText("Player of the week: Puka Nacua (LAR), 34.2, for Dave.");
+
+  // Written by the league, so it is nobody's line and carries no matchup.
+  await expect(house).toHaveAttribute("data-mine", "false");
+  await expect(house.locator(".club__on")).toHaveCount(0);
+
+  // The line breaks it was composed with survive to the screen.
+  await expect(house.locator("p")).toHaveCSS("white-space", "pre-wrap");
+});
+
+test("the primary nav fits the header it is in", async ({ page }, testInfo) => {
+  await page.goto("/preview/tonight");
+  const width = page.viewportSize()!.width;
+  const shown = await page.locator(".nav").evaluate((el) => getComputedStyle(el).display !== "none");
+
+  // Eleven destinations and a wordmark do not fit a small laptop; below the
+  // breakpoint the tab bar and its More menu carry them instead.
+  expect(shown).toBe(width > 1180);
+  const doc = await page.evaluate(() => document.documentElement.scrollWidth);
+  expect(doc, `${testInfo.project.name} at ${width}px scrolls sideways`).toBeLessThanOrEqual(width);
+});
+
 test("the history wall hangs the plaques", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));

@@ -183,6 +183,9 @@ contract. The skeleton has the card's exact silhouette, so nothing shifts.
 | `action` | the one thing to do, never two: fill the empty slot, check on the questionable starter, watch it live, send the recap |
 | `recapText` | the Tuesday recap in the house voice, for the group chat |
 
+Under it: the six tables as a swipe carousel, **Overheard** (below), and the
+standings as a place card.
+
 The day of the week is the league's (`LEAGUE_TZ`), not the phone's. The NFL
 slate decides the rest: any game in progress is Sunday whatever the calendar
 says, and a Monday with only your tight end left to play is written as a
@@ -201,7 +204,7 @@ his, and taps an Android wrist through `navigator.vibrate`.
 `/splash/<w>x<h>.png` draws the ink launch screen at whatever size an iPhone
 asks for (Satori, no PNGs in the repo), the layout lists them per device, and
 `InstallNudge` shows the two taps once on a first mobile visit. The tab bar
-carries four items — Tonight, Scores, My Team, Standings — with everything
+carries four items — Tonight, Matchups, My Team, Standings — with everything
 else behind More; pull to refresh works in the installed app only, where the
 browser's own is absent. Fraunces and Inter arrive through `next/font`, so the
 headline has an optical-size axis and every score sits in tabular figures.
@@ -235,23 +238,222 @@ in the group chat as a card. The recap button on Tuesday's briefing opens the
 phone's share sheet with the week's results written in the house voice and
 that link at the bottom; where there is no share sheet, it copies.
 
-### The scoreboard
+### The Sunday board
 
-`/matchups` is the screen the league actually watches on a Sunday, and it was
-the only one with no fixture behind it: its markup lived inside the component
-that fetched its own data, so it could not be looked at without a session, a
-finished draft and a live week. `Scoreboard` is that markup, split out, and
-`/preview/matchups` renders it from three invented games.
+`/matchups` is the screen the league actually watches on a Sunday, and for a
+long time it was a schedule: two names, two numbers and a caret. True, and
+nearly useless — the numbers a manager watches are the ones that say where a
+game is *going*.
 
-Splitting it also settled an inconsistency. Expanded lineups printed player
-names as plain strings — the one place in the app where a name was not a
-`PlayerBadge`, on the page where you most want to tap a name and see why he is
-doing what he is doing. `roster_points` now carries `espn_id` for the headshot,
-the same one-line join `draft_pool` and `draft_board` already use.
+One RPC feeds it now. `ff_scoreboard(league_id, week)` returns every table in
+the week with both lineups on it: each starter's points, his projection, his
+real game's state and kickoff, plus each side's projected total, how much of it
+is still to come, how many men are in action, and that side's best day so far.
+It also returns when the numbers were last written, which the page prints.
+
+`src/lib/scoreboard.ts` turns those facts into the screen, and is pure:
+
+| function | decides |
+|----------|---------|
+| `cardState` | `pre`, `live`, `between`, `settled` — the card's personality |
+| `projectedFinal` | points plus what is left, counting a man already playing for the part of his projection he has not reached |
+| `winOdds` | the live probability: the projected margin over the spread still to come, through a normal CDF |
+| `cardLine` | the one sentence — "You need 5.9 from Robinson. He's projected 8.0." |
+| `slateLine` | "6 games on now, 2 still to kick." |
+| `freshness` | "Scores 1 min ago · projections 5h ago" |
+
+The odds model is deliberately simple and the card says so: each starter still
+to play is an independent swing with a standard deviation of 65% of his
+projection, floored at five points, halved for a man whose game is already on.
+It is not a simulation of the NFL; it is an honest reading of how much can
+still change, and it collapses to a certainty when the last game ends. The
+split is always printed as two percentages as well as drawn as a bar, so the
+card reads the same to someone who cannot separate wine from gold.
+
+Hierarchy is the other half of it: your game is one card at the top, three
+times the size, and the other five are a list. Changing week never blanks the
+screen — the board you were looking at stays, dimmed, until the next lands.
+
+`/preview/matchups` runs a whole invented Sunday through the real component:
+before the draft, nothing kicked, the one o'clock games on, the late window,
+and Monday with one man left. `tests/e2e/scoreboard.spec.ts` asserts the
+sentences and the odds off that fixture.
+
+### Table talk
+
+`league_messages.matchup_id` had been on the table since the clubhouse was
+built and nothing had ever written to it. That column is the whole feature: a
+comment belongs to the game it is about, so the argument lives on the
+scoreboard card instead of in a room people have to remember to visit.
+
+Every card carries a thread. Closed, it is one line — the count and the last
+thing said, both of which `ff_scoreboard` already returns, so a quiet table and
+a loud one do not look the same. Opened, `ff_matchup_thread` fetches it with
+each author resolved to their team and to which side of the game they sit on,
+and `ff_send_matchup_message` posts, behind the same RPC boundary as every
+other write. The membership check is the league, not the two managers playing:
+heckling somebody else's table is the point.
+
+The thread is not fetched until somebody opens it — six threads polled every
+fifteen seconds through a Sunday would be six times the traffic for a screen
+nobody is reading. `league_messages` is on the board's realtime watch list, so
+a line said about any game lights up its count without a reload.
+
+It reads in both directions. A matchup comment still appears in the clubhouse,
+captioned with the game it was said about and linking back to that week's
+board — moving the argument onto the scoreboard would be no improvement if it
+then vanished from the room everyone reads.
+
+`TalkThread` is pure and `MatchupTalk` is the live one around it, which is what
+lets `/preview/matchups` render a real argument from a fixture with no session:
+an `onSend` that isn't there is the read-only thread a signed-out reader gets.
+
+**One thing this found.** `ff_scoreboard` had shipped without a grant line, so
+it kept Postgres' default of EXECUTE to PUBLIC — which here means `anon`, and
+the league id ships inside the client bundle. Every sibling RPC is
+authenticated-only. `20260904020439` corrects the grant and, so a future
+mistake cannot re-open it, makes the function refuse a caller with no
+`auth.uid()` outright rather than leaning on the grant the way its siblings do.
+
+### The room, on the front page
+
+Tonight's Table answers three questions in the first second. The clubhouse is
+not one of them — it is the thing that makes a manager open the app a fourth
+time on a Tuesday — so **Overheard** sits under the card: the last four lines
+said anywhere in the league, and, above them, the thread on your own table with
+the last thing said in it.
+
+A line said on a matchup card arrives with the game it was said about and links
+to that week's board; a line said in the room carries nothing. The feed is one
+call, `ff_clubhouse_feed`, and it is deliberately a *second* call made in the
+browser after the card is painted, for three reasons in order of weight: it is
+a secondary feed and should arrive after the card, not with it; it refetches on
+`league_messages` alone, where folding it into the briefing would re-run the
+head-to-head history and the playoff seeding every time somebody typed a
+sentence; and restating a four-hundred-line function to add a footnote to it is
+how a working function gets broken.
+
+`RoomBoard` is pure and `Room` is the live one around it, so `/preview/tonight`
+renders the feed from a fixture. The section is `.club`, not `.room`: the
+carousel of six tables already wears that class.
+
+**Two things this found.** The desktop nav had eleven destinations in uppercase
+at 0.13em tracking, and after *Scores → Matchups* and *Chat → Clubhouse* it no
+longer fit a 1200px laptop — the header scrolled sideways. The items are now
+sentence case at normal tracking, which is both a third narrower and the
+legibility fix the review asked for, and the breakpoint where the tab bar hands
+over moved from 1080px to 1180px. `tests/e2e/tonight.spec.ts` now asserts that
+the page never scrolls sideways at either viewport.
+
+### The Weekly Special
+
+The recap existed twice and neither one was a post. `recapText` writes the week
+for a share sheet, which needs somebody to press share; Tuesday's briefing tells
+*you* what happened to *you*. Neither leaves anything behind for the league to
+argue with on Wednesday. So the house writes it, once a week, into the clubhouse.
+
+| function | does |
+|----------|------|
+| `ff_week_recap` | the facts: every result, the high and the low, the widest margin, the closest game, the week's best player, and the bench decision that cost somebody the game |
+| `ff_recap_body` | those facts as prose, in the house voice |
+| `ff_publish_recap` | writes the recap and posts it — idempotent on (league, week) |
+| `ff_post_weekly_recaps` | the `weekly-recap` cron, daily at 13:00 UTC |
+
+```
+The Weekly Special · Week 11
+
+Tom 130.1 — Nate 83.9
+Dave 142.6 — Marcus 118.2
+Sam 104.2 — Kai 103.4
+
+Tonight's Specials: Dave, 142.6.
+Sent back to the kitchen: Nate, 83.9.
+The Bill: Tom by 46.2 over Nate.
+Last Call: Sam edged Kai by 0.8.
+Left on the pass: Priya sat Trey McBride (22.4) and lost by 5.1.
+Player of the week: Puka Nacua (LAR), 34.2, for Dave.
+```
+
+The bench line is the one with a test in it. Naming the highest-scoring reserve
+of the week is trivia; the line only earns its place when sitting him actually
+lost the game, so it names a **loser whose best reserve beat their worst starter
+by more than the margin of defeat**, and stays silent otherwise.
+
+Two decisions worth knowing. The prose is a separate immutable function from the
+facts, so the words can be tested without a played week — which is the only way
+this got tested at all, the league having not kicked off yet. And the cron runs
+**daily**, not on Tuesdays: the guard decides when a week is actually over, so a
+flexed game, a holiday or a missed run still gets its recap the day the week
+finishes. `/admin` has the same button for the week the scheduler missed.
+
+**Verified end to end on a throwaway branch**, 2026-09-04. A seeded week 5 —
+twelve teams, 168 players, six games — was run through `ff_post_weekly_recaps()`
+exactly as the scheduler calls it, and every claim in the posted body was then
+recomputed independently and compared:
+
+| claim | check |
+|-------|-------|
+| six result lines | each matches a real game, ordered by descending margin |
+| high / low | equal to the max / min team score of the week |
+| The Bill / Last Call | equal to the max / min margin |
+| player of the week | the top **starter** (22.8) — not the 26.0 on a bench |
+| left on the pass | the only one of twelve teams that qualifies, swing 19.1 against a 5.1 defeat; the manager who lost by 0.9 is correctly passed over |
+| idempotency | a second cron run does nothing, a second publish says "already written", an unfinished week says "nothing played"; one recap row, one post |
+| `kind` / `author_id` | a house post with an author, a manager post without one, and a third `kind` are all rejected by the check constraints |
+
+The `mine` fix was confirmed to be a real bug and not a theoretical one: against
+a house post, `author_id = auth.uid()` evaluates to NULL, and only the
+`coalesce(..., false)` turns it into the boolean the browser expects.
+
+**A note if you try this yourself.** `supabase/migrations/` deliberately starts
+at 2026-08-26 — the core schema was applied directly and never checked in — so
+a fresh Supabase branch cannot build itself from this repo, and comes up with
+zero tables. (That is also why the `main` preview branch has sat in
+`MIGRATIONS_FAILED` since it was created.) The verification above installed the
+slice the recap touches, copied from production via `pg_get_functiondef` and
+`pg_get_viewdef`, and confirmed the five recap functions matched production
+byte-for-byte once comments were normalised away. The one deliberate
+substitution was `ff_score`, stubbed to read `{"pts": n}` so the harness could
+set every player's score exactly; the recap never looks at how a player earned
+his points, only at which player has the most.
+
+A house post is a message with **no author**: `league_messages.author_id` lost
+its NOT NULL and gained a `kind`, with a check constraint that keeps the two in
+step (`(kind = 'house') = (author_id is null)`) — a manager's line must still be
+signed. The alternative was posting as the commissioner, which is a lie about
+who wrote it. It renders in Overheard and in the clubhouse as a column: a gold
+rule, the serif, and the line breaks it was composed with.
+
+### Odds that admit what they don't know
+
+The playoff simulation on `/standings` did exactly what it was asked before the
+draft — drew twelve identical teams from one distribution and reported that all
+of them had about a coin flip's chance, with a projected 7–7 apiece. Every
+number correct, and the screen a lie: analytical theatre about a league that
+has not happened yet.
+
+`oddsCanSeparate` is the gate. Until a result exists or a drafted roster can be
+projected from, the board withholds the odds, drops the columns that would be
+zeros, lists the teams alphabetically so the order claims nothing, and says
+that odds unlock after the draft. A league that has drafted but not kicked off
+still gets its odds, with the note that they lean entirely on projected
+lineups. The same rule applies on the Sunday board: no rosters, no odds bar.
 
 `/preview/standings` and `/preview/admin` render the standings board and the
-rule editors from fixtures. The commissioner's old dashboard — readiness
+rule editors from fixtures; the standings preview switches between the
+preseason state and week 11. The commissioner's old dashboard — readiness
 checklist, roll call, automation health — lives on at `/league`.
+
+### What the tabs are called
+
+Two names were doing two jobs each. "Scores" is the week's matchups, and
+calling it Scores made it read as a results page rather than the screen you
+watch: the tab is **Matchups**. And the room is the **Clubhouse** everywhere in
+the app except the tab that opened it, which said Chat; a product with two
+names for one place has neither. Commish tools keep their place in the bar and
+lose their equality — a rule before them and a crown on them — because sitting
+them at the same weight as My Team told eleven managers to read past that whole
+end of the bar.
 
 The `/preview` routes are public. They read nothing from the database; every
 one is an invented league rendered through the real components, which is what
@@ -317,11 +519,50 @@ That matters because the repo is connected to Supabase: on push, the integration
 applies any migration whose version is not in the remote history. Matching the
 recorded versions makes these a no-op instead of a re-run against production.
 
-Migrations from before 2026-08-26 were applied directly and are not checked in;
-they exist only in the remote history, which is fine — the integration only
-pushes forward, it never replays what it cannot see. A recorded version with no
-file is harmless. **A file whose version is not recorded is the dangerous
-direction**, because that is the one the integration would run.
+A recorded version with no file is harmless. **A file whose version is not
+recorded is the dangerous direction**, because that is the one the integration
+would run.
+
+### The history is complete, and branches build
+
+Until 2026-09-04 the directory started at 2026-08-26: everything before it had
+been applied by hand and existed only in the remote history. That was tolerable
+for production — the integration only pushes forward — and fatal for anything
+that has to build the schema from nothing. A fresh Supabase preview branch
+replays this directory against an empty database, so it came up with **zero
+tables**, which is why the `main` preview branch sat in `MIGRATIONS_FAILED`.
+
+All 29 missing migrations are now checked in, recovered verbatim from
+`supabase_migrations.schema_migrations.statements` — the database keeps the SQL
+of everything it has run — and each file was verified byte-for-byte against its
+recorded statement by md5 before being committed.
+
+One file is different, and deliberately so.
+`20260809014900_enable_extensions.sql` is the only migration here whose version
+was **chosen rather than assigned**. `http` (the loaders' fetch) and `pg_cron`
+(every scheduled job) were enabled by hand before the first migration ever ran,
+so they appear nowhere in the history — and a fresh database therefore died at
+the first `cron.schedule`. The file is back-dated to sort ahead of
+`core_schema`, because a prerequisite that runs after the thing needing it is
+not a prerequisite. Its statements are `create extension if not exists`, so on
+the live project it is a strict no-op; it was executed there, changed nothing,
+and was then recorded so the version and the file agree.
+
+**What was verified, and what was not.** On a throwaway branch, an empty
+database was confirmed to lack both extensions, `cron.schedule` was confirmed to
+fail on it, and that migration was confirmed to fix both. A complete 66-file
+replay was *not* executed — it cannot be driven from the tooling used here — so
+the first real proof will be the next preview branch Supabase builds.
+
+**A caveat about file contents.** Comparing every file against its recorded
+statement turned up something the section below understates: roughly two dozen
+files are *documented* versions of what was applied — the same SQL with a
+header and comments written when it was checked in, and in a few cases
+(`historical_final_standings` most of all) substantially more SQL than the
+recorded statement holds. Only the 29 recovered files and the ones written
+since are byte-exact. Nothing checks contents, so this has never mattered for
+production; it does mean a rebuilt database is built from the *files*, and the
+files are the better record of intent.
 
 So the invariant is one-way, and CI enforces it. `npm run check:migrations` —
 run on every pull request touching `supabase/migrations/` by
@@ -391,7 +632,8 @@ time as `20260902120000`, which would have re-run a `drop function` against
 production. Both are now CI failures rather than things somebody has to notice.
 
 Two files carry content from a version adjacent to their name, both deliberate
-and both no-ops:
+and both no-ops (see also the caveat above: many files are documented rather
+than byte-exact copies of what ran):
 
 | file | note |
 |------|------|

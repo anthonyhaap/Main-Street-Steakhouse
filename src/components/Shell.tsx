@@ -16,16 +16,30 @@ import { Seal } from "@/components/ui";
 /**
  * The first four are the tab bar on a phone, in thumb order: the briefing,
  * the scores, your lineup, the table. Everything else is one tap further.
+ *
+ * Two names were doing two jobs each. "Scores" is the week's matchups, and
+ * calling it Scores made it read as a results page rather than the screen
+ * you watch — the tab is Matchups. And the room is called the Clubhouse
+ * everywhere in the app except the tab that opens it, which said Chat; a
+ * product with two names for one place has neither.
  */
-const NAV = [
+type NavItem = {
+  href: string;
+  label: string;
+  Icon: typeof UtensilsCrossed;
+  /** Set apart in the bar: the commissioner's room, not a manager's. */
+  commish?: boolean;
+};
+
+const NAV: NavItem[] = [
   { href: "/",           label: "Tonight",    Icon: UtensilsCrossed },
-  { href: "/matchups",   label: "Scores",     Icon: Radio },
+  { href: "/matchups",   label: "Matchups",   Icon: Radio },
   { href: "/team",       label: "My Team",    Icon: Shield },
   { href: "/standings",  label: "Standings",  Icon: BarChart3 },
   { href: "/draft",      label: "Draft",      Icon: Swords },
   { href: "/history",    label: "History",    Icon: Landmark },
   { href: "/players",    label: "Players",    Icon: Users },
-  { href: "/chat",       label: "Chat",       Icon: MessageCircle },
+  { href: "/chat",       label: "Clubhouse",  Icon: MessageCircle },
   { href: "/challenges", label: "Challenges", Icon: CircleDollarSign },
 ];
 
@@ -68,10 +82,16 @@ export function TopBar({ status }: { status?: WireStatus }) {
   const [more, setMore] = useState(false);
   const close = () => setMore(false);
 
+  // Commish tools are not an everyday manager destination, and sitting them at
+  // the same weight as My Team told eleven people to read past that whole end
+  // of the bar. The room keeps its place and loses its equality: a rule before
+  // it, and the crown that says whose it is.
   const showAdmin = isCommissioner || !league?.commissioner_id;
-  const items = showAdmin
-    ? [...NAV, { href: "/league", label: "League", Icon: Crown }, { href: "/admin", label: "Commish", Icon: Crown }]
-    : [...NAV, { href: "/league", label: "League", Icon: Crown }];
+  const items: NavItem[] = [
+    ...NAV,
+    { href: "/league", label: "League", Icon: Crown },
+    ...(showAdmin ? [{ href: "/admin", label: "Commish", Icon: Crown, commish: true }] : []),
+  ];
   const tabs = items.slice(0, TAB_COUNT);
   const rest = items.slice(TAB_COUNT);
   const restActive = rest.some((i) => isOn(path, i.href));
@@ -88,8 +108,15 @@ export function TopBar({ status }: { status?: WireStatus }) {
         </Link>
 
         <nav className="nav" aria-label="Primary">
-          {items.map(({ href, label }) => (
-            <Link key={href} href={href} className="nav__item" data-on={isOn(path, href)}>
+          {items.map(({ href, label, commish }) => (
+            <Link
+              key={href}
+              href={href}
+              className="nav__item"
+              data-on={isOn(path, href)}
+              data-role={commish ? "commish" : undefined}
+            >
+              {commish && <Crown size={12} aria-hidden />}
               {label}
             </Link>
           ))}
