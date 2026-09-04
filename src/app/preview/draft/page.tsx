@@ -86,6 +86,11 @@ export default function DraftPreviewPage() {
           playerId={openId}
           card={CARD}
           onClose={() => setOpenId(null)}
+          preview={
+            <div className="note" data-kind="ok">
+              Taken at pick 11 now, he&apos;d grade <b>Steal</b> — 29 picks past his ADP.
+            </div>
+          }
           actions={
             <>
               <button className="btn" data-size="sm">Queue</button>

@@ -250,10 +250,19 @@ export default function DraftPage() {
         const p = byId.get(openId);
         const drafted = draftedIds.has(openId);
         const queued = data.queueIds.includes(openId);
+        // What he'd grade if taken right now — the same read the board gives
+        // after the fact, offered before you click Draft instead of after.
+        const grade = !drafted && p ? gradePick(data.draft.current_pick, marketRankOf(p)) : null;
         return (
           <PlayerSheet
             playerId={openId}
             onClose={() => setOpenId(null)}
+            preview={grade && grade.label !== "On plan" && (
+              <div className="note" data-kind={grade.tone === "danger" ? "error" : grade.tone === "ok" ? "ok" : "info"}>
+                Taken at pick {data.draft.current_pick}, he&apos;d grade <b>{grade.label}</b> —{" "}
+                {Math.abs(grade.delta)} picks {grade.delta > 0 ? "past" : "ahead of"} his ADP.
+              </div>
+            )}
             actions={
               drafted ? (
                 <span className="badge" data-tone="neutral">Taken · {takenBy.get(openId)}</span>
