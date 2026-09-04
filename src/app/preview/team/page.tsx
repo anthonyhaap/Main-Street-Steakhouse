@@ -20,6 +20,7 @@
 import { useState } from "react";
 import { TopBar } from "@/components/Shell";
 import { TeamDesk, slotOk, type MoveTarget } from "@/components/team/TeamDesk";
+import { venue, type GameWeather } from "@/lib/nfl/venues";
 import type { HubPlayer, TeamHub, Wire } from "@/lib/nfl/types";
 
 type Seed = {
@@ -241,6 +242,40 @@ const WIRE: Wire = {
   ],
 };
 
+/**
+ * A canned forecast, for the same reason the wire is invented: `/api/weather`
+ * needs a session, and the point of this page is to look at the coach without
+ * one. The conditions are chosen to fire each rule once — a gale in Pittsburgh
+ * that costs the kicker most, rain in Seattle, a cold night in New Jersey, and
+ * the domes that shrug all of it off.
+ */
+const SKY: [string, Partial<GameWeather>][] = [
+  ["PIT", { state: "forecast", temp_f: 44, wind_mph: 24, gust_mph: 36, precip_chance: 20, code: 3 }],
+  ["SEA", { state: "forecast", temp_f: 51, wind_mph: 11, gust_mph: 17, precip_chance: 85, precip_in: 0.11, code: 63 }],
+  ["NYG", { state: "forecast", temp_f: 18, wind_mph: 16, gust_mph: 25, precip_chance: 10, code: 1 }],
+  ["KC",  { state: "forecast", temp_f: 68, wind_mph: 7, gust_mph: 11, precip_chance: 5, code: 0 }],
+  ["CIN", { state: "forecast", temp_f: 61, wind_mph: 9, gust_mph: 14, precip_chance: 15, code: 2 }],
+  ["IND", { state: "forecast", temp_f: 57, wind_mph: 13, gust_mph: 19, precip_chance: 30, code: 3 }],
+  ["HOU", { state: "forecast", temp_f: 79, wind_mph: 10, gust_mph: 15, precip_chance: 25, code: 2 }],
+  ["LAR", { state: "indoors" }],
+  ["MIN", { state: "indoors" }],
+  ["DET", { state: "indoors" }],
+  ["LAC", { state: "indoors" }],
+];
+
+const WEATHER = new Map<string, GameWeather>(
+  SKY.map(([club, reading]) => {
+    const spot = venue(club)!;
+    return [club, {
+      club, venue: spot.name, city: spot.city, roof: spot.roof,
+      kickoff_at: "2026-09-13T17:00:00Z", state: "forecast",
+      temp_f: null, feels_f: null, wind_mph: null, gust_mph: null,
+      precip_chance: null, precip_in: null, snow_in: null, code: null,
+      ...reading,
+    }];
+  }),
+);
+
 export default function TeamPreviewPage() {
   const [hub, setHub] = useState<TeamHub>(HUB);
   const [moving, setMoving] = useState<HubPlayer | null>(null);
@@ -275,10 +310,15 @@ export default function TeamPreviewPage() {
         wire={WIRE}
         moving={moving}
         busy={false}
+        weather={WEATHER}
         onPickUp={setMoving}
         onCancelMove={() => setMoving(null)}
         onDrop={drop}
         onWeek={() => {}}
+        onSetLineup={(assignments) => setHub((h) => ({
+          ...h,
+          roster: h.roster.map((p) => (assignments[p.player_id] ? { ...p, slot: assignments[p.player_id] } : p)),
+        }))}
       />
     </>
   );

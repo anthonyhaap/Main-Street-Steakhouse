@@ -322,6 +322,7 @@ body {
 }
 .page[data-width="narrow"] { max-width: 940px; }
 .page[data-width="mid"]    { max-width: 1180px; }
+.page[data-width="wide"]   { max-width: 1960px; }
 
 /* ============================================================================
    WIRE STATUS
@@ -884,6 +885,9 @@ a.kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); border-c
   border-radius: var(--r);
   box-shadow: var(--shadow-3);
 }
+/* A panel that argues a case rather than taking a name: the coach puts two
+   players and their reasons side by side, which needs the room. */
+.modal__panel[data-wide="true"] { width: min(100%, 760px); }
 
 /* ============================================================================
    FEEDBACK
@@ -1184,6 +1188,85 @@ a.kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); border-c
   position: absolute; inset: 0; z-index: 1;
   border: 0; background: none; cursor: pointer; font: inherit; color: transparent;
 }
+
+/* --- the lineup coach --------------------------------------------------- */
+/* A change is two players and the reasons for both, so the unit here is a pair
+   rather than a row. On a phone the pair stacks; the "in" half keeps its gold
+   edge either way, because that is the half being argued for. */
+
+.coach { display: grid; gap: var(--s2); min-width: 0; }
+
+.coach__change {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: var(--s3);
+  align-items: start;
+  padding: var(--s3) 0;
+}
+.coach__change + .coach__change { border-top: 1px solid var(--rule-soft); }
+
+.coach__pair { display: grid; gap: var(--s2); min-width: 0; grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 720px) {
+  .coach__pair { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s3); }
+}
+
+.coach__side {
+  display: grid; gap: 5px; min-width: 0; grid-template-columns: minmax(0, 1fr);
+  padding: var(--s2) var(--s3);
+  border-radius: var(--r-sm);
+  border-left: 2px solid transparent;
+  background: var(--ink-2);
+}
+.coach__side[data-dir="in"]  { border-left-color: var(--gold-lit); background: var(--gold-haze); }
+.coach__side[data-dir="out"] { border-left-color: var(--rule-hard); }
+.coach__side[data-dir="in"]  .eyebrow { color: var(--gold); }
+
+.coach__row {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: var(--s3);
+  align-items: start;
+  padding: 7px 0;
+}
+.coach__row + .coach__row { border-top: 1px solid var(--rule-soft); }
+
+.coach__rule {
+  margin-top: var(--s3); padding-top: var(--s3);
+  border-top: 1px solid var(--rule);
+}
+
+.coach__line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--s2) var(--s3);
+  align-items: center;
+  min-width: 0;
+}
+.coach__pts {
+  font-family: var(--serif); font-variant-numeric: tabular-nums;
+  font-size: var(--t-head); text-align: right; letter-spacing: -0.02em; line-height: 1.1;
+}
+.coach__pts span {
+  display: block; margin-top: 2px;
+  font: 600 10px/1.3 var(--sans); letter-spacing: 0.02em; color: var(--dim);
+  white-space: nowrap;
+}
+.coach__why {
+  grid-column: 1 / -1; min-width: 0;
+  display: flex; flex-wrap: wrap; gap: 5px; align-items: center;
+}
+.coach__why .badge i { margin-left: 4px; }
+/* The reason sits outside the chip row rather than in it: a paragraph laid out
+   as a flex item takes its own max-content as a floor, and on a phone that
+   floor is wider than the panel. */
+.coach__note {
+  grid-column: 1 / -1; min-width: 0; margin: 1px 0 0;
+  font-size: var(--t-micro); color: var(--muted); line-height: 1.55;
+}
+/* Every other badge is a word or two. A blocked reason is a sentence. */
+.coach__blocked { white-space: normal; line-height: 1.35; padding: 3px 10px; text-align: left; }
+
+.coach__sky { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
 
 /* --- opportunity board -------------------------------------------------- */
 

@@ -1,18 +1,19 @@
 "use client";
 
-import { useMemo } from "react";
-import { Pencil } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Pencil, Wand2 } from "lucide-react";
 import { buildInsights, myNews } from "@/lib/nfl/insights";
 import { injuriesByPlayer } from "@/lib/nfl/wire";
+import { buildLineup, slotOk } from "@/lib/nfl/lineup";
+import type { MatchupCurve } from "@/lib/nfl/matchup";
+import type { GameWeather } from "@/lib/nfl/venues";
 import type { HubPlayer, TeamHub, Wire } from "@/lib/nfl/types";
 import { Seal, useCountUp } from "@/components/ui";
 import { PlayerRow } from "@/components/team/Lineup";
+import { Coach } from "@/components/team/Coach";
 import { InsightBoard, NewsWire, TeamStats } from "@/components/team/Rail";
 
-const FLEX_OK = new Set(["RB", "WR", "TE"]);
-
-export const slotOk = (slot: string, pos: string) =>
-  slot === "BN" ? true : slot === "FLEX" ? FLEX_OK.has(pos) : slot === pos;
+export { slotOk };
 
 export type MoveTarget = { slot: string; player: HubPlayer | null };
 
@@ -32,8 +33,8 @@ export type MoveTarget = { slot: string; player: HubPlayer | null };
  * reason: the fixture has no session to look them up in.
  */
 export function TeamDesk({
-  hub, wire, moving, busy, crest = null, oppCrest = null,
-  onPickUp, onCancelMove, onDrop, onWeek, onEdit,
+  hub, wire, moving, busy, crest = null, oppCrest = null, weather = null, matchups = null,
+  onPickUp, onCancelMove, onDrop, onWeek, onEdit, onSetLineup,
 }: {
   hub: TeamHub;
   wire: Wire | null;
@@ -42,15 +43,26 @@ export function TeamDesk({
   /** This team's crest, from `crestUrl()`. Null falls back to the monogram. */
   crest?: string | null;
   oppCrest?: string | null;
+  /** The forecast over each stadium this roster plays in, from `useWeather`. */
+  weather?: Map<string, GameWeather> | null;
+  /** Each man's week against his own projection curve, from `useMatchups`. */
+  matchups?: MatchupCurve | null;
   onPickUp: (p: HubPlayer) => void;
   onCancelMove: () => void;
   onDrop: (target: MoveTarget) => void;
   onWeek: (week: number) => void;
   /** Absent on the fixture, where there is no team to edit. */
   onEdit?: () => void;
+  /**
+   * Apply a whole lineup at once — `{ player_id: slot }`, exactly what
+   * `ff_set_lineup` takes. Absent on the fixture, where the coach can be read
+   * but there is nothing to write to.
+   */
+  onSetLineup?: (assignments: Record<string, string>) => void | Promise<void>;
 }) {
   const roster = hub.roster;
   const injuries = useMemo(() => injuriesByPlayer(wire), [wire]);
+  const [coaching, setCoaching] = useState(false);
 
   const insights = useMemo(
     () => buildInsights(roster, wire?.injuries ?? [], hub.week),
@@ -58,6 +70,23 @@ export function TeamDesk({
   );
 
   const tagged = useMemo(() => myNews(roster, wire?.articles ?? []), [roster, wire]);
+
+  // Priced on every render of the desk rather than on the click, so the button
+  // can say what it is worth before anybody opens it. It is arithmetic over
+  // fifteen players — cheaper than the sparklines beneath it.
+  const plan = useMemo(
+    () => buildLineup({
+      roster,
+      slots: hub.league.roster_slots,
+      week: hub.week,
+      injuries,
+      hasWire: wire !== null,
+      weather,
+      matchups,
+      insights,
+    }),
+    [roster, hub.league.roster_slots, hub.week, injuries, wire, weather, matchups, insights],
+  );
 
   const starters = useMemo(() => {
     const slots = hub.league.roster_slots.filter((s) => s !== "BN");
@@ -180,9 +209,20 @@ export function TeamDesk({
             <section className="card lineup" data-accent="gold">
               <div className="card__head">
                 <h2>Starting lineup</h2>
-                <span className="eyebrow">
-                  <span className="num">{Number(hub.splits.starter_points).toFixed(1)}</span> points
-                </span>
+                <div style={{ display: "flex", alignItems: "center", gap: "var(--s3)", flexWrap: "wrap" }}>
+                  <span className="eyebrow">
+                    <span className="num">{Number(hub.splits.starter_points).toFixed(1)}</span> points
+                  </span>
+                  {/* The gain is on the button rather than behind it: a manager
+                      who is already right should be able to see that without
+                      opening anything. */}
+                  <button className="btn" data-v={plan.gain > 0.05 ? "gold" : undefined} data-size="sm"
+                    onClick={() => setCoaching(true)} disabled={busy}>
+                    <Wand2 size={13} />
+                    Best lineup
+                    {plan.gain > 0.05 && <span className="num">+{plan.gain.toFixed(1)}</span>}
+                  </button>
+                </div>
               </div>
 
               {empties > 0 && (
@@ -258,6 +298,21 @@ export function TeamDesk({
         </div>
       </main>
 
+      {coaching && (
+        <Coach
+          plan={plan}
+          week={hub.week}
+          busy={busy}
+          weather={weather}
+          onClose={() => setCoaching(false)}
+          onApply={onSetLineup && (async () => {
+            const assignments: Record<string, string> = {};
+            for (const m of plan.moves) assignments[m.player.player_id] = m.to;
+            await onSetLineup(assignments);
+            setCoaching(false);
+          })}
+        />
+      )}
     </>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, Pause, Play, RotateCcw, Volume2, VolumeX, Zap } from "lucide-react";
+import { AlertTriangle, Pause, Play, RefreshCw, RotateCcw, Volume2, VolumeX, Zap } from "lucide-react";
 import type { Draft, Team } from "@/lib/types";
 import { fmtClock, pickLabel } from "@/lib/draft";
 import { crestUrl } from "@/lib/crest";
@@ -21,6 +21,7 @@ type Props = {
   onPause: () => void;
   onResume: () => void;
   onUndo: () => void;
+  onReset: () => void;
   soundMuted: boolean;
   onToggleSound: () => void;
 };
@@ -129,6 +130,12 @@ export function Clock(p: Props) {
           {draft.current_pick > 1 && draft.status !== "setup" && (
             <button className="btn" data-v="danger" data-size="sm" disabled={p.busy} onClick={p.onUndo}>
               <RotateCcw size={13} /> Undo last pick
+            </button>
+          )}
+          {draft.status !== "setup" && (
+            <button className="btn" data-v="danger" data-size="sm" disabled={p.busy} onClick={p.onReset}
+              title="Deletes every pick and starts the draft over from setup">
+              <RefreshCw size={13} /> Reset draft
             </button>
           )}
         </div>
