@@ -519,11 +519,50 @@ That matters because the repo is connected to Supabase: on push, the integration
 applies any migration whose version is not in the remote history. Matching the
 recorded versions makes these a no-op instead of a re-run against production.
 
-Migrations from before 2026-08-26 were applied directly and are not checked in;
-they exist only in the remote history, which is fine — the integration only
-pushes forward, it never replays what it cannot see. A recorded version with no
-file is harmless. **A file whose version is not recorded is the dangerous
-direction**, because that is the one the integration would run.
+A recorded version with no file is harmless. **A file whose version is not
+recorded is the dangerous direction**, because that is the one the integration
+would run.
+
+### The history is complete, and branches build
+
+Until 2026-09-04 the directory started at 2026-08-26: everything before it had
+been applied by hand and existed only in the remote history. That was tolerable
+for production — the integration only pushes forward — and fatal for anything
+that has to build the schema from nothing. A fresh Supabase preview branch
+replays this directory against an empty database, so it came up with **zero
+tables**, which is why the `main` preview branch sat in `MIGRATIONS_FAILED`.
+
+All 29 missing migrations are now checked in, recovered verbatim from
+`supabase_migrations.schema_migrations.statements` — the database keeps the SQL
+of everything it has run — and each file was verified byte-for-byte against its
+recorded statement by md5 before being committed.
+
+One file is different, and deliberately so.
+`20260809014900_enable_extensions.sql` is the only migration here whose version
+was **chosen rather than assigned**. `http` (the loaders' fetch) and `pg_cron`
+(every scheduled job) were enabled by hand before the first migration ever ran,
+so they appear nowhere in the history — and a fresh database therefore died at
+the first `cron.schedule`. The file is back-dated to sort ahead of
+`core_schema`, because a prerequisite that runs after the thing needing it is
+not a prerequisite. Its statements are `create extension if not exists`, so on
+the live project it is a strict no-op; it was executed there, changed nothing,
+and was then recorded so the version and the file agree.
+
+**What was verified, and what was not.** On a throwaway branch, an empty
+database was confirmed to lack both extensions, `cron.schedule` was confirmed to
+fail on it, and that migration was confirmed to fix both. A complete 66-file
+replay was *not* executed — it cannot be driven from the tooling used here — so
+the first real proof will be the next preview branch Supabase builds.
+
+**A caveat about file contents.** Comparing every file against its recorded
+statement turned up something the section below understates: roughly two dozen
+files are *documented* versions of what was applied — the same SQL with a
+header and comments written when it was checked in, and in a few cases
+(`historical_final_standings` most of all) substantially more SQL than the
+recorded statement holds. Only the 29 recovered files and the ones written
+since are byte-exact. Nothing checks contents, so this has never mattered for
+production; it does mean a rebuilt database is built from the *files*, and the
+files are the better record of intent.
 
 So the invariant is one-way, and CI enforces it. `npm run check:migrations` —
 run on every pull request touching `supabase/migrations/` by
@@ -593,7 +632,8 @@ time as `20260902120000`, which would have re-run a `drop function` against
 production. Both are now CI failures rather than things somebody has to notice.
 
 Two files carry content from a version adjacent to their name, both deliberate
-and both no-ops:
+and both no-ops (see also the caveat above: many files are documented rather
+than byte-exact copies of what ran):
 
 | file | note |
 |------|------|
