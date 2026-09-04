@@ -169,7 +169,7 @@ export default function DraftPage() {
     return (
       <>
         <TopBar status={status} />
-        <main className="page"><div className="card"><SkeletonRows n={8} /></div></main>
+        <main className="page" data-width="wide"><div className="card"><SkeletonRows n={8} /></div></main>
       </>
     );
   }
@@ -194,7 +194,7 @@ export default function DraftPage() {
   return (
     <>
       <TopBar status={status} />
-      <main className="page">
+      <main className="page" data-width="wide">
         <section className="card" style={{ marginBottom: "var(--s4)" }}>
           <div className="card__head" style={{ alignItems: "center", gap: "var(--s4)", flexWrap: "wrap" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "var(--s3)" }}>
@@ -227,6 +227,10 @@ export default function DraftPage() {
           onPause={() => call("ff_pause_draft", { p_draft_id: DRAFT_ID }, "Draft paused.")}
           onResume={() => call("ff_resume_draft", { p_draft_id: DRAFT_ID }, "Draft resumed.")}
           onUndo={() => call("ff_undo_last_pick", { p_draft_id: DRAFT_ID }, "Last pick undone.")}
+          onReset={() => {
+            if (window.confirm("Delete every pick and start this draft over from setup? This can't be undone."))
+              void call("ff_reset_draft", { p_draft_id: DRAFT_ID }, "Draft reset.");
+          }}
           soundMuted={soundMuted}
           onToggleSound={() => setSoundMuted(!soundMuted)}
         />
@@ -322,9 +326,12 @@ export default function DraftPage() {
         }
         @media (min-width: 1100px) {
           [data-only="narrow"] { display: none !important; }
-          .draft-grid { grid-template-columns: minmax(0, 1.1fr) minmax(430px, 0.9fr); }
+          .draft-grid { grid-template-columns: minmax(0, 1.25fr) minmax(440px, 0.9fr); }
           .draft-pane[data-show="false"] { display: flex; }
           .draft-pane > * { max-height: calc(100dvh - 250px); }
+        }
+        @media (min-width: 1500px) {
+          .draft-grid { grid-template-columns: minmax(0, 1.45fr) minmax(480px, 0.85fr); }
         }
       `}</style>
     </>

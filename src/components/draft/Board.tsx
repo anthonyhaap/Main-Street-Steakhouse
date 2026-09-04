@@ -46,7 +46,7 @@ export function Board({ draft, teams, picks, myTeamId, poolById, onOpen }: Props
       </div>
 
       <div className="scroll" style={{ padding: "var(--s3)", minHeight: 0 }}>
-        <div style={{ minWidth: teamCount * 108, display: "grid", gap: 3 }}>
+        <div style={{ minWidth: teamCount * 128, display: "grid", gap: 4 }}>
 
           <div style={{ display: "grid", gridTemplateColumns: `30px repeat(${teamCount}, 1fr)`, gap: 3, position: "sticky", top: 0, zIndex: 2, background: "var(--ink-1)", paddingBottom: 3 }}>
             <div />
@@ -92,7 +92,7 @@ export function Board({ draft, teams, picks, myTeamId, poolById, onOpen }: Props
                       : `Pick ${pickNo}`}
                     style={{
                       position: "relative",
-                      minHeight: 44, padding: "5px 6px", borderRadius: 6, overflow: "hidden",
+                      minHeight: 50, padding: "7px 8px", borderRadius: 6, overflow: "hidden",
                       background: pick ? "#ffffff" : isCurrent ? "var(--gold-wash)" : "var(--ink-2)",
                       border: `1px solid ${isCurrent ? "var(--gold)" : isMine ? "var(--gold-lit)" : "transparent"}`,
                       borderLeft: pick ? `2px solid var(--${pick.position.toLowerCase()})` : undefined,
@@ -107,20 +107,20 @@ export function Board({ draft, teams, picks, myTeamId, poolById, onOpen }: Props
                             background: GRADE_COLOR[notable.tone],
                           }} />
                         )}
-                        <div style={{ display: "flex", alignItems: "center", gap: 5, minWidth: 0 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
                           <NflImage
                             src={headshot(pick.espn_id)}
                             alt={pick.player_name}
-                            size={20}
+                            size={24}
                             fit={pick.position === "DST" ? "contain" : "cover"}
                             background={teamColor(pick.nfl_team)
                               ? `${teamColor(pick.nfl_team)}1f` : "var(--ink-2)"}
                           />
-                          <span style={{ fontSize: 11, fontWeight: 600, lineHeight: 1.25, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                          <span style={{ fontSize: 12, fontWeight: 600, lineHeight: 1.25, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                             {pick.player_name}
                           </span>
                         </div>
-                        <div style={{ display: "flex", gap: 5, alignItems: "center", marginTop: 3, fontSize: 9, color: "var(--dim)" }}>
+                        <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4, fontSize: 10, color: "var(--dim)" }}>
                           <span style={{ color: `var(--${pick.position.toLowerCase()})`, fontWeight: 600 }}>{pick.position}</span>
                           <span>{pick.nfl_team ?? ""}</span>
                           {pick.is_autopick && <span title="Autopicked" style={{ marginLeft: "auto" }}>auto</span>}

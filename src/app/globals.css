@@ -304,6 +304,7 @@ body {
 }
 .page[data-width="narrow"] { max-width: 940px; }
 .page[data-width="mid"]    { max-width: 1180px; }
+.page[data-width="wide"]   { max-width: 1960px; }
 
 /* ============================================================================
    WIRE STATUS
