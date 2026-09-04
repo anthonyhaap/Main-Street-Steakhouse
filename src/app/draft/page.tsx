@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { useLive, useServerClock, useTicker } from "@/lib/live";
 import { useSession } from "@/lib/session";
@@ -14,7 +15,7 @@ import { Board } from "@/components/draft/Board";
 import { Pool } from "@/components/draft/Pool";
 import { PlayerSheet } from "@/components/player/PlayerSheet";
 import { SkeletonRows, useToast } from "@/components/ui";
-import { Star } from "lucide-react";
+import { ClipboardList, Star } from "lucide-react";
 
 type State = { draft: Draft; picks: BoardPick[]; teams: Team[]; queueIds: string[] };
 
@@ -194,6 +195,24 @@ export default function DraftPage() {
     <>
       <TopBar status={status} />
       <main className="page">
+        <section className="card" style={{ marginBottom: "var(--s4)" }}>
+          <div className="card__head" style={{ alignItems: "center", gap: "var(--s4)", flexWrap: "wrap" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "var(--s3)" }}>
+              <span className="icon-box" aria-hidden><ClipboardList size={18} /></span>
+              <div>
+                <div className="eyebrow" style={{ color: "var(--gold)" }}>Practice room</div>
+                <strong>Rehearse before draft night</strong>
+                <p style={{ color: "var(--muted)", margin: "3px 0 0" }}>
+                  Run a private mock with the live player pool. It never changes the league draft or rosters.
+                </p>
+              </div>
+            </div>
+            <Link className="btn" data-v="primary" href="/mock-draft" style={{ marginLeft: "auto" }}>
+              Start mock draft
+            </Link>
+          </div>
+        </section>
+
         <Clock
           draft={data.draft}
           onClock={onClock}
