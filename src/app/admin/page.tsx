@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
-  Crown, Dices, Landmark, Link2, ListChecks, Mail, Save, Scale, ScrollText, Send, Timer,
+  ChevronDown, ChevronUp, Crown, Dices, Landmark, Link2, ListChecks, Mail, Save, Scale, ScrollText, Send, Timer,
 } from "lucide-react";
 import { HistoryImport } from "@/components/admin/HistoryImport";
 import { supabaseBrowser } from "@/lib/supabase/client";
@@ -209,13 +209,25 @@ export default function AdminPage() {
             <section className="card">
               <div className="card__head"><h2>Draft settings</h2><Timer size={17} color="var(--gold)" /></div>
               <DraftSettings draft={data.draft} busy={busy} onSave={call} />
-              <div style={{ padding: "0 var(--s5) var(--s5)" }}>
-                <button className="btn" disabled={busy || data.draft.status !== "setup"}
-                  title={data.draft.status !== "setup" ? "Only before the draft starts" : ""}
-                  onClick={() => call("ff_randomize_draft_order", { p_league_id: LEAGUE_ID }, "Draft order randomized.")}>
-                  <Dices size={14} /> Randomize draft order
-                </button>
+            </section>
+
+            <section className="card">
+              <div className="card__head">
+                <div>
+                  <h2>Draft order</h2>
+                  <div className="eyebrow" style={{ marginTop: 5 }}>
+                    {data.draft.status === "setup" ? "Reorder by hand, or randomize it" : "Locked — the draft has started"}
+                  </div>
+                </div>
+                <Dices size={17} color="var(--gold)" />
               </div>
+              {/* Keyed on the standing order, same trick as the forms below: a
+                  successful save (or someone else's randomize) resets the list
+                  from the new server state instead of fighting local edits. */}
+              <DraftOrder
+                key={data.teams.map((t) => `${t.id}:${t.draft_slot ?? ""}`).join("|")}
+                teams={data.teams} busy={busy} disabled={data.draft.status !== "setup"} onSave={call}
+              />
             </section>
 
             <section className="card">
@@ -383,5 +395,66 @@ function DraftSettings({ draft, busy, onSave }: { draft: Draft; busy: boolean; o
         <Save size={14} /> Save
       </button>
     </div>
+  );
+}
+
+/**
+ * The order teams pick in, either by hand or by dice.
+ *
+ * Reordering happens locally — nothing is written until "Save order" — so a
+ * commissioner can shuffle a few teams around without three round trips.
+ * Randomizing skips the local list entirely and goes straight to the RPC,
+ * since there is nothing to preview about a random draw.
+ */
+function DraftOrder({ teams, busy, disabled, onSave }: { teams: Team[]; busy: boolean; disabled: boolean; onSave: SaveFn }) {
+  const sorted = useMemo(
+    () => [...teams].sort((a, b) => (a.draft_slot ?? 999) - (b.draft_slot ?? 999) || a.name.localeCompare(b.name)),
+    [teams],
+  );
+  const [order, setOrder] = useState(sorted);
+
+  const dirty = order.some((t, i) => t.id !== sorted[i]?.id);
+
+  function move(i: number, dir: -1 | 1) {
+    const j = i + dir;
+    if (j < 0 || j >= order.length) return;
+    const next = [...order];
+    [next[i], next[j]] = [next[j], next[i]];
+    setOrder(next);
+  }
+
+  return (
+    <>
+      <div className="rows">
+        {order.map((t, i) => (
+          <div className="row" key={t.id}>
+            <span className="num eyebrow" style={{ width: 22 }}>{i + 1}</span>
+            <Seal name={t.name} src={crestUrl(t.logo_path)} size={26} />
+            <span style={{
+              flex: 1, minWidth: 0, fontWeight: 600, fontSize: "var(--t-small)",
+              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+            }}>
+              {t.name}
+            </span>
+            <button className="btn" data-v="ghost" data-size="icon" onClick={() => move(i, -1)}
+              disabled={disabled || i === 0} aria-label="Move up"><ChevronUp size={14} /></button>
+            <button className="btn" data-v="ghost" data-size="icon" onClick={() => move(i, 1)}
+              disabled={disabled || i === order.length - 1} aria-label="Move down"><ChevronDown size={14} /></button>
+          </div>
+        ))}
+      </div>
+      <div style={{ display: "flex", gap: "var(--s2)", flexWrap: "wrap", padding: "var(--s5)" }}>
+        <button className="btn" data-v="primary" disabled={busy || disabled || !dirty}
+          title={disabled ? "Only before the draft starts" : undefined}
+          onClick={() => onSave("ff_set_draft_order", { p_league_id: LEAGUE_ID, p_team_ids: order.map((t) => t.id) }, "Draft order saved.")}>
+          <Save size={14} /> Save order
+        </button>
+        <button className="btn" disabled={busy || disabled}
+          title={disabled ? "Only before the draft starts" : undefined}
+          onClick={() => onSave("ff_randomize_draft_order", { p_league_id: LEAGUE_ID }, "Draft order randomized.")}>
+          <Dices size={14} /> Randomize instead
+        </button>
+      </div>
+    </>
   );
 }

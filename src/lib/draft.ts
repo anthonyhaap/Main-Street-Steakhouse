@@ -85,3 +85,41 @@ export function fmtClock(ms: number): string {
   const s = total % 60;
   return `${m}:${String(s).padStart(2, "0")}`;
 }
+
+/* ------------------------------------------------------------ pick grades -- */
+
+export type PickGrade = {
+  label: string;
+  tone: "ok" | "warn" | "danger" | "neutral";
+  /** Pick number minus market rank. Positive means he fell past where the
+      market expected and the pick spent on him was later than his ADP, i.e.
+      a steal; negative means the room paid an earlier pick than his ADP, a
+      reach. (ADP 60 taken at pick 30: delta -30, a reach. ADP 10 taken at
+      pick 40: delta +30, a steal.) */
+  delta: number;
+};
+
+/**
+ * How a pick stacks up against the market, using ADP (or overall rank, when
+ * a player is too fresh for a market consensus) as the "expected" pick.
+ *
+ * This is deliberately the same read a manager gets scanning ESPN's or
+ * Sleeper's live grades: how many picks early or late relative to what
+ * everyone else thinks he's worth. It says nothing about whether he'll
+ * actually pan out.
+ */
+export function gradePick(pickNumber: number, marketRank: number | null | undefined): PickGrade | null {
+  if (marketRank == null) return null;
+  const delta = pickNumber - marketRank;
+  if (delta >= 24) return { label: "Steal", tone: "ok", delta };
+  if (delta >= 9) return { label: "Value", tone: "ok", delta };
+  if (delta <= -24) return { label: "Big reach", tone: "danger", delta };
+  if (delta <= -9) return { label: "Reach", tone: "warn", delta };
+  return { label: "On plan", tone: "neutral", delta };
+}
+
+/** ADP where the market has an opinion, else the ranker's best guess. */
+export function marketRankOf(p: { adp: number | null; overall_rank: number | null } | undefined): number | null {
+  if (!p) return null;
+  return p.adp ?? p.overall_rank ?? null;
+}

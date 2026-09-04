@@ -359,6 +359,17 @@ body {
   box-shadow: var(--shadow-2), inset 0 1px 0 #ffffff;
 }
 .card[data-accent="wine"] { border-color: var(--wine-hair); }
+
+/* The room turning to you: a slow gold breath around the clock card, not a
+   flashing alarm — it should read as "your move" for the whole pick, not
+   just the instant it starts. */
+.card[data-onclock="true"] {
+  animation: onclock-breathe 2.4s ease-in-out infinite;
+}
+@keyframes onclock-breathe {
+  0%, 100% { box-shadow: var(--shadow-2), inset 0 1px 0 #ffffff, 0 0 0 0 #c99c3f4d; }
+  50%      { box-shadow: var(--shadow-2), inset 0 1px 0 #ffffff, 0 0 0 9px #c99c3f00; }
+}
 .card[data-flush="true"]  { background: transparent; border: 0; box-shadow: none; }
 
 .card__head {

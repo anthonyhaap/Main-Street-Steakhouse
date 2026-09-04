@@ -2,19 +2,25 @@
 
 import { NflImage } from "@/components/nfl";
 import { headshot, teamColor } from "@/lib/nfl/assets";
-import type { BoardPick, Draft, Team } from "@/lib/types";
-import { snakeSlot } from "@/lib/draft";
+import type { BoardPick, Draft, PoolPlayer, Team } from "@/lib/types";
+import { gradePick, marketRankOf, snakeSlot } from "@/lib/draft";
+
+const GRADE_COLOR: Record<string, string> = {
+  ok: "var(--win)", warn: "var(--warn)", danger: "var(--lose)", neutral: "var(--dim)",
+};
 
 type Props = {
   draft: Draft;
   teams: Team[];
   picks: BoardPick[];
   myTeamId: string | null;
+  /** ADP / overall rank lookup, so each pick can be graded against the market. */
+  poolById?: Map<string, PoolPlayer>;
   /** Open a drafted player's card in place. */
   onOpen?: (playerId: string) => void;
 };
 
-export function Board({ draft, teams, picks, myTeamId, onOpen }: Props) {
+export function Board({ draft, teams, picks, myTeamId, poolById, onOpen }: Props) {
   const teamCount = teams.length || 12;
   const byPick = new Map(picks.map((p) => [p.pick_number, p]));
   const rounds = Array.from({ length: draft.rounds }, (_, i) => i + 1);
@@ -23,9 +29,20 @@ export function Board({ draft, teams, picks, myTeamId, onOpen }: Props) {
     <div className="card" style={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
       <div className="card__head">
         <h2>The board</h2>
-        <span className="eyebrow">
-          <span className="num">{picks.length}</span> of <span className="num">{teamCount * draft.rounds}</span>
-        </span>
+        <div style={{ display: "flex", alignItems: "center", gap: "var(--s4)" }}>
+          {poolById && picks.length > 0 && (
+            <span className="eyebrow hide-sm" style={{ display: "flex", alignItems: "center", gap: 8 }}
+              title="A dot marks a pick graded well off its ADP">
+              <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--win)", display: "inline-block" }} />
+              value
+              <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--lose)", display: "inline-block" }} />
+              reach
+            </span>
+          )}
+          <span className="eyebrow">
+            <span className="num">{picks.length}</span> of <span className="num">{teamCount * draft.rounds}</span>
+          </span>
+        </div>
       </div>
 
       <div className="scroll" style={{ padding: "var(--s3)", minHeight: 0 }}>
@@ -60,6 +77,8 @@ export function Board({ draft, teams, picks, myTeamId, onOpen }: Props) {
                 const pick = byPick.get(pickNo);
                 const isCurrent = pickNo === draft.current_pick && draft.status !== "complete";
                 const isMine = teams[i]?.id === myTeamId;
+                const grade = pick ? gradePick(pickNo, marketRankOf(poolById?.get(pick.player_id))) : null;
+                const notable = grade && grade.label !== "On plan" ? grade : null;
 
                 const clickable = !!pick && !!onOpen;
                 return (
@@ -68,8 +87,11 @@ export function Board({ draft, teams, picks, myTeamId, onOpen }: Props) {
                     tabIndex={clickable ? 0 : undefined}
                     onClick={clickable ? () => onOpen(pick.player_id) : undefined}
                     onKeyDown={clickable ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(pick.player_id); } } : undefined}
-                    title={pick ? `${pick.player_name} — ${pick.team_name}` : `Pick ${pickNo}`}
+                    title={pick
+                      ? `${pick.player_name} — ${pick.team_name}${notable ? ` · ${notable.label} (${notable.delta > 0 ? "+" : ""}${notable.delta} vs ADP)` : ""}`
+                      : `Pick ${pickNo}`}
                     style={{
+                      position: "relative",
                       minHeight: 44, padding: "5px 6px", borderRadius: 6, overflow: "hidden",
                       background: pick ? "#ffffff" : isCurrent ? "var(--gold-wash)" : "var(--ink-2)",
                       border: `1px solid ${isCurrent ? "var(--gold)" : isMine ? "var(--gold-lit)" : "transparent"}`,
@@ -79,6 +101,12 @@ export function Board({ draft, teams, picks, myTeamId, onOpen }: Props) {
                     }}>
                     {pick ? (
                       <>
+                        {notable && (
+                          <span aria-hidden style={{
+                            position: "absolute", top: 4, right: 4, width: 6, height: 6, borderRadius: "50%",
+                            background: GRADE_COLOR[notable.tone],
+                          }} />
+                        )}
                         <div style={{ display: "flex", alignItems: "center", gap: 5, minWidth: 0 }}>
                           <NflImage
                             src={headshot(pick.espn_id)}

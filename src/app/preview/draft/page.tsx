@@ -67,6 +67,7 @@ export default function DraftPreviewPage() {
       <main className="page" data-width="narrow">
         <Pool
           pool={POOL}
+          currentPick={11}
           draftedIds={drafted}
           takenBy={takenBy}
           slots={["QB", "RB", "RB", "WR", "WR", "TE", "FLEX", "K", "DST", "BN", "BN", "BN", "BN", "BN", "BN"]}

@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, Pause, Play, RotateCcw, Zap } from "lucide-react";
+import { AlertTriangle, Pause, Play, RotateCcw, Volume2, VolumeX, Zap } from "lucide-react";
 import type { Draft, Team } from "@/lib/types";
 import { fmtClock, pickLabel } from "@/lib/draft";
 import { crestUrl } from "@/lib/crest";
@@ -21,6 +21,8 @@ type Props = {
   onPause: () => void;
   onResume: () => void;
   onUndo: () => void;
+  soundMuted: boolean;
+  onToggleSound: () => void;
 };
 
 export function Clock(p: Props) {
@@ -28,6 +30,7 @@ export function Clock(p: Props) {
   const mine = !!onClock && onClock.id === myTeamId;
   const total = teamCount * draft.rounds;
   const done = draft.status === "complete" || draft.current_pick > total;
+  const myTurnLive = mine && !done && draft.status === "active";
 
   const urgent = msLeft !== null && msLeft <= 15000 && msLeft > 0;
   const expired = msLeft !== null && msLeft <= 0;
@@ -36,7 +39,8 @@ export function Clock(p: Props) {
     : 0;
 
   return (
-    <section className="card" data-accent={mine && !done ? "gold" : undefined} style={{ position: "relative" }}>
+    <section className="card" data-accent={mine && !done ? "gold" : undefined} data-onclock={myTurnLive}
+      style={{ position: "relative" }}>
       {/* the clock as a bar, so peripheral vision catches it */}
       {draft.status === "active" && msLeft !== null && (
         <div style={{ position: "absolute", inset: "0 0 auto 0", height: 2, background: "var(--rule-soft)" }}>
@@ -80,6 +84,12 @@ export function Clock(p: Props) {
         </div>
 
         <div style={{ textAlign: "right" }}>
+          <button className="btn" data-v="ghost" data-size="icon" onClick={p.onToggleSound}
+            title={p.soundMuted ? "Unmute draft sounds" : "Mute draft sounds"}
+            aria-label={p.soundMuted ? "Unmute draft sounds" : "Mute draft sounds"}
+            style={{ marginBottom: 4 }}>
+            {p.soundMuted ? <VolumeX size={14} /> : <Volume2 size={14} />}
+          </button>
           {draft.status === "setup" && <div className="eyebrow">Not started</div>}
           {draft.status === "paused" && <div className="eyebrow" data-tone="gold">Paused</div>}
           {draft.status === "active" && msLeft !== null && (
