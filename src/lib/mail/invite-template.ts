@@ -78,11 +78,11 @@ export function inviteEmail(opts: {
 
     <tr><td align="center" style="padding:26px 34px 0 34px;">
       <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
-        <td style="background:#6a0b20;border-radius:999px;">
-          <a href="${esc(joinUrl)}"
-             style="display:inline-block;padding:15px 30px;color:#fdf7ee;text-decoration:none;
+        <td bgcolor="#6a0b20" style="background:#6a0b20;border-radius:999px;mso-padding-alt:15px 30px;">
+          <a href="${esc(joinUrl)}" target="_blank" rel="noopener noreferrer"
+             style="display:block;padding:15px 30px;color:#fdf7ee;text-decoration:none;
                     font:700 11px ${SANS};letter-spacing:2px;text-transform:uppercase;">
-            Set up my account
+            Join the league
           </a>
         </td>
       </tr></table>
@@ -107,7 +107,8 @@ export function inviteEmail(opts: {
       <div style="border-top:1px solid rgba(27,24,20,0.10);padding-top:16px;
                   font:400 11px/1.6 ${SANS};color:#b5ac9c;">
         If the button doesn't work, paste this into your browser:<br>
-        <span style="color:#877e71;word-break:break-all;">${esc(joinUrl)}</span>
+        <a href="${esc(joinUrl)}" target="_blank" rel="noopener noreferrer"
+           style="color:#6a0b20;text-decoration:underline;word-break:break-all;">${esc(joinUrl)}</a>
       </div>
       <div style="padding-top:14px;font:700 9px ${SANS};letter-spacing:2px;
                   text-transform:uppercase;color:#b5ac9c;text-align:center;">

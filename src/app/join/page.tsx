@@ -64,7 +64,7 @@ function JoinForm() {
     }
 
     await supabase.rpc("ff_link_me");
-    router.push("/");
+    router.push("/welcome");
     router.refresh();
   }
 
