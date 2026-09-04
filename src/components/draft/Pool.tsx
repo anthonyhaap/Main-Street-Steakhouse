@@ -345,10 +345,16 @@ function PlayerRow({
       <Proj p={p} />
 
       {taken ? (
-        <span className="eyebrow" style={{ maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: "right" }}
-          title={taken}>
-          {taken}
-        </span>
+        <>
+          {/* He was on your board — keep the star in view, just spent,
+              instead of swapping it for the team name and losing the cue
+              that he was ever queued. */}
+          {queued && <Star size={15} fill="none" style={{ color: "var(--faint)" }} aria-hidden />}
+          <span className="eyebrow" style={{ maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: "right" }}
+            title={taken}>
+            {taken}
+          </span>
+        </>
       ) : (
         <>
           <button className="btn" data-v="ghost" data-size="icon" onClick={onQueue}

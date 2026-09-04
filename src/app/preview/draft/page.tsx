@@ -48,6 +48,9 @@ export default function DraftPreviewPage() {
   const [queueIds, setQueueIds] = useState<string[]>([
     "c72adccf-bed4-4ab6-adce-1cdca8a5879b",
     "40a0f498-2a47-4619-b451-1ccbea51254c",
+    // Queued, then someone else took him — shows the star greying out
+    // in place instead of disappearing behind the "Taken" tag.
+    "b5b41230-f52a-448d-ac21-42a11bbe358f",
   ]);
   const [openId, setOpenId] = useState<string | null>(null);
   const drafted = new Set(MY_PICKS.map((p) => p.player_id));

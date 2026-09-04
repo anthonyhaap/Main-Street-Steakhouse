@@ -135,7 +135,7 @@ export default function MockDraftPage() {
   return (
     <>
       <TopBar />
-      <main className="page">
+      <main className="page" data-width="wide">
         <section className="card" style={{ marginBottom: "var(--s4)" }}>
           <div className="card__head" style={{ alignItems: "flex-start", gap: "var(--s4)", flexWrap: "wrap" }}>
             <div>
@@ -195,9 +195,12 @@ export default function MockDraftPage() {
         }
         @media (min-width: 1100px) {
           [data-only="narrow"] { display: none !important; }
-          .draft-grid { grid-template-columns: minmax(0, 1.1fr) minmax(430px, 0.9fr); }
+          .draft-grid { grid-template-columns: minmax(0, 1.25fr) minmax(440px, 0.9fr); }
           .draft-pane[data-show="false"] { display: flex; }
           .draft-pane > * { max-height: calc(100dvh - 250px); }
+        }
+        @media (min-width: 1500px) {
+          .draft-grid { grid-template-columns: minmax(0, 1.45fr) minmax(480px, 0.85fr); }
         }
       `}</style>
       {openId && (() => {
