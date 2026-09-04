@@ -5,6 +5,8 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 import { useLive } from "@/lib/live";
 import { useCrests, useSession } from "@/lib/session";
 import { useWire } from "@/lib/nfl/wire";
+import { useWeather } from "@/lib/nfl/weather";
+import { useMatchups } from "@/lib/nfl/matchup";
 import type { HubPlayer, TeamHub } from "@/lib/nfl/types";
 import { TopBar } from "@/components/Shell";
 import { SkeletonRows, useToast } from "@/components/ui";
@@ -41,6 +43,39 @@ export default function TeamPage() {
   });
 
   const { data: wire } = useWire(ready);
+
+  // The two signals the hub does not carry: what the sky is doing over each
+  // stadium, and how this week's projection compares with the rest of the
+  // player's own season. Both feed the lineup coach and nothing else, and both
+  // are allowed to come back empty — it says so when they do.
+  const { weather } = useWeather(hub?.roster ?? null, ready && !!hub);
+  const { data: matchups } = useMatchups(
+    hub?.roster ?? null, hub?.league.season ?? null, week, ready && !!hub,
+  );
+
+  /**
+   * Set several slots at once — what the coach's one button does.
+   *
+   * No optimism here, unlike a single drag: nine rows moving at once on a plan
+   * the server might reject reads as chaos, and the round trip is one call. The
+   * refetch afterwards is the source of truth either way.
+   */
+  async function setLineup(assignments: Record<string, string>) {
+    if (!team || week === null || Object.keys(assignments).length === 0) return;
+
+    setBusy(true);
+    const { error: rpcError } = await supabaseBrowser().rpc("ff_set_lineup", {
+      p_team_id: team.id, p_week: week, p_assignments: assignments,
+    });
+    setBusy(false);
+
+    if (rpcError) toast("error", rpcError.message);
+    else {
+      const n = Object.keys(assignments).length;
+      toast("ok", `Lineup set — ${n} ${n === 1 ? "change" : "changes"}.`);
+    }
+    await refetch();
+  }
 
   async function drop(target: MoveTarget) {
     if (!moving || !team || week === null) return;
@@ -118,11 +153,14 @@ export default function TeamPage() {
         busy={busy}
         crest={crestOf(team.id)}
         oppCrest={crestOf(hub.matchup?.opponent.id)}
+        weather={weather}
+        matchups={matchups}
         onPickUp={setMoving}
         onCancelMove={() => setMoving(null)}
         onDrop={drop}
         onWeek={(w) => { setMoving(null); setWeek(w); }}
         onEdit={() => setEditing(true)}
+        onSetLineup={setLineup}
       />
       {editing && (
         <EditTeam
