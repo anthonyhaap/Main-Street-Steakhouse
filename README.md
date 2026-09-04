@@ -386,6 +386,37 @@ this got tested at all, the league having not kicked off yet. And the cron runs
 flexed game, a holiday or a missed run still gets its recap the day the week
 finishes. `/admin` has the same button for the week the scheduler missed.
 
+**Verified end to end on a throwaway branch**, 2026-09-04. A seeded week 5 —
+twelve teams, 168 players, six games — was run through `ff_post_weekly_recaps()`
+exactly as the scheduler calls it, and every claim in the posted body was then
+recomputed independently and compared:
+
+| claim | check |
+|-------|-------|
+| six result lines | each matches a real game, ordered by descending margin |
+| high / low | equal to the max / min team score of the week |
+| The Bill / Last Call | equal to the max / min margin |
+| player of the week | the top **starter** (22.8) — not the 26.0 on a bench |
+| left on the pass | the only one of twelve teams that qualifies, swing 19.1 against a 5.1 defeat; the manager who lost by 0.9 is correctly passed over |
+| idempotency | a second cron run does nothing, a second publish says "already written", an unfinished week says "nothing played"; one recap row, one post |
+| `kind` / `author_id` | a house post with an author, a manager post without one, and a third `kind` are all rejected by the check constraints |
+
+The `mine` fix was confirmed to be a real bug and not a theoretical one: against
+a house post, `author_id = auth.uid()` evaluates to NULL, and only the
+`coalesce(..., false)` turns it into the boolean the browser expects.
+
+**A note if you try this yourself.** `supabase/migrations/` deliberately starts
+at 2026-08-26 — the core schema was applied directly and never checked in — so
+a fresh Supabase branch cannot build itself from this repo, and comes up with
+zero tables. (That is also why the `main` preview branch has sat in
+`MIGRATIONS_FAILED` since it was created.) The verification above installed the
+slice the recap touches, copied from production via `pg_get_functiondef` and
+`pg_get_viewdef`, and confirmed the five recap functions matched production
+byte-for-byte once comments were normalised away. The one deliberate
+substitution was `ff_score`, stubbed to read `{"pts": n}` so the harness could
+set every player's score exactly; the recap never looks at how a player earned
+his points, only at which player has the most.
+
 A house post is a message with **no author**: `league_messages.author_id` lost
 its NOT NULL and gained a `kind`, with a check constraint that keeps the two in
 step (`(kind = 'house') = (author_id is null)`) — a manager's line must still be
