@@ -45,3 +45,4 @@
 #
 # One name per line.
 waivers
+trades
