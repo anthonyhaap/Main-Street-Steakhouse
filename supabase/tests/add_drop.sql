@@ -36,6 +36,7 @@ declare
   v_j       jsonb;
   v_err     text;
   v_owner   uuid;
+  v_uid     uuid;
   v_checks  integer := 0;
 begin
   -- ----------------------------------------------------------- the fixture --
@@ -68,6 +69,11 @@ begin
 
   insert into drafts (league_id, rounds) values (v_league, 15) returning id into v_draft;
 
+  -- An owner for team A, so the authenticated paths can be exercised for real
+  -- rather than only through the service-role hatch.
+  insert into auth.users (email) values ('a@example.test') returning id into v_uid;
+  update teams set owner_id = v_uid where id = v_a;
+
   -- 15 to A, 15 to B, in player order; 10 left in the pool.
   -- `20260809021720` already seeded 32 team defences, and they sort ahead of
   -- these. Every fixture query below says "my players" for that reason.
@@ -98,6 +104,24 @@ begin
     raise exception 'fixture is wrong: free=% free2=% locked=% a_owned=%',
       v_free, v_free2, v_locked, v_a_owned;
   end if;
+
+  -- ------------------------------------------------ no signings mid-draft --
+  -- The draft is still 'setup'. Free agency during a draft lets a manager sign
+  -- a player another team can still draft, and ff_owner_at then hands him to
+  -- the signer — the drafting team loses the pick it spent.
+  -- A swap, not a bare add: cap-neutral, so the draft check is the only thing
+  -- that can refuse it. A bare add would trip the roster cap first and the test
+  -- would pass for the wrong reason.
+  begin
+    perform ff_add_drop(v_a, v_free, v_a_owned, v_week);
+    raise exception 'a signing was allowed before the draft finished';
+  exception when others then
+    get stacked diagnostics v_err = message_text;
+    if v_err not like '%draft is not finished%' then raise; end if;
+  end;
+  v_checks := v_checks + 1;
+
+  update drafts set status = 'complete' where id = v_draft;
 
   -- ------------------------------------------------- ownership before a move --
   select count(*) into v_n from ff_owner_at(v_league, v_week);
@@ -147,6 +171,15 @@ begin
   if v_j->>'kind' <> 'add_drop' then raise exception 'kind was %', v_j->>'kind'; end if;
   if (v_j->>'roster_size')::int <> 15 then
     raise exception 'roster size after a swap was %', v_j->>'roster_size';
+  end if;
+  v_checks := v_checks + 1;
+
+  -- The per-league serialization is engaged. A single session cannot prove it
+  -- prevents the race — that needs two connections — but it can prove the lock
+  -- is actually taken, so nobody removes it later without this going red.
+  if not exists (select 1 from pg_locks
+                  where locktype = 'advisory' and pid = pg_backend_pid()) then
+    raise exception 'ff_add_drop did not take the per-league advisory lock';
   end if;
   v_checks := v_checks + 1;
 
@@ -302,6 +335,36 @@ begin
   end;
   v_checks := v_checks + 1;
 
+  -- ------------------------------------------- what an authenticated manager may do --
+  -- auth.uid() reads the request's JWT claims, so setting them here exercises
+  -- the real owner and week checks rather than the service-role hatch.
+  begin
+    perform set_config('request.jwt.claims', json_build_object('sub', v_uid)::text, true);
+
+    -- The week is not the caller's to choose: ff_owner_at orders by week before
+    -- ord, so a claim filed for a future week would override every legitimate
+    -- move made in between once that week arrived.
+    begin
+      perform ff_add_drop(v_a, v_free2, null, 25);
+      raise exception 'a manager was allowed to file a move for a future week';
+    exception when others then
+      get stacked diagnostics v_err = message_text;
+      if v_err not like '%current week%' then raise; end if;
+    end;
+
+    -- And somebody else's team stays somebody else's.
+    begin
+      perform ff_add_drop(v_b, v_free2, null, null);
+      raise exception 'a manager was allowed to move another team''s roster';
+    exception when others then
+      get stacked diagnostics v_err = message_text;
+      if v_err not like '%not your team%' then raise; end if;
+    end;
+
+    perform set_config('request.jwt.claims', '', true);
+  end;
+  v_checks := v_checks + 2;
+
   -- ----------------------------------------------------------- the ledger --
   v_j := ff_transactions(v_league, 50);
   -- Three moves succeeded: the swap, the bare drop, the bare re-signing. The
@@ -318,6 +381,23 @@ begin
   select count(*) into v_n from activity_events
    where league_id = v_league and event_type = 'transaction';
   if v_n <> 3 then raise exception 'expected 3 feed entries, got %', v_n; end if;
+  v_checks := v_checks + 1;
+
+  -- ------------------------------------------------- a reset forgets both --
+  -- Resetting deletes the picks; leaving the moves behind would let an old
+  -- transaction outrank the new draft, so a redrafted player never arrives.
+  perform set_config('request.jwt.claims', json_build_object('sub', v_uid)::text, true);
+  update leagues set commissioner_id = v_uid where id = v_league;
+  perform ff_reset_draft(v_draft);
+  perform set_config('request.jwt.claims', '', true);
+
+  if exists (select 1 from transactions where league_id = v_league) then
+    raise exception 'a draft reset left the league''s moves behind';
+  end if;
+  if exists (select 1 from rosters r join teams t on t.id = r.team_id
+              where t.league_id = v_league) then
+    raise exception 'a draft reset left the derived roster cache behind';
+  end if;
   v_checks := v_checks + 1;
 
   raise notice 'add/drop: % checks passed', v_checks;
