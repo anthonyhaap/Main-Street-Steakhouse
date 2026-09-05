@@ -514,25 +514,37 @@ comment there for why env vars were removed.
 
 Signing in is the one moment the app can afford some theatre, so it takes it.
 On the way out of `/login` and `/join` two black doors close over the form,
-lean on the latch, and swing open towards you into white smoke; the house mark
-is drawn once across both leaves in brass, so it splits down the seam as they
-part. The page changes underneath while the screen is still white, and the
-smoke thins on the far side to reveal wherever you were going.
+lean on the latch, and swing open towards you; the house mark is drawn once
+across both leaves in brass, so it splits down the seam as they part, and the
+light from inside catches their leading edges as they go.
+
+Behind them is a room, not a light box: near black, thick with smoke, cut by
+five hard shafts off a lamp at the far end. Haze comes up first, because a beam
+is only a beam once there is something in the air for it to land on; the smoke
+is nine plumes on nine clocks, screened over the dark so the shafts brighten it
+rather than paint over it. You walk at the lamp, it blooms, and the screen
+washes white — the page changes under that, and the last of the smoke drifts
+off the top as the overlay dissolves.
 
 `DoorsHost` lives in the root layout rather than on the two auth screens
 because the whole point is that it outlasts them — a layout is the only thing
 in an App Router tree that survives the `router.push` it is covering. The
 screens themselves only call `enterThroughDoors(go)`; that hands `go` back
-1.4s in, and takes the overlay off the screen at 2.4s whether or not the route
-ever arrived, so nothing can be left sitting on top of the app. Under
-`prefers-reduced-motion` it navigates immediately and mounts nothing. Going
-through the doors also marks the ink curtain seen for the session, because the
-two of them back to back is the same beat played twice.
+2.6s in, under full white, and takes the overlay off the screen at 3.5s whether
+or not the route ever arrived, so nothing can be left sitting on top of the
+app. Under `prefers-reduced-motion` it navigates immediately and mounts
+nothing. Going through the doors also marks the ink curtain seen for the
+session, because the two of them back to back is the same beat played twice.
+
+A phone gets four of the plumes and one of the shafts taken out and the fan
+closed up, because a shaft at 38 degrees leaves a 390px frame before it reaches
+the floor — and because blur that wide, that many times over, is what costs a
+phone its frame rate.
 
 `/logo-full.png` is ink on paper and would be invisible on a black door, so the
 crest is redrawn as inline SVG in cream and gold at the logo's own proportions,
 its ring cut as the two arcs the wordmark leaves behind. `/preview/doors` plays
-the whole thing on demand against a stand-in for the room behind it.
+the whole thing on demand against a stand-in for the page behind it.
 
 ## Migrations and the GitHub integration
 

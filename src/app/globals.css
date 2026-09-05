@@ -1694,11 +1694,14 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
 /* ============================================================================
    THE DOORS — the way in, once, from /login and /join
    ----------------------------------------------------------------------------
-   Two black leaves with the crest cut across them in brass. They hold for a
-   beat, swing out into white smoke, and hand the screen over while it is still
-   white — the route changes under the veil, and the smoke thins on the far
-   side. The beats here are the constants in components/Doors.tsx: 1150ms of
-   door, white by 1400ms, gone at 2400ms. Change one, change both.
+   Two black leaves with the crest cut across them in brass, and behind them a
+   room rather than a light box: near black, thick with smoke, cut by hard
+   shafts of light from somewhere above and ahead. They hold, swing out towards
+   you, and you walk into it; the lamp at the end of the room blooms as you
+   reach it and washes the screen white, and the route changes under that.
+
+   The beats here are the constants in components/Doors.tsx: 1750ms of door,
+   white by 2600ms, gone at 3500ms. Change one, change both.
    ========================================================================== */
 
 .doors {
@@ -1707,81 +1710,154 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
   overflow: hidden;
   perspective: 1500px;
   perspective-origin: 50% 46%;
-  background: #050403;
+  background: #030302;
   /* Deliberately not pointer-events: none. This one is a door, not a curtain;
      nothing behind it should take a second submit on the way through. */
-  animation: door-out 780ms ease 1620ms both;
+  animation: door-out 700ms ease 2800ms both;
 }
 
+/* The whole overlay dissolves at the end — one exit for every layer in it, so
+   nothing (a door parked at 88deg, a plume of smoke) can outlive the effect and
+   be left sitting on top of the page it just revealed. */
 @keyframes door-out {
   0%   { opacity: 1; }
   100% { opacity: 0; }
 }
 
-/* ------------------------------------------------------ the room, and light */
+/* ------------------------------------------------------------- the room -- */
 
 .doors__room {
   position: absolute; inset: 0;
   background:
-    radial-gradient(84% 74% at 50% 58%, #ffffff 0%, #fffaf0 38%, #efe6d6 64%, #cbbca6 82%, transparent 96%),
-    radial-gradient(30% 22% at 50% 50%, #fffdf7 0%, transparent 70%);
+    radial-gradient(62% 54% at 50% 52%, #1c1710 0%, #0e0c09 44%, #050403 76%, #010101 100%);
   opacity: 0;
-  animation: door-room 1500ms cubic-bezier(0.5, 0.02, 0.3, 1) both;
+  animation: door-room 1400ms ease-out both;
 }
 
 @keyframes door-room {
-  0%   { opacity: 0; transform: scale(0.8); }
-  14%  { opacity: 0.06; }
-  46%  { opacity: 0.42; }
-  72%  { opacity: 0.85; }
-  100% { opacity: 1; transform: scale(1.06); }
-}
-
-.doors__seam {
-  position: absolute; top: 0; bottom: 0; left: 50%;
-  width: 3px; margin-left: -1.5px;
-  background: linear-gradient(180deg, transparent, var(--gold-lit) 22%, #fff6e0 50%, var(--gold-lit) 78%, transparent);
-  filter: blur(1px);
-  opacity: 0;
-  animation: door-seam 460ms ease-out both;
-}
-
-@keyframes door-seam {
   0%   { opacity: 0; }
-  38%  { opacity: 0.85; }
-  100% { opacity: 0; }
+  18%  { opacity: 0.35; }
+  100% { opacity: 1; }
+}
+
+/* Haze first, because a beam is only a beam once there is something in the air
+   for it to land on. It drifts once, slowly, and never repeats. */
+.doors__haze {
+  position: absolute; inset: -25%;
+  background:
+    radial-gradient(38% 30% at 28% 60%, #cdc1a82e, transparent 72%),
+    radial-gradient(44% 34% at 74% 46%, #b6ab9621, transparent 74%),
+    radial-gradient(62% 42% at 50% 82%, #d6cbb424, transparent 76%);
+  filter: blur(34px);
+  animation: door-haze 5200ms ease-out both;
+}
+
+@keyframes door-haze {
+  0%   { opacity: 0; transform: translate3d(-3%, 5%, 0) scale(1.04); }
+  28%  { opacity: 0.85; }
+  100% { opacity: 1; transform: translate3d(4%, -7%, 0) scale(1.3); }
+}
+
+/* Five shafts off one source above the doorway, screened onto the smoke so
+   they brighten it rather than paint over it. They open a few degrees as they
+   come up, which is what a room full of smoke does to a fixed light. */
+.doors__beam {
+  position: absolute;
+  top: -36%; left: 50%;
+  width: var(--w, 17vmax); height: 150vmax;
+  margin-left: calc(var(--w, 17vmax) / -2);
+  transform-origin: 50% 0;
+  background: radial-gradient(ellipse 42% 82% at 50% 2%,
+    #fff9ec 0%, #fff0d2e6 14%, #f2dfb599 40%, #d9b46b4d 64%, #c99c3f26 80%, transparent 94%);
+  filter: blur(19px);
+  mix-blend-mode: screen;
+  opacity: 0;
+  animation: door-beam 2500ms cubic-bezier(0.3, 0.5, 0.25, 1) both;
+}
+
+.doors__beam[data-i="0"] { --a: -38deg; --a2: -30deg; --w: 20vmax; animation-delay: 480ms; }
+.doors__beam[data-i="1"] { --a: -19deg; --a2: -14deg; --w: 13vmax; animation-delay: 620ms; }
+.doors__beam[data-i="2"] { --a:   4deg; --a2:   1deg; --w: 22vmax; animation-delay: 540ms; }
+.doors__beam[data-i="3"] { --a:  21deg; --a2:  16deg; --w: 14vmax; animation-delay: 700ms; }
+.doors__beam[data-i="4"] { --a:  39deg; --a2:  31deg; --w: 18vmax; animation-delay: 820ms; }
+
+@keyframes door-beam {
+  0%   { opacity: 0;    transform: rotate(var(--a)) scaleY(0.7); }
+  34%  { opacity: 0.42; }
+  100% { opacity: 0.72; transform: rotate(var(--a2)) scaleY(1); }
+}
+
+/* The lamp at the end of the room: where the beams come from, and the thing
+   you are walking towards. */
+.doors__lamp {
+  position: absolute; left: 50%; top: 40%;
+  width: 26vmax; height: 26vmax; margin: -13vmax 0 0 -13vmax;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fffdf6 0%, #ffeec6 16%, #c99c3f59 40%, transparent 70%);
+  filter: blur(22px);
+  mix-blend-mode: screen;
+  opacity: 0;
+  animation: door-lamp 2300ms ease-out both;
+}
+
+@keyframes door-lamp {
+  0%   { opacity: 0;   transform: scale(0.3); }
+  38%  { opacity: 0.4; }
+  100% { opacity: 0.8; transform: scale(1.15); }
 }
 
 /* -------------------------------------------------------------- the smoke -- */
 
 .doors__smoke { position: absolute; inset: 0; }
 
+/* Nine plumes, screened, on nine different clocks. One column of smoke reads
+   as fog; several out of step, at different sizes and blurs, read as a room
+   somebody has been fogging all night. */
 .doors__puff {
   position: absolute;
-  left: 50%; top: 58%;
-  width: 40vmax; height: 40vmax;
-  margin: -20vmax 0 0 -20vmax;
+  left: 50%; top: 62%;
+  width: 44vmax; height: 44vmax;
+  margin: -22vmax 0 0 -22vmax;
   border-radius: 50%;
-  background: radial-gradient(circle at 50% 50%, #ffffff 0%, #fffdf8cc 34%, #f4ece0 55%, transparent 72%);
-  filter: blur(28px);
+  background: radial-gradient(circle at 46% 42%,
+    #b8b0a180 0%, #91897840 40%, #6b655b1f 64%, transparent 80%);
+  filter: blur(32px);
+  mix-blend-mode: screen;
   opacity: 0;
-  animation: door-puff 1750ms cubic-bezier(0.24, 0.58, 0.3, 1) both;
+  animation: door-puff 3000ms cubic-bezier(0.22, 0.5, 0.24, 1) both;
 }
 
-/* Six plumes on slightly different clocks — one column of smoke reads as fog,
-   several out of step read as smoke. */
-.doors__puff[data-i="0"] { animation-delay: 300ms; --dx: -32vw; --dy: -14vh; --end: 2.6; }
-.doors__puff[data-i="1"] { animation-delay: 380ms; --dx:  30vw; --dy: -18vh; --end: 2.8; }
-.doors__puff[data-i="2"] { animation-delay: 460ms; --dx:  -9vw; --dy: -32vh; --end: 3.1; }
-.doors__puff[data-i="3"] { animation-delay: 540ms; --dx:  16vw; --dy:  10vh; --end: 2.7; }
-.doors__puff[data-i="4"] { animation-delay: 640ms; --dx: -21vw; --dy:  17vh; --end: 2.9; }
-.doors__puff[data-i="5"] { animation-delay: 740ms; --dx:   4vw; --dy:  -5vh; --end: 3.4; }
+.doors__puff[data-i="0"] { animation-delay: 420ms;  --dx: -34vw; --dy: -12vh; --end: 2.4; }
+.doors__puff[data-i="1"] { animation-delay: 560ms;  --dx:  31vw; --dy: -17vh; --end: 2.6; }
+.doors__puff[data-i="2"] { animation-delay: 700ms;  --dx:  -8vw; --dy: -34vh; --end: 3.0; }
+.doors__puff[data-i="3"] { animation-delay: 840ms;  --dx:  17vw; --dy:  11vh; --end: 2.5; }
+.doors__puff[data-i="4"] { animation-delay: 980ms;  --dx: -22vw; --dy:  18vh; --end: 2.7; }
+.doors__puff[data-i="5"] { animation-delay: 1120ms; --dx:   5vw; --dy:  -6vh; --end: 3.2; }
+.doors__puff[data-i="6"] { animation-delay: 1260ms; --dx: -13vw; --dy: -24vh; --end: 2.8; }
+.doors__puff[data-i="7"] { animation-delay: 1400ms; --dx:  24vw; --dy:  -3vh; --end: 2.9; }
+.doors__puff[data-i="8"] { animation-delay: 1540ms; --dx:  -2vw; --dy:  14vh; --end: 3.4; }
 
 @keyframes door-puff {
-  0%   { opacity: 0;   transform: translate3d(0, 0, 0) scale(0.2); }
-  26%  { opacity: 0.4; }
-  70%  { opacity: 0.8; }
-  100% { opacity: 0.9; transform: translate3d(var(--dx), var(--dy), 0) scale(var(--end)); }
+  0%   { opacity: 0;   transform: translate3d(0, 0, 0) scale(0.22); }
+  30%  { opacity: 0.3; }
+  72%  { opacity: 0.5; }
+  100% { opacity: 0.6; transform: translate3d(var(--dx), var(--dy), 0) scale(var(--end)); }
+}
+
+/* Light under the door before anything moves. */
+.doors__seam {
+  position: absolute; top: 0; bottom: 0; left: 50%;
+  width: 4px; margin-left: -2px;
+  background: linear-gradient(180deg, transparent, var(--gold-lit) 20%, #fff6e0 50%, var(--gold-lit) 80%, transparent);
+  filter: blur(1.5px);
+  opacity: 0;
+  animation: door-seam 720ms ease-out both;
+}
+
+@keyframes door-seam {
+  0%   { opacity: 0; }
+  42%  { opacity: 0.9; }
+  100% { opacity: 0; }
 }
 
 /* -------------------------------------------------------------- the leaves */
@@ -1798,20 +1874,20 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
   transform-origin: left center;
   background: linear-gradient(96deg, #000000 0%, #191412 38%, #100c0a 72%, #050403 100%);
   animation:
-    door-swing-l 1150ms cubic-bezier(0.62, 0.02, 0.34, 1) both,
-    door-gone 260ms linear 1190ms both;
+    door-swing-l 1750ms cubic-bezier(0.6, 0.02, 0.32, 1) both,
+    door-gone 300ms linear 1700ms both;
 }
 .doors__leaf[data-side="r"] {
   right: 0;
   transform-origin: right center;
   background: linear-gradient(264deg, #000000 0%, #191412 38%, #100c0a 72%, #050403 100%);
   animation:
-    door-swing-r 1150ms cubic-bezier(0.62, 0.02, 0.34, 1) both,
-    door-gone 260ms linear 1190ms both;
+    door-swing-r 1750ms cubic-bezier(0.6, 0.02, 0.32, 1) both,
+    door-gone 300ms linear 1700ms both;
 }
 
 /* Edge on, a leaf is still a 200px slab of black parked against the frame. It
-   slides the last of itself out of shot, and goes under the white for good. */
+   slides the last of itself out of shot, and goes under the light for good. */
 @keyframes door-gone { to { opacity: 0; } }
 
 /* The hold is inside the keyframes, not a delay, so the leaf can lean on the
@@ -1822,18 +1898,38 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
    no back. */
 @keyframes door-swing-l {
   0%   { transform: rotateY(0deg);    filter: brightness(1); }
-  11%  { transform: rotateY(-0.8deg); filter: brightness(1.16); }
-  15%  { transform: rotateY(1.6deg); }
+  12%  { transform: rotateY(-0.8deg); filter: brightness(1.16); }
+  17%  { transform: rotateY(1.6deg); }
+  58%  { filter: brightness(0.86); }
   84%  { transform: rotateY(80deg); }
-  100% { transform: translateX(-52%) rotateY(88deg); filter: brightness(0.3); }
+  100% { transform: translateX(-52%) rotateY(88deg); filter: brightness(0.44); }
 }
 @keyframes door-swing-r {
   0%   { transform: rotateY(0deg);   filter: brightness(1); }
-  11%  { transform: rotateY(0.8deg); filter: brightness(1.16); }
-  15%  { transform: rotateY(-1.6deg); }
+  12%  { transform: rotateY(0.8deg); filter: brightness(1.16); }
+  17%  { transform: rotateY(-1.6deg); }
+  58%  { filter: brightness(0.86); }
   84%  { transform: rotateY(-80deg); }
-  100% { transform: translateX(52%) rotateY(-88deg); filter: brightness(0.3); }
+  100% { transform: translateX(52%) rotateY(-88deg); filter: brightness(0.44); }
 }
+
+.doors__leaf::after {
+  content: "";
+  position: absolute; top: 0; bottom: 0;
+  width: 28%;
+  opacity: 0;
+  animation: door-rim 1500ms ease-out 240ms both;
+}
+.doors__leaf[data-side="l"]::after {
+  right: 0;
+  background: linear-gradient(270deg, #ffe4ad59, #c99c3f26 40%, transparent 80%);
+}
+.doors__leaf[data-side="r"]::after {
+  left: 0;
+  background: linear-gradient(90deg, #ffe4ad59, #c99c3f26 40%, transparent 80%);
+}
+
+@keyframes door-rim { to { opacity: 1; } }
 
 .doors__grain {
   position: absolute; inset: 0;
@@ -1896,24 +1992,38 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
   text-anchor: middle;
 }
 
-/* --------------------------------------------------------------- the veil --
-   White by the handoff and white from then on — the overlay's own dissolve is
-   what takes it away. Everything the far side does, the route landing and its
-   first paint, happens under here. It comes up late and fast on purpose: a
-   black door under a half-drawn white sheet is a grey door. */
+/* --------------------------------------------------------------- the light --
+   You reach the lamp, and it is the last thing you see of the room. The bloom
+   opens in front of the leaves as they clear, and the veil finishes the job:
+   white by the handover, and white until the overlay dissolves off it. */
+
+.doors__bloom {
+  position: absolute; left: 50%; top: 46%;
+  width: 62vmax; height: 62vmax; margin: -31vmax 0 0 -31vmax;
+  border-radius: 50%;
+  background: radial-gradient(circle, #ffffff 0%, #fffaf0 28%, #ffe9bd 50%, #c99c3f00 76%);
+  filter: blur(22px);
+  opacity: 0;
+  animation: door-bloom 800ms cubic-bezier(0.42, 0, 0.3, 1) 1900ms both;
+}
+
+@keyframes door-bloom {
+  0%   { opacity: 0;    transform: scale(0.55); }
+  45%  { opacity: 0.75; }
+  100% { opacity: 1;    transform: scale(3.6); }
+}
 
 .doors__veil {
   position: absolute; inset: 0;
   background: #ffffff;
   opacity: 0;
-  animation: door-veil 1400ms linear both;
+  animation: door-veil 2600ms linear both;
 }
 
 @keyframes door-veil {
   0%   { opacity: 0; }
-  68%  { opacity: 0; }
-  80%  { opacity: 0.14; }
-  90%  { opacity: 0.6; }
+  82%  { opacity: 0; }
+  92%  { opacity: 0.42; }
   100% { opacity: 1; }
 }
 
@@ -1926,23 +2036,43 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
   background: radial-gradient(circle at 50% 50%, #e8e2d6 0%, #f2ece1 42%, transparent 70%);
   filter: blur(40px);
   opacity: 0;
-  animation: door-wisp 2400ms ease-out both;
+  animation: door-wisp 3500ms ease-out both;
 }
 .doors__wisp[data-i="0"] { --dx: -16vw; }
-.doors__wisp[data-i="1"] { --dx:  12vw; animation-duration: 2600ms; }
-.doors__wisp[data-i="2"] { --dx:   2vw; animation-duration: 2250ms; }
+.doors__wisp[data-i="1"] { --dx:  12vw; animation-duration: 3700ms; }
+.doors__wisp[data-i="2"] { --dx:   2vw; animation-duration: 3350ms; }
 
 /* The last of it, drifting up off the top of the screen while the overlay
    itself dissolves — the smoke thinning as you come through. */
 @keyframes door-wisp {
   0%   { opacity: 0;    transform: translate3d(0, 24vh, 0) scale(0.7); }
-  58%  { opacity: 0.5; }
+  70%  { opacity: 0.5; }
   100% { opacity: 0.34; transform: translate3d(var(--dx), -28vh, 0) scale(1.6); }
 }
 
+/* A phone has a quarter of the fill rate and twice the pixels to prove it.
+   Four of the plumes and two of the shafts come out; what is left still reads
+   as a room full of smoke, and it holds 60fps doing it. */
+@media (max-width: 700px) {
+  .doors__puff[data-i="5"],
+  .doors__puff[data-i="6"],
+  .doors__puff[data-i="7"],
+  .doors__puff[data-i="8"],
+  .doors__beam[data-i="3"] { display: none; }
+  .doors__puff { filter: blur(24px); }
+  .doors__haze { filter: blur(26px); }
+
+  /* A shaft at 38 degrees leaves a 390px frame before it reaches the floor.
+     The fan closes up on a phone so four of them still land on screen. */
+  .doors__beam[data-i="0"] { --a: -25deg; --a2: -19deg; --w: 15vmax; }
+  .doors__beam[data-i="1"] { --a: -10deg; --a2:  -7deg; --w: 10vmax; }
+  .doors__beam[data-i="2"] { --a:   3deg; --a2:   1deg; --w: 16vmax; }
+  .doors__beam[data-i="4"] { --a:  24deg; --a2:  19deg; --w: 13vmax; }
+}
+
 /* A manager who has asked for less motion never mounts any of this — see
-   enterThroughDoors — but a media query that changes mid-animation should not
-   leave a room spinning either. */
+   enterThroughDoors — but a media query that changes mid-play should not leave
+   a room spinning either. */
 @media (prefers-reduced-motion: reduce) {
   .doors { display: none; }
 }

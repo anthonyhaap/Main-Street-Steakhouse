@@ -7,9 +7,11 @@ import { CURTAIN_KEY } from "@/components/Curtain";
  * The doors.
  *
  * Signing in is the one moment in this app that can afford some theatre. Two
- * black doors take the screen, the house mark splits down the middle, they
- * swing open into white smoke, and you walk in. It plays on the way through
- * `/login` and `/join` — the two doors of the building — and nowhere else.
+ * black doors take the screen, the house mark splits down the middle, and they
+ * swing open on a room: near black, thick with smoke, cut by hard shafts of
+ * light off a lamp at the far end. You walk at it, it blooms, and you are in.
+ * It plays on the way through `/login` and `/join` — the two doors of the
+ * building — and nowhere else.
  *
  * It lives in the root layout rather than on those two screens, because the
  * whole point is that it outlasts them: the leaves open, the white takes the
@@ -31,9 +33,9 @@ import { CURTAIN_KEY } from "@/components/Curtain";
  */
 
 /** White is total by here; the route changes underneath it. */
-export const DOOR_HANDOFF = 1400;
-/** Mount to unmount: hold, swing, white, and the smoke clearing after. */
-export const DOOR_TOTAL = 2400;
+export const DOOR_HANDOFF = 2600;
+/** Mount to unmount: hold, swing, the room, the bloom, and the clearing after. */
+export const DOOR_TOTAL = 3500;
 
 /* ------------------------------------------------------------------ store --
    One boolean, outside React, because the thing that starts the doors (a form
@@ -97,10 +99,15 @@ export function DoorsHost() {
 
   return (
     <div className="doors" role="presentation">
-      {/* The room on the other side: warm light, then white. */}
-      <div className="doors__room" />
+      {/* The room on the other side. Haze first, because a beam is only a beam
+          once there is something in the air for it to land on. */}
+      <div className="doors__room" aria-hidden>
+        <span className="doors__haze" />
+        {[0, 1, 2, 3, 4].map((i) => <span key={i} className="doors__beam" data-i={i} />)}
+        <span className="doors__lamp" />
+      </div>
       <div className="doors__smoke" aria-hidden>
-        {[0, 1, 2, 3, 4, 5].map((i) => <span key={i} className="doors__puff" data-i={i} />)}
+        {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((i) => <span key={i} className="doors__puff" data-i={i} />)}
       </div>
 
       {/* Light in the crack, gone the moment the leaves part. */}
@@ -117,6 +124,8 @@ export function DoorsHost() {
         </div>
       ))}
 
+      {/* Reaching the lamp, and the last of the room going with it. */}
+      <div className="doors__bloom" />
       <div className="doors__veil">
         {[0, 1, 2].map((i) => <span key={i} className="doors__wisp" data-i={i} />)}
       </div>

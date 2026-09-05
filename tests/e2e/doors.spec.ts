@@ -27,7 +27,7 @@ test("the doors open, hand over once, and get out of the way", async ({ page }) 
   await expect(page.getByTestId("door-entry")).toHaveCount(1);
 
   // And nothing is left on top of the page it just revealed.
-  await expect(page.locator(".doors")).toHaveCount(0, { timeout: 4000 });
+  await expect(page.locator(".doors")).toHaveCount(0, { timeout: 6000 });
   await expect(page.getByRole("button", { name: "Open the doors" })).toBeEnabled();
   expect(errors).toEqual([]);
 });
