@@ -26,6 +26,15 @@ create table if not exists public.waiver_runs (
   league_id  uuid not null references public.leagues(id) on delete cascade,
   week       integer not null,
   ran_at     timestamptz not null default now(),
+  -- The transaction log's high-water mark when this run STARTED.
+  --
+  -- Not a timestamp. A run awards a claim and writes its drop inside the same
+  -- database transaction that writes this row, so `now()` is frozen and
+  -- identical for both — and a `dropped_at > ran_at` comparison would exclude
+  -- the player the settlement itself just released, making him a free agent
+  -- instead of putting him on the wire for the next cycle. `transactions.ord`
+  -- is a sequence and cannot tie, so the boundary is taken from it.
+  boundary_ord   bigint  not null default 0,
   claims_seen    integer not null default 0,
   claims_awarded integer not null default 0
 );
@@ -79,8 +88,9 @@ alter table public.waiver_runs   enable row level security;
 alter table public.waiver_claims enable row level security;
 
 -- A claim is readable by the whole league AFTER it is settled, and before that
--- only by its owner and the commissioner. Blind is the point: a pending claim
--- everyone can read is a pending claim everyone can outbid.
+-- only by its owner. Blind is the point: a pending claim everyone can read is a
+-- pending claim everyone can outbid — and that includes the commissioner, who
+-- has a team of his own and is bidding against the people he would be reading.
 drop policy if exists waiver_runs_read on public.waiver_runs;
 create policy waiver_runs_read on public.waiver_runs
   for select to authenticated using (public.ff_is_member());
@@ -88,12 +98,7 @@ create policy waiver_runs_read on public.waiver_runs
 drop policy if exists waiver_claims_read on public.waiver_claims;
 create policy waiver_claims_read on public.waiver_claims
   for select to authenticated using (
-    public.ff_is_member() and (
-      status <> 'pending'
-      or public.ff_owns_team(team_id)
-      or exists (select 1 from public.leagues l
-                  where l.id = league_id and l.commissioner_id = auth.uid())
-    )
+    public.ff_is_member() and (status <> 'pending' or public.ff_owns_team(team_id))
   );
 
 revoke all on table public.waiver_runs   from public, anon;
@@ -114,6 +119,36 @@ alter table public.teams add column if not exists waiver_priority integer;
 
 comment on column public.teams.waiver_priority is
   'Rolling waiver order, 1 = first call. Set from the reverse draft order and moved to the back each time the team wins a claim.';
+
+-- Give an order to teams that have none, without disturbing one already in
+-- use. A league mid-season has a real order earned by winning claims; only the
+-- teams that have never had one are placed, and they go behind everybody.
+create or replace function public.ff_place_unordered_teams(p_league_id uuid)
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare v_n integer;
+begin
+  update teams t set waiver_priority = s.rank
+    from (
+      select id,
+             (select coalesce(max(waiver_priority), 0) from teams where league_id = p_league_id)
+             + row_number() over (order by draft_slot desc nulls last, name) as rank
+        from teams where league_id = p_league_id and waiver_priority is null
+    ) s
+   where t.id = s.id and t.league_id = p_league_id;
+  get diagnostics v_n = row_count;
+
+  -- Contiguous 1..n afterwards, the same shape a settlement leaves behind.
+  update teams t set waiver_priority = s.rank
+    from (select id, row_number() over (order by waiver_priority nulls last, name) as rank
+            from teams where league_id = p_league_id) s
+   where t.id = s.id and t.league_id = p_league_id;
+
+  return v_n;
+end $$;
 
 create or replace function public.ff_seed_waiver_priority(p_league_id uuid)
 returns integer
@@ -194,12 +229,12 @@ security definer
 set search_path = public
 as $$
   with last_run as (
-    select coalesce(max(ran_at), '-infinity'::timestamptz) as at
+    select coalesce(max(boundary_ord), 0) as ord
       from waiver_runs where league_id = p_league_id
   ),
   last_move as (
     select distinct on (i.player_id)
-           i.player_id, i.to_team_id, t.created_at
+           i.player_id, i.to_team_id, t.created_at, t.ord
       from transaction_items i
       join transactions t on t.id = i.transaction_id
      where t.league_id = p_league_id
@@ -209,7 +244,7 @@ as $$
          ff_next_waiver_run(p_league_id, m.created_at)
     from last_move m, last_run r
    where m.to_team_id is null
-     and m.created_at > r.at
+     and m.ord > r.ord
 $$;
 
 comment on function public.ff_on_waivers(uuid) is
@@ -246,6 +281,12 @@ begin
   if v_uid is not null and not ff_owns_team(p_team_id) then
     raise exception 'that is not your team';
   end if;
+
+  -- The same lock the settlement takes. Filed a second either side of the
+  -- boundary, a claim would otherwise be swept up by the run's closing "everyone
+  -- else lost" without ever competing, or sit pending against a player the run
+  -- has already awarded.
+  perform pg_advisory_xact_lock(hashtext('ff_add_drop:' || v_league::text));
 
   select d.status::text into v_status from drafts d
    where d.league_id = v_league order by d.started_at nulls last, d.id limit 1;
@@ -359,6 +400,7 @@ declare
   v_seen   integer := 0;
   v_won    integer := 0;
   v_run    uuid;
+  v_boundary bigint;
   v_awards jsonb := '[]'::jsonb;
 begin
   -- The same key ff_add_drop takes, so a manager cannot sign a player out from
@@ -371,9 +413,20 @@ begin
     return jsonb_build_object('ran', false, 'why', 'the draft is not finished');
   end if;
 
+  -- An order of NULLs is not "no preference", it is a broken settlement: the
+  -- run would fall back to claim order, and the winner would be handed
+  -- priority 1 by `max(...) + 1` over an all-NULL column — first rather than
+  -- last, which is rolling priority running backwards. Nothing calls the
+  -- commissioner's seeder automatically, so the run refuses to proceed on an
+  -- unordered league and places them itself.
+  perform ff_place_unordered_teams(p_league_id);
+
   select jsonb_array_length(roster_slots) into v_limit from leagues where id = p_league_id;
   select count(*) into v_seen from waiver_claims
    where league_id = p_league_id and status = 'pending';
+
+  -- Taken before a single award, so the drops this run makes fall AFTER it.
+  select coalesce(max(ord), 0) into v_boundary from transactions where league_id = p_league_id;
 
   -- `on commit drop` fires at COMMIT, not when this function returns, and
   -- ff_process_waivers calls this once per league inside one transaction — so
@@ -467,8 +520,8 @@ begin
 
   drop table _claimable;
 
-  insert into waiver_runs (league_id, week, claims_seen, claims_awarded)
-  values (p_league_id, v_week, v_seen, v_won) returning id into v_run;
+  insert into waiver_runs (league_id, week, boundary_ord, claims_seen, claims_awarded)
+  values (p_league_id, v_week, v_boundary, v_seen, v_won) returning id into v_run;
 
   if v_seen > 0 then
     insert into activity_events (league_id, event_type, headline, detail, source_type, source_id)
@@ -529,7 +582,21 @@ declare v_league uuid; v_uid uuid := auth.uid();
 begin
   select league_id into v_league from teams where id = p_team_id;
   if v_league is null then raise exception 'team not found'; end if;
-  if v_uid is not null and not ff_is_member() then raise exception 'not a member'; end if;
+
+  -- The owner, and nobody else. This is SECURITY DEFINER, so the RLS policy
+  -- that keeps a pending claim private does not apply inside it — membership
+  -- alone was enough to read the blind claims of the manager you are bidding
+  -- against by passing his team id.
+  --
+  -- Not even the commissioner, deliberately. He has a team in this league and
+  -- files claims against the same players, so an exemption for him is an
+  -- exemption for one of the competitors — and "blind until Wednesday" would
+  -- be true of eleven managers and false of the twelfth. It is the same line
+  -- ff_add_drop draws: the service role is where commissioner intervention
+  -- belongs, with a different audit trail.
+  if v_uid is not null and not ff_owns_team(p_team_id) then
+    raise exception 'that is not your team';
+  end if;
 
   return jsonb_build_object(
     'settles_at', ff_next_waiver_run(v_league, now()),
@@ -567,6 +634,7 @@ begin
 end $$;
 
 -- ------------------------------------------------------------- the grants --
+revoke execute on function public.ff_place_unordered_teams(uuid)          from public, anon;
 revoke execute on function public.ff_seed_waiver_priority(uuid)            from public, anon;
 revoke execute on function public.ff_next_waiver_run(uuid, timestamptz)    from public, anon;
 revoke execute on function public.ff_on_waivers(uuid)                      from public, anon;
@@ -586,6 +654,7 @@ grant execute on function public.ff_waiver_board(uuid)                   to auth
 -- Commissioner-only and cron-only respectively: settling early, or at all, is
 -- not a manager's call.
 grant execute on function public.ff_seed_waiver_priority(uuid)           to authenticated, service_role;
+grant execute on function public.ff_place_unordered_teams(uuid)          to service_role;
 grant execute on function public.ff_run_waivers(uuid,integer)            to service_role;
 grant execute on function public.ff_process_waivers()                    to service_role;
 

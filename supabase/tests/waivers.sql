@@ -129,6 +129,16 @@ begin
   end;
   v_checks := v_checks + 1;
 
+  -- Filing a claim takes the league lock the settlement takes, so a claim filed
+  -- a second either side of the boundary cannot be swept up by the run's closing
+  -- "everyone else lost" without ever competing. One session can prove the lock
+  -- is taken; that it prevents the race needs two, and this does not claim it.
+  if not exists (select 1 from pg_locks
+                  where locktype = 'advisory' and pid = pg_backend_pid()) then
+    raise exception 'ff_claim_waiver did not take the per-league advisory lock';
+  end if;
+  v_checks := v_checks + 1;
+
   -- Re-claiming replaces rather than duplicating.
   perform ff_claim_waiver(v_a, v_p1, null, 1);
   if (select count(*) from waiver_claims
@@ -182,10 +192,38 @@ begin
   end if;
   v_checks := v_checks + 1;
 
+  -- ------------------------------------------- a settlement's own drop stays --
+  -- A won claim that releases somebody writes that drop inside the same
+  -- database transaction as the run row, so now() is identical for both. A
+  -- timestamp comparison excluded him and handed him straight to free agency;
+  -- the boundary is a transaction sequence for exactly this reason.
+  declare v_p3 uuid; v_p4 uuid;
+  begin
+    -- From what C still owns, not from its draft picks: it has already dropped
+    -- two, and those pick rows are still there.
+    select o.player_id into v_p3 from ff_owner_at(v_league, v_week) o
+     where o.team_id = v_c limit 1;
+    perform ff_add_drop(v_c, null, v_p3, v_week);        -- onto the wire
+    select o.player_id into v_p4 from ff_owner_at(v_league, v_week) o
+     where o.team_id = v_a limit 1;
+    perform ff_claim_waiver(v_a, v_p3, v_p4, 1);         -- claim, releasing v_p4
+    perform ff_run_waivers(v_league, v_week);
+
+    if (select team_id from ff_owner_at(v_league, v_week) where player_id = v_p3) <> v_a then
+      raise exception 'the claim releasing a player did not land';
+    end if;
+    if not exists (select 1 from ff_on_waivers(v_league) w where w.player_id = v_p4) then
+      raise exception 'the player released BY the settlement went straight to free agency '
+                      'instead of onto the wire for the next cycle';
+    end if;
+  end;
+  v_checks := v_checks + 1;
+
   -- ------------------------------------------------- and the wire is clear --
   -- Both were awarded, and the run is recorded, so nothing is still on waivers.
-  if (select count(*) from ff_on_waivers(v_league)) <> 0 then
-    raise exception 'players are still on waivers after being awarded';
+  -- Everyone awarded is off the wire; the man the last run released is on it.
+  if exists (select 1 from ff_on_waivers(v_league) w where w.player_id in (v_p1, v_p2)) then
+    raise exception 'an awarded player is still on waivers';
   end if;
   v_checks := v_checks + 1;
 
@@ -196,6 +234,21 @@ begin
   end if;
   v_checks := v_checks + 1;
 
+  -- ----------------------------------------- the board is nobody else's business --
+  -- ff_waiver_board is SECURITY DEFINER, so the RLS policy that keeps a pending
+  -- claim private does not apply inside it. Membership alone was enough to read
+  -- another manager's blind claims by passing his team id.
+  perform set_config('request.jwt.claims', json_build_object('sub', v_uid_a)::text, true);
+  begin
+    perform ff_waiver_board(v_b);
+    raise exception 'a manager read another team''s waiver board';
+  exception when others then
+    get stacked diagnostics v_err = message_text;
+    if v_err not like '%not your team%' then raise; end if;
+  end;
+  perform set_config('request.jwt.claims', '', true);
+  v_checks := v_checks + 1;
+
   -- --------------------------------------------------------- what a manager sees --
   perform set_config('request.jwt.claims', json_build_object('sub', v_uid_a)::text, true);
   v_j := ff_waiver_board(v_a);
@@ -203,6 +256,47 @@ begin
     raise exception 'the waiver board is missing its order or its next settlement';
   end if;
   perform set_config('request.jwt.claims', '', true);
+  v_checks := v_checks + 1;
+
+  -- ------------------------------------------- an unordered league settles right --
+  -- Nothing calls the commissioner's seeder automatically, so a league that has
+  -- just drafted has NULL priorities. The run used to fall back to claim order
+  -- and then hand the winner priority 1 — first, not last — which is rolling
+  -- priority running backwards.
+  declare
+    v_l2 uuid; v_d2 uuid; v_x uuid; v_y uuid; v_drop uuid;
+  begin
+    insert into leagues (name, season, team_count, roster_slots, settings)
+    values ('Unordered', 2026, 2, '["QB","BN","BN"]'::jsonb,
+            '{"waiver_run_day":"wednesday"}'::jsonb) returning id into v_l2;
+    insert into teams (league_id, name, draft_slot) values (v_l2,'X',1) returning id into v_x;
+    insert into teams (league_id, name, draft_slot) values (v_l2,'Y',2) returning id into v_y;
+    insert into drafts (league_id, rounds, status) values (v_l2, 2, 'complete') returning id into v_d2;
+
+    insert into players (full_name, position, nfl_team, status, sleeper_id)
+    values ('U One','QB','AAA','ACT','utest-1'), ('U Two','RB','AAA','ACT','utest-2');
+    insert into draft_picks (draft_id, pick_number, round, team_id, player_id)
+    select v_d2, row_number() over (order by full_name),
+           1, (array[v_x, v_y])[1 + ((row_number() over (order by full_name) - 1) % 2)], id
+      from players where sleeper_id like 'utest-%';
+
+    if (select count(*) from teams where league_id = v_l2 and waiver_priority is null) <> 2 then
+      raise exception 'the unordered fixture is not actually unordered';
+    end if;
+
+    select dp.player_id into v_drop from draft_picks dp where dp.draft_id = v_d2 and dp.team_id = v_y limit 1;
+    perform ff_add_drop(v_y, null, v_drop, v_week);
+    perform ff_claim_waiver(v_x, v_drop, null, 1);
+    perform ff_run_waivers(v_l2, v_week);
+
+    -- X won, so X must now be BEHIND Y, not ahead of it.
+    if (select waiver_priority from teams where id = v_x)
+       <= (select waiver_priority from teams where id = v_y) then
+      raise exception 'winning a claim in an unordered league left the winner ahead (%, %)',
+        (select waiver_priority from teams where id = v_x),
+        (select waiver_priority from teams where id = v_y);
+    end if;
+  end;
   v_checks := v_checks + 1;
 
   raise notice 'waivers: % checks passed', v_checks;
