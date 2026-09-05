@@ -637,6 +637,60 @@ A recorded version with no file is harmless. **A file whose version is not
 recorded is the dangerous direction**, because that is the one the integration
 would run.
 
+### A migration is reviewed before it is applied
+
+The gate above had a hole in the shape of its own instruction. A file whose
+version was not recorded got rejected with "apply it first, then name the file
+after the version that comes back" — so the only way to get a new migration
+through CI was to run it against production **before a pull request existed**.
+The check built to stop production being written to by accident was forcing it
+to be written to before review.
+
+On 2026-09-05 that cost three manager-reachable holes in `ff_add_drop` — a
+signing before the draft, a caller-chosen effective week, and two managers
+claiming the same free agent. All three were live before anyone read the SQL,
+and all three were found by a review bot reading the migration afterwards.
+
+`supabase/pending_migrations.txt` is the missing third state: **checked in, not
+yet applied.** A migration named there may have an unrecorded version while it
+is reviewed, and is applied after it merges.
+
+```
+1. write supabase/migrations/<timestamp>_<name>.sql
+2. add <name> to supabase/pending_migrations.txt
+3. open the PR — CI accepts it, and prints what it would arm
+4. merge
+5. apply it; rename the file to the version the database assigns
+6. move <name> into applied_versions.txt
+```
+
+The original protection is untouched. A mis-stamped file for something already
+applied is not listed as pending, so it still fails exactly as before — and the
+list cannot rot, because a name with no file and a name whose file *is* recorded
+are both errors.
+
+**And CI now says what a pull request would arm.** The three holes were
+reachable because the migration that created `ff_add_drop` granted it to
+`authenticated` in the same breath — live, callable and unreviewed together. So
+for every pending migration the check prints the functions it would make
+callable:
+
+```
+1 migration is checked in and NOT applied:
+  pending  29990101000000_brand_new.sql
+
+what they would make callable once applied:
+  29990101000000_brand_new.sql
+    authenticated: ff_demo
+```
+
+That is a reminder rather than a rule — a grant has to happen somewhere. But
+landing a new RPC revoked and arming it in a follow-up migration, once the
+feature is verified, keeps the blast radius of an unreviewed mistake at zero,
+and the line above is the one a reviewer is being asked to vouch for. A grant to
+`anon` warns on its own: `20260824034323` revoked anon from every function in
+`public` deliberately, and `ff_share_card` is the league's one exception.
+
 ### The history is complete, and branches build
 
 Until 2026-09-04 the directory started at 2026-08-26: everything before it had
@@ -829,10 +883,14 @@ You can tell the stronger mode is live from the check's own output — it logs
 ledger*, and drops the note about configuring the secret. To undo the role
 entirely: `drop owned by ci_migrations_reader; drop role ci_migrations_reader;`
 
-**When adding a migration**, apply it first, name the file after the version the
-database recorded for it — not a timestamp you picked — and add that version to
-the ledger (the refresh query is in its header). The two differ because
-`apply_migration` stamps its own. Getting this backwards is what left
+**When adding a migration**, declare it pending and let it be reviewed before it
+is applied — see *A migration is reviewed before it is applied* above, which
+replaced the apply-first instruction that used to live in this paragraph.
+
+Once it is applied, by you or by the integration, name the file after the
+version the database recorded for it — not a timestamp you picked — and add that
+version to the ledger (the refresh query is in its header). The two differ
+because `apply_migration` stamps its own. Getting this backwards is what left
 `20260902010000` and `20260902011500` on disk against `20260902005227` and
 `20260902005322` recorded, and days later checked a whole migration in a second
 time as `20260902120000`, which would have re-run a `drop function` against
