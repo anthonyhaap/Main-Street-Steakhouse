@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useRouter } from "next/navigation";
-import { ArrowLeftRight, BarChart3, CircleDollarSign, Crown, Gavel, Landmark, LogOut, MessageCircle, MoreHorizontal, Radio, Shield, Swords, Users, UtensilsCrossed, X } from "lucide-react";
+import { ArrowLeftRight, BarChart3, CircleDollarSign, Crown, Gavel, Landmark, LogOut, MessageCircle, MoreHorizontal, Radio, Shield, Swords, Users, UtensilsCrossed, ScrollText, X } from "lucide-react";
 import { useCrests, useSession } from "@/lib/session";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import type { WireStatus } from "@/lib/live";
@@ -38,6 +38,7 @@ const NAV: NavItem[] = [
   { href: "/players",    label: "Players",    Icon: Users },
   { href: "/waivers",    label: "Waivers",    Icon: Gavel },
   { href: "/trades",     label: "Trades",     Icon: ArrowLeftRight },
+  { href: "/ledger",     label: "Ledger",     Icon: ScrollText },
   { href: "/chat",       label: "Clubhouse",  Icon: MessageCircle },
   { href: "/challenges", label: "Challenges", Icon: CircleDollarSign },
 ];

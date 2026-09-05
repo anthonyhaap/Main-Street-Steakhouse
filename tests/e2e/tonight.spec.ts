@@ -114,9 +114,11 @@ test("the primary nav fits the header it is in", async ({ page }, testInfo) => {
   const width = page.viewportSize()!.width;
   const shown = await page.locator(".nav").evaluate((el) => getComputedStyle(el).display !== "none");
 
-  // Eleven destinations and a wordmark do not fit a small laptop; below the
-  // breakpoint the tab bar and its More menu carry them instead.
-  expect(shown).toBe(width > 1180);
+  // Twelve destinations and a wordmark do not fit a laptop; below the
+  // breakpoint the tab bar and its More menu carry them instead. The number
+  // moved from 1180 to 1360 when Ledger was added — at 1280 the header
+  // overflowed by 23px, which is what the scrollWidth check below caught.
+  expect(shown).toBe(width > 1360);
   const doc = await page.evaluate(() => document.documentElement.scrollWidth);
   expect(doc, `${testInfo.project.name} at ${width}px scrolls sideways`).toBeLessThanOrEqual(width);
 });
