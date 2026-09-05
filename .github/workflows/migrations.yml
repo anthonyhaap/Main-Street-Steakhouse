@@ -8,6 +8,7 @@ on:
     paths:
       - "supabase/migrations/**"
       - "supabase/applied_versions.txt"
+      - "supabase/pending_migrations.txt"
       - "scripts/check-migrations.mjs"
       - "scripts/replay-migrations.sh"
       - "scripts/replay/**"
@@ -18,6 +19,7 @@ on:
     paths:
       - "supabase/migrations/**"
       - "supabase/applied_versions.txt"
+      - "supabase/pending_migrations.txt"
 
 jobs:
   filenames:
