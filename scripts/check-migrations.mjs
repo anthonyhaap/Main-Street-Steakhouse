@@ -138,6 +138,14 @@ function normalizeSql(s) {
  */
 const CONTENT_EXCEPTIONS = new Map([
   [
+    "20260809022638",
+    "file adds `drop function if exists ff_load_sleeper_players()` before the create. " +
+      "20260809022447 defines that function with different OUT names, and `create or " +
+      "replace` cannot change those, so the recorded statement does not replay — the " +
+      "drop was done by hand on the live project and never recorded. Production already " +
+      "has the post-drop signature, confirmed against pg_proc.",
+  ],
+  [
     "20260826022327",
     "file also revokes ff_backfill_bye_weeks from public/anon, which 20260826023254 " +
       "did on the live project. Idempotent, and it belongs beside the function.",
@@ -150,7 +158,10 @@ const CONTENT_EXCEPTIONS = new Map([
   [
     "20260904003458",
     "recorded statement is the note 'Applied from the checked-in migration through " +
-      "the Supabase SQL editor.' — prose, not SQL. The file is the migration.",
+      "the Supabase SQL editor.' — prose, not SQL. The file is the migration. Its seed " +
+      "is also now guarded by `where exists (select 1 from leagues ...)`, because the " +
+      "league it references is created by the app, not by any migration, so the rows " +
+      "cannot replay onto an empty database. A no-op on the live project, which has it.",
   ],
   [
     "20260829051500",

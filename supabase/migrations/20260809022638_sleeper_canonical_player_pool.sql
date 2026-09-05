@@ -9,6 +9,14 @@ update players set gsis_id = 'DST-WAS' where gsis_id = 'DST-WSH';
 delete from nfl_teams where id = 'WSH';
 update nfl_teams set espn_id = id where espn_id is null;
 
+-- `20260809022447` returns this function's columns as (mapped, def_mapped,
+-- unmatched); the version below renames all three. Postgres will not let
+-- `create or replace` change the OUT parameters of an existing function, so
+-- replaying that file and then this one fails without the drop. It was dropped
+-- by hand on the live project, which is why the recorded statement has no drop
+-- in it and the rebuild did not work.
+drop function if exists ff_load_sleeper_players();
+
 create or replace function ff_load_sleeper_players()
 returns table (upserted int, defenses int, still_unmapped int)
 language plpgsql security definer set search_path = public, extensions as $$

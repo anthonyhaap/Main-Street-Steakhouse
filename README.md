@@ -191,8 +191,9 @@ slate decides the rest: any game in progress is Sunday whatever the calendar
 says, and a Monday with only your tight end left to play is written as a
 number he has to reach. `/preview/tonight` renders every day from one fixture.
 
-Two things the card does on a phone that the old dashboard did not. On login,
-once per session, an ink curtain with a gold monogram etches in and the card's
+Two things the card does on a phone that the old dashboard did not. On the
+first visit of a session — the doors below take the place of it on the way in
+from sign-in — an ink curtain with a gold monogram etches in and the card's
 rules draw before the text fades up — a little over a second, set by an inline
 script before first paint so it never flashes, `pointer-events: none` so it
 never blocks a tap, and skipped entirely under `prefers-reduced-motion`. And on
@@ -405,14 +406,15 @@ The `mine` fix was confirmed to be a real bug and not a theoretical one: against
 a house post, `author_id = auth.uid()` evaluates to NULL, and only the
 `coalesce(..., false)` turns it into the boolean the browser expects.
 
-**A note if you try this yourself.** `supabase/migrations/` deliberately starts
-at 2026-08-26 — the core schema was applied directly and never checked in — so
-a fresh Supabase branch cannot build itself from this repo, and comes up with
-zero tables. (That is also why the `main` preview branch has sat in
-`MIGRATIONS_FAILED` since it was created.) The verification above installed the
-slice the recap touches, copied from production via `pg_get_functiondef` and
-`pg_get_viewdef`, and confirmed the five recap functions matched production
-byte-for-byte once comments were normalised away. The one deliberate
+**A note if you try this yourself.** When this was run, `supabase/migrations/`
+still started at 2026-08-26 — the core schema had been applied directly and
+never checked in — so a fresh Supabase branch could not build itself from this
+repo and came up with zero tables. The verification above therefore installed
+the slice the recap touches, copied from production via `pg_get_functiondef`
+and `pg_get_viewdef`, and confirmed the five recap functions matched production
+byte-for-byte once comments were normalised away. That workaround is no longer
+necessary: the directory is complete and replays, and `npm run check:replay`
+will build the whole schema on a local Postgres in about a minute. The one deliberate
 substitution was `ff_score`, stubbed to read `{"pts": n}` so the harness could
 set every player's score exactly; the recap never looks at how a player earned
 his points, only at which player has the most.
@@ -519,7 +521,10 @@ that was confirmed to fail without it.
 3. Migrations in `supabase/migrations/` are already applied to project
    `ojhjrxolrsppircyrcff`.
 
-Release verification: `npm run build` and `npm run test:e2e`.
+Release verification: `npm run build` and `npm run test:e2e`. For anything
+touching `supabase/migrations/`, also `npm run check:migrations` (filenames and
+bodies against the recorded history) and `npm run check:replay` (the directory
+actually builds an empty database). CI runs both.
 
 ## Draft-day runbook
 
@@ -560,6 +565,42 @@ queues are visible only to their owner and the commissioner.
 
 Supabase URL and publishable key are hardcoded in `src/lib/config.ts` — see the
 comment there for why env vars were removed.
+
+### The doors
+
+Signing in is the one moment the app can afford some theatre, so it takes it.
+On the way out of `/login` and `/join` two black doors close over the form,
+lean on the latch, and swing open towards you; the house mark is drawn once
+across both leaves in brass, so it splits down the seam as they part, and the
+light from inside catches their leading edges as they go.
+
+Behind them is a room, not a light box: near black, thick with smoke, cut by
+five hard shafts off a lamp at the far end. Haze comes up first, because a beam
+is only a beam once there is something in the air for it to land on; the smoke
+is nine plumes on nine clocks, screened over the dark so the shafts brighten it
+rather than paint over it. You walk at the lamp, it blooms, and the screen
+washes white — the page changes under that, and the last of the smoke drifts
+off the top as the overlay dissolves.
+
+`DoorsHost` lives in the root layout rather than on the two auth screens
+because the whole point is that it outlasts them — a layout is the only thing
+in an App Router tree that survives the `router.push` it is covering. The
+screens themselves only call `enterThroughDoors(go)`; that hands `go` back
+2.6s in, under full white, and takes the overlay off the screen at 3.5s whether
+or not the route ever arrived, so nothing can be left sitting on top of the
+app. Under `prefers-reduced-motion` it navigates immediately and mounts
+nothing. Going through the doors also marks the ink curtain seen for the
+session, because the two of them back to back is the same beat played twice.
+
+A phone gets four of the plumes and one of the shafts taken out and the fan
+closed up, because a shaft at 38 degrees leaves a 390px frame before it reaches
+the floor — and because blur that wide, that many times over, is what costs a
+phone its frame rate.
+
+`/logo-full.png` is ink on paper and would be invisible on a black door, so the
+crest is redrawn as inline SVG in cream and gold at the logo's own proportions,
+its ring cut as the two arcs the wordmark leaves behind. `/preview/doors` plays
+the whole thing on demand against a stand-in for the page behind it.
 
 ## Migrations and the GitHub integration
 
@@ -603,8 +644,9 @@ and was then recorded so the version and the file agree.
 **What was verified, and what was not.** On a throwaway branch, an empty
 database was confirmed to lack both extensions, `cron.schedule` was confirmed to
 fail on it, and that migration was confirmed to fix both. A complete 66-file
-replay was *not* executed — it cannot be driven from the tooling used here — so
-the first real proof will be the next preview branch Supabase builds.
+replay was *not* executed at the time, which left the real claim — that this
+directory builds a database — untested. It has since been executed. See
+**The directory builds, and that is now a test** below.
 
 **The files were then compared against what actually ran, and two had drifted.**
 Only 29 files are byte-identical to their recorded statement. The rest differ,
@@ -649,6 +691,66 @@ disagrees with the recorded one, a repeated version, and anything not shaped
 like a migration. It warns, without failing, when two files share a name —
 legal (`20260829020645` and `20260829021500` are both `team_hub`) but also what
 a migration checked in twice looks like.
+
+### The directory builds, and that is now a test
+
+Checking in the missing 29 files made the history *complete*. It did not make it
+*replayable*, and those are different claims — which is the whole reason the
+`main` preview branch stayed in `MIGRATIONS_FAILED` after the history was
+supposedly fixed. Every file can be a faithful copy of a statement production
+ran and the directory can still fail to build, because these migrations were
+applied by hand over a month in the order someone typed them, with drops and
+fixups in between that were never recorded. Sorted by filename and replayed
+cold, they are a different program.
+
+`npm run check:replay` runs that program. It builds a throwaway Postgres, puts
+in the objects a Supabase branch starts with — the `anon` and `authenticated`
+roles, `auth.uid()`, the `storage` tables, the `supabase_realtime` publication,
+`supabase_migrations.schema_migrations` — and feeds it all 66 files in filename
+order with `ON_ERROR_STOP`, each in its own transaction, exactly as Supabase
+applies them. `http` and `pg_cron` cannot be installed on a stock Postgres, so
+stand-ins are installed under those names; that is what lets
+`20260809014900_enable_extensions.sql` execute verbatim instead of being edited
+before it is tested. The harness and its reasoning are in `scripts/replay/`.
+
+**It failed on the first run, twice, and both were real.**
+
+- `20260809022638_sleeper_canonical_player_pool` renames all three OUT columns
+  of `ff_load_sleeper_players` from `(mapped, def_mapped, unmatched)` to
+  `(upserted, defenses, still_unmapped)`, using `create or replace`. Postgres
+  will not change a function's OUT parameters that way — it wants a `drop
+  function` first. On the live project someone typed the drop into the SQL
+  editor and it was never recorded, so the file as checked in cannot replay.
+  The drop is now in the file. Production's `pg_proc` was checked: it already
+  has the post-drop signature, so the file now matches where production
+  actually ended up.
+- `20260904003458_historical_final_standings` seeds 97 rows of ESPN history
+  keyed to league `11111111-…`, and **no migration creates that league** — it
+  was made through the app. On an empty database the foreign key fails on the
+  first row. The seed is now guarded by `where exists (select 1 from leagues …)`,
+  so a rebuilt database gets the table, the policy and no rows. Seeding a
+  league to hang another league's nine-year history on would be fabricating
+  data; a branch legitimately has no league, no teams and no draft. On the live
+  project, which has the league, the guard is a no-op and all 97 rows still land.
+
+With those two fixed the replay is clean: **66/66 against an empty database**,
+producing 27 tables, 132 functions, 5 views, 28 policies and 7 cron jobs.
+
+The job runs in `.github/workflows/migrations.yml` on every pull request that
+touches the directory, so the next migration that cannot rebuild the database is
+caught before merge rather than by a preview branch after it.
+
+**What the two checks prove together, and separately.** `check:migrations`
+proves each file is what production ran; it cannot prove the directory builds.
+`check:replay` proves the directory builds; it does not compare the result to
+production. Neither is the claim on its own, and it took both to find these two
+— the first because the file matched a recorded statement, and the second
+because the statement itself was incomplete.
+
+**Still not proven here:** that the rebuilt schema is *equal* to production's,
+object for object. The per-file content check is the closest thing to that, and
+the honest confirmation is the `main` preview branch rebuilding green once this
+merges.
 
 **How much it proves depends on whether CI can reach the database.** Set a
 `SUPABASE_DB_URL` repository secret and the workflow reads the real history and

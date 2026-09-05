@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { AuthFrame } from "@/components/AuthFrame";
+import { enterThroughDoors } from "@/components/Doors";
 
 function LoginForm() {
   const params = useSearchParams();
@@ -26,9 +27,9 @@ function LoginForm() {
       email: email.trim().toLowerCase(),
       password,
     });
-    setBusy(false);
 
     if (error) {
+      setBusy(false);
       setError(
         /invalid login credentials/i.test(error.message)
           ? "That email and password don't match. If you haven't set a password yet, use your invite link."
@@ -36,8 +37,15 @@ function LoginForm() {
       );
       return;
     }
-    router.push(next);
-    router.refresh();
+
+    // The doors are open from here; the form stays busy behind them, and only
+    // lets go under the white, where a navigation that never lands leaves a
+    // working sign-in button rather than a stuck one.
+    enterThroughDoors(() => {
+      setBusy(false);
+      router.push(next);
+      router.refresh();
+    });
   }
 
   return (

@@ -1,0 +1,6 @@
+# Stand-in for pgsql-http, which is not installable on a stock Postgres.
+# See scripts/replay/README.md — this exists so `create extension http` and
+# `extensions.http_get(...)` resolve during a replay. It performs no I/O.
+comment = 'replay shim for pgsql-http (no network)'
+default_version = '1.6'
+relocatable = true
