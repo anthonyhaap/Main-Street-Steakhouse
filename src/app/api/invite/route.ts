@@ -51,8 +51,22 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Add an email for this team first." }, { status: 400 });
   }
 
+  // The link carries a fresh single-use token, not the address. It is minted
+  // here rather than by the browser so that issuing one is gated by the same
+  // commissioner check as sending the mail, and it goes only to the address the
+  // commissioner recorded — which is what makes holding it mean anything.
+  const { data: token, error: mintError } = await supabase.rpc("ff_mint_invite", {
+    p_team_id: team.id,
+  });
+  if (mintError || !token) {
+    return NextResponse.json(
+      { error: mintError?.message ?? "Could not issue an invite for that team." },
+      { status: 400 },
+    );
+  }
+
   const origin = request.nextUrl.origin;
-  const joinUrl = `${origin}/join?email=${encodeURIComponent(team.owner_email)}`;
+  const joinUrl = `${origin}/join?t=${encodeURIComponent(token as string)}`;
 
   const { html, text } = inviteEmail({
     teamName: team.name,

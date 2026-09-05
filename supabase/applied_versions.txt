@@ -84,3 +84,4 @@
 20260905142709 trades
 20260905144124 revoke_service_only_from_authenticated
 20260905144856 revoke_helper_functions_from_public
+20260905154627 invite_tokens
