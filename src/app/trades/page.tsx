@@ -30,7 +30,7 @@ export default function TradesPage() {
     return { desk: desk.data as TradeDesk, owners: (owners.data ?? []) as Owned[] };
   }, [team]);
 
-  const { data, refetch } = useLive(fetcher, {
+  const { data, error, refetch } = useLive(fetcher, {
     tables: ["trades", "trade_items", "trade_block", "transactions"],
     channel: "trades",
     pollMs: 60000,
@@ -75,6 +75,16 @@ export default function TradesPage() {
       <div className="card"><div className="empty">You need a team before you can trade.</div></div>
     </main></>;
   }
+  // Said out loud rather than left as a skeleton that never resolves — see the
+  // same guard on /waivers.
+  if (error) {
+    return <><TopBar /><main className="page" data-width="narrow">
+      <div className="card">
+        <div className="note" data-kind="error">Couldn&apos;t load the desk: {error}</div>
+      </div>
+    </main></>;
+  }
+
   if (!desk) return skeleton;
 
   return (

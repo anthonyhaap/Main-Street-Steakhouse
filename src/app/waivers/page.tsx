@@ -31,7 +31,7 @@ export default function WaiversPage() {
     };
   }, [team]);
 
-  const { data, refetch } = useLive(fetcher, {
+  const { data, error, refetch } = useLive(fetcher, {
     tables: ["waiver_claims", "waiver_runs", "transactions"],
     channel: "waivers",
     pollMs: 60000,
@@ -96,6 +96,18 @@ export default function WaiversPage() {
   if (!team) {
     return <><TopBar /><main className="page" data-width="narrow">
       <div className="card"><div className="empty">You need a team before you can claim anybody.</div></div>
+    </main></>;
+  }
+
+  // A board that will not load is said out loud rather than left as a skeleton
+  // that never resolves. The likeliest cause is the waivers migration not being
+  // applied yet, and a manager staring at a spinner cannot tell that from a slow
+  // network.
+  if (error) {
+    return <><TopBar /><main className="page" data-width="narrow">
+      <div className="card">
+        <div className="note" data-kind="error">Couldn&apos;t load the wire: {error}</div>
+      </div>
     </main></>;
   }
 
