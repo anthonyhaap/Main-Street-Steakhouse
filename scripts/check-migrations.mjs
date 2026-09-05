@@ -300,6 +300,16 @@ const files = readdirSync(DIR).filter((f) => !f.startsWith("."));
 const byVersion = new Map();
 const bySlug = new Map();
 const unapplied = [];      // declared pending, and genuinely not recorded
+
+/**
+ * name -> the versions recorded under it, so a pending migration can be
+ * recognised as applied even when its version changed on the way in.
+ */
+const recordedAs = new Map();
+for (const [version, { name }] of remote ?? recorded) {
+  if (!recordedAs.has(name)) recordedAs.set(name, new Set());
+  recordedAs.get(name).add(version);
+}
 const arming = [];         // [file, {authenticated, anon}] for those files
 
 for (const file of files.sort()) {
@@ -324,7 +334,22 @@ for (const file of files.sort()) {
   const entry = truth.get(version);
   const name = entry?.name;
 
-  if (entry === undefined && pending.has(slug)) {
+  if (entry === undefined && pending.has(slug) && recordedAs.has(slug)) {
+    // The dangerous middle. `apply_migration` stamps its own version, so a
+    // migration applied under a version other than its provisional filename
+    // leaves this file unrecorded while the history already holds the same
+    // NAME. Matching only on version would call that unapplied and pass it —
+    // and the integration could then run non-idempotent SQL a second time,
+    // which is the exact hazard this whole file exists to prevent.
+    errors.push(
+      `${file}: "${slug}" is listed as pending, but ${source} already records a\n` +
+        `    migration of that name at version ${[...recordedAs.get(slug)].join(", ")}.\n` +
+        `    It has been applied. Rename this file to that version and move "${slug}"\n` +
+        `    out of pending_migrations.txt — do NOT apply it again.\n` +
+        `    (If this is genuinely a second, different migration that happens to share\n` +
+        `    a name, give it a distinct one.)`,
+    );
+  } else if (entry === undefined && pending.has(slug)) {
     // Declared unapplied. This is the reviewable state: the SQL is in the pull
     // request, production has not run it, and it is applied after merge.
     unapplied.push(file);
