@@ -274,8 +274,14 @@ begin
   if v_n <> 14 then raise exception 'after a bare drop team A has %, expected 14', v_n; end if;
   v_checks := v_checks + 1;
 
-  -- With room, a bare add is fine — and a player dropped earlier can be re-signed,
-  -- which is the case that a naive "has he ever been dropped" rule gets wrong.
+  -- Since waivers exist, a dropped player is not instantly re-signable: he sits
+  -- on the wire until the next settlement. Clearing it here is what the calendar
+  -- does on a Wednesday, and it leaves the property this check is actually about
+  -- intact — that a player dropped earlier CAN be re-acquired, which is the case
+  -- a naive "has he ever been dropped" rule gets wrong.
+  perform ff_run_waivers(v_league, v_week);
+
+  -- With room, a bare add is fine.
   perform ff_add_drop(v_a, v_a_owned, null, v_week);
   if (select team_id from ff_owner_at(v_league, v_week) where player_id = v_a_owned) <> v_a then
     raise exception 're-signing a previously dropped player did not stick';

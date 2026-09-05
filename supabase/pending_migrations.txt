@@ -44,3 +44,4 @@
 # been recorded — both mean step 6 was skipped and the entry is now lying.
 #
 # One name per line.
+waivers
