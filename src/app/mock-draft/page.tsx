@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { RotateCcw, Sparkles } from "lucide-react";
 import { Board } from "@/components/draft/Board";
-import { Pool } from "@/components/draft/Pool";
+import { Pool, type PoolTab } from "@/components/draft/Pool";
+import { Ticker } from "@/components/draft/Ticker";
 import { PlayerSheet } from "@/components/player/PlayerSheet";
 import { TopBar } from "@/components/Shell";
 import { SkeletonRows, useToast } from "@/components/ui";
@@ -64,6 +65,7 @@ export default function MockDraftPage() {
   const [queueIds, setQueueIds] = useState<string[]>([]);
   const [openId, setOpenId] = useState<string | null>(null);
   const [view, setView] = useState<"board" | "pool">("pool");
+  const [poolTab, setPoolTab] = useState<PoolTab>("available");
 
   const teamCount = league?.team_count ?? 12;
   const slots = league?.roster_slots?.length ? league.roster_slots : DEFAULT_SLOTS;
@@ -135,8 +137,8 @@ export default function MockDraftPage() {
   return (
     <>
       <TopBar />
-      <main className="page" data-width="wide">
-        <section className="card" style={{ marginBottom: "var(--s4)" }}>
+      <main className="page" data-layout="room">
+        <section className="card" style={{ flexShrink: 0 }}>
           <div className="card__head" style={{ alignItems: "flex-start", gap: "var(--s4)", flexWrap: "wrap" }}>
             <div>
               <div className="eyebrow" style={{ color: "var(--gold)", marginBottom: 4 }}>Practice room</div>
@@ -171,38 +173,36 @@ export default function MockDraftPage() {
           <div className="card"><div className="empty">Choose your draft seat, then start the rehearsal.</div></div>
         ) : (
           <>
-            <div data-only="narrow" style={{ display: "flex", justifyContent: "center", marginBottom: "var(--s3)" }}>
-              <div className="segmented">
-                {(["pool", "board"] as const).map((item) => <button key={item} className="segmented__opt" data-on={view === item} onClick={() => setView(item)}>{item === "pool" ? "Players" : "Board"}</button>)}
+            <div className="draft-room">
+              <Ticker picks={picks} poolById={byId} myTeamId={myTeamId} teamCount={teamCount} onOpen={setOpenId} />
+              {/* One bar, same as the live room: the pool's own tabs are lifted
+                  up here on a phone rather than stacked under these. */}
+              <div className="draft-tabs draft-only-narrow">
+                <div className="segmented">
+                  {([
+                    { label: "Players", tab: "available" as PoolTab },
+                    { label: "Queue", tab: "queue" as PoolTab },
+                    { label: "Roster", tab: "roster" as PoolTab },
+                  ]).map((item) => (
+                    <button key={item.label} className="segmented__opt"
+                      data-on={view === "pool" && poolTab === item.tab}
+                      onClick={() => { setView("pool"); setPoolTab(item.tab); }}>
+                      {item.label}
+                    </button>
+                  ))}
+                  <button className="segmented__opt" data-on={view === "board"} onClick={() => setView("board")}>Board</button>
+                </div>
               </div>
-            </div>
-            <div className="draft-grid">
-              <div className="draft-pane" data-show={view === "board"}><Board draft={draft} teams={teams} picks={picks} myTeamId={myTeamId} poolById={byId} onOpen={setOpenId} /></div>
-              <div className="draft-pane" data-show={view === "pool"}>
-                <Pool pool={pool} currentPick={currentPick} draftedIds={draftedIds} takenBy={takenBy} queue={queue} myPicks={myPicks} slots={slots} needs={needs} canPick={myTurn} busy={false} onOpen={setOpenId} onDraft={draftPlayer} onQueueChange={setQueueIds} />
+              <div className="draft-grid">
+                <div className="draft-pane" data-show={view === "board"}><Board draft={draft} teams={teams} picks={picks} myTeamId={myTeamId} poolById={byId} onOpen={setOpenId} /></div>
+                <div className="draft-pane" data-show={view === "pool"}>
+                  <Pool pool={pool} currentPick={currentPick} draftedIds={draftedIds} takenBy={takenBy} allPicks={picks} queue={queue} myPicks={myPicks} slots={slots} needs={needs} tab={poolTab} onTabChange={setPoolTab} canPick={myTurn} busy={false} onOpen={setOpenId} onDraft={draftPlayer} onQueueChange={setQueueIds} />
+                </div>
               </div>
             </div>
           </>
         )}
       </main>
-      <style>{`
-        .draft-grid { display: grid; gap: var(--s4); min-height: 0; }
-        .draft-pane { min-height: 0; display: flex; }
-        .draft-pane > * { flex: 1; }
-        @media (max-width: 1099px) {
-          .draft-pane[data-show="false"] { display: none; }
-          .draft-pane > * { max-height: calc(100dvh - 300px); }
-        }
-        @media (min-width: 1100px) {
-          [data-only="narrow"] { display: none !important; }
-          .draft-grid { grid-template-columns: minmax(0, 1.25fr) minmax(440px, 0.9fr); }
-          .draft-pane[data-show="false"] { display: flex; }
-          .draft-pane > * { max-height: calc(100dvh - 250px); }
-        }
-        @media (min-width: 1500px) {
-          .draft-grid { grid-template-columns: minmax(0, 1.45fr) minmax(480px, 0.85fr); }
-        }
-      `}</style>
       {openId && (() => {
         const drafted = draftedIds.has(openId);
         const grade = !drafted ? gradePick(currentPick, marketRankOf(byId.get(openId))) : null;

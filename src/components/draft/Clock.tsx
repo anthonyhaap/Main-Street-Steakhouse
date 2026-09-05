@@ -1,8 +1,9 @@
 "use client";
 
-import { AlertTriangle, Pause, Play, RefreshCw, RotateCcw, Volume2, VolumeX, Zap } from "lucide-react";
+import { useState } from "react";
+import { AlertTriangle, Pause, Play, RefreshCw, RotateCcw, SlidersHorizontal, Volume2, VolumeX, Zap } from "lucide-react";
 import type { Draft, Team } from "@/lib/types";
-import { fmtClock, pickLabel } from "@/lib/draft";
+import { fmtClock, pickLabel, roundForPick } from "@/lib/draft";
 import { crestUrl } from "@/lib/crest";
 import { Seal } from "@/components/ui";
 
@@ -15,6 +16,8 @@ type Props = {
   msLeft: number | null;
   /** Picks until this manager is up, or null if they are out of picks. */
   picksUntilMine?: number | null;
+  /** This manager's next overall pick numbers, soonest first. */
+  myUpcoming?: number[];
   isCommissioner: boolean;
   busy: boolean;
   onStart: () => void;
@@ -26,8 +29,18 @@ type Props = {
   onToggleSound: () => void;
 };
 
+/**
+ * The banner: who's up, how long they have, and where the night stands.
+ *
+ * It used to say all of that on one nowrap line under the team name, which on
+ * a phone meant "1.04 · pick 4 of 180 · next up Mea…" and nothing else. The
+ * same facts are chips now: they wrap onto a second row instead of being cut
+ * off, and the two that decide what you do next — how many picks until you're
+ * up, and which picks you actually own — get the gold.
+ */
 export function Clock(p: Props) {
-  const { draft, onClock, nextUp, myTeamId, teamCount, msLeft, picksUntilMine } = p;
+  const { draft, onClock, nextUp, myTeamId, teamCount, msLeft, picksUntilMine, myUpcoming } = p;
+  const [tools, setTools] = useState(false);
   const mine = !!onClock && onClock.id === myTeamId;
   const total = teamCount * draft.rounds;
   const done = draft.status === "complete" || draft.current_pick > total;
@@ -35,87 +48,107 @@ export function Clock(p: Props) {
 
   const urgent = msLeft !== null && msLeft <= 15000 && msLeft > 0;
   const expired = msLeft !== null && msLeft <= 0;
+  const state = expired ? "expired" : urgent ? "urgent" : "normal";
   const pct = msLeft !== null && draft.pick_seconds
     ? Math.max(0, Math.min(1, msLeft / (draft.pick_seconds * 1000)))
     : 0;
 
+  const made = Math.max(0, Math.min(total, draft.current_pick - 1));
+  const round = Math.min(draft.rounds, roundForPick(draft.current_pick, teamCount));
+  // Your own picks after this one, so "my pick in 7" has somewhere to land:
+  // the numbers themselves, which is what you count the board down to.
+  const laterPicks = (myUpcoming ?? []).filter((n) => n > draft.current_pick).slice(0, 3);
+
   return (
-    <section className="card" data-accent={mine && !done ? "gold" : undefined} data-onclock={myTurnLive}
-      style={{ position: "relative" }}>
-      {/* the clock as a bar, so peripheral vision catches it */}
+    <section className="card clock" data-accent={mine && !done ? "gold" : undefined} data-onclock={myTurnLive}>
       {draft.status === "active" && msLeft !== null && (
-        <div style={{ position: "absolute", inset: "0 0 auto 0", height: 2, background: "var(--rule-soft)" }}>
-          <div style={{
-            height: "100%", width: `${pct * 100}%`,
-            background: expired ? "var(--qb)" : urgent ? "var(--gold-lit)" : "var(--gold-dim)",
-            transition: "width 0.9s linear, background 0.3s var(--ease)",
-          }} />
+        <div className="clock__bar" data-state={state} aria-hidden>
+          <i style={{ width: `${pct * 100}%` }} />
         </div>
       )}
 
-      <div style={{
-        display: "grid", gap: "clamp(var(--s3),2vw,var(--s5))", alignItems: "center",
-        gridTemplateColumns: "1fr auto", padding: "var(--s5)",
-      }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "var(--s3)", minWidth: 0 }}>
+      <div className="clock__grid">
+        <div className="clock__who">
           {onClock && !done && <Seal name={onClock.name} src={crestUrl(onClock.logo_path)} mine={mine} size={40} />}
           <div style={{ minWidth: 0 }}>
             <div className="eyebrow" data-tone={mine && !done ? "gold" : undefined}>
               {done ? "Draft" : mine ? "You're on the clock" : "On the clock"}
             </div>
-            <div className="display" style={{
-              fontSize: "clamp(1.25rem,3.6vw,1.9rem)", marginTop: 4,
-              whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-            }}>
+            <div className="display clock__name">
               {done ? "Complete" : (onClock?.name ?? "—")}
             </div>
+
             {!done && (
-              <div style={{ color: "var(--dim)", fontSize: "var(--t-micro)", marginTop: 4, letterSpacing: "0.06em" }}>
-                <span className="num">{pickLabel(draft.current_pick, teamCount)}</span>
-                {" · "}pick <span className="num">{draft.current_pick}</span> of <span className="num">{total}</span>
-                {nextUp && <> · next up <span style={{ color: "var(--muted)" }}>{nextUp.name}</span></>}
+              <div className="clock__meta">
+                <span className="clock__chip" title={`Round ${round} of ${draft.rounds} · ${made} picks made`}>
+                  <b className="num">{pickLabel(draft.current_pick, teamCount)}</b>
+                  <span className="num">{draft.current_pick}/{total}</span>
+                </span>
+                {nextUp && !mine && (
+                  <span className="clock__chip" title={`${nextUp.name} picks next`}>
+                    next <b>{nextUp.name}</b>
+                  </span>
+                )}
                 {!mine && picksUntilMine != null && picksUntilMine > 0 && (
-                  <> · <span style={{ color: "var(--gold)", fontWeight: 600 }}>
-                    {picksUntilMine === 1 ? "you're up next" : `your pick in ${picksUntilMine}`}
-                  </span></>
+                  <span className="clock__chip" data-tone="gold">
+                    {picksUntilMine === 1
+                      ? "you're up next"
+                      : <>you in <b className="num">{picksUntilMine}</b></>}
+                  </span>
+                )}
+                {laterPicks.length > 0 && (
+                  <span className="clock__chip" data-tone="wine" title="Your remaining picks">
+                    yours <b className="num">{laterPicks.join(" · ")}</b>
+                  </span>
                 )}
               </div>
             )}
           </div>
         </div>
 
-        <div style={{ textAlign: "right" }}>
-          <button className="btn" data-v="ghost" data-size="icon" onClick={p.onToggleSound}
-            title={p.soundMuted ? "Unmute draft sounds" : "Mute draft sounds"}
-            aria-label={p.soundMuted ? "Unmute draft sounds" : "Mute draft sounds"}
-            style={{ marginBottom: 4 }}>
-            {p.soundMuted ? <VolumeX size={14} /> : <Volume2 size={14} />}
-          </button>
+        <div className="clock__right">
+          <div style={{ display: "flex", gap: 2 }}>
+            {p.isCommissioner && (
+              <button className="btn" data-v="ghost" data-size="icon" onClick={() => setTools((t) => !t)}
+                aria-expanded={tools} title={tools ? "Hide commissioner controls" : "Commissioner controls"}
+                aria-label={tools ? "Hide commissioner controls" : "Commissioner controls"}
+                style={tools ? { color: "var(--gold)" } : undefined}>
+                <SlidersHorizontal size={14} />
+              </button>
+            )}
+            <button className="btn" data-v="ghost" data-size="icon" onClick={p.onToggleSound}
+              title={p.soundMuted ? "Unmute draft sounds" : "Mute draft sounds"}
+              aria-label={p.soundMuted ? "Unmute draft sounds" : "Mute draft sounds"}>
+              {p.soundMuted ? <VolumeX size={14} /> : <Volume2 size={14} />}
+            </button>
+          </div>
           {draft.status === "setup" && <div className="eyebrow">Not started</div>}
           {draft.status === "paused" && <div className="eyebrow" data-tone="gold">Paused</div>}
           {draft.status === "active" && msLeft !== null && (
-            <div className="score" style={{
-              fontSize: "clamp(2.2rem,8vw,3.6rem)",
-              color: expired ? "var(--qb)" : urgent ? "var(--gold-lit)" : "var(--cream)",
-              transition: "color 0.3s var(--ease)",
-            }}>
-              {fmtClock(msLeft)}
-            </div>
+            <div className="score clock__time" data-state={state}>{fmtClock(msLeft)}</div>
           )}
           {expired && (
-            <div style={{ display: "flex", gap: 5, justifyContent: "flex-end", alignItems: "center", color: "var(--qb)", fontSize: "var(--t-micro)", marginTop: 3 }}>
+            <div style={{ display: "flex", gap: 5, alignItems: "center", color: "var(--lose)", fontSize: "var(--t-micro)" }}>
               <AlertTriangle size={11} /> autopicking
             </div>
           )}
         </div>
       </div>
 
-      {p.isCommissioner && (
-        <div style={{
-          display: "flex", gap: "var(--s2)", flexWrap: "wrap",
-          padding: "0 var(--s5) var(--s4)", borderTop: "1px solid var(--rule-soft)",
-          paddingTop: "var(--s3)", marginTop: 0,
-        }}>
+      {/* How much night is left, as a rule along the foot of the card. Fifteen
+          rounds is a long sit; "41 of 180" is a number, this is a feeling —
+          and it costs no height, which on a phone is the whole argument. */}
+      {!done && draft.status !== "setup" && (
+        <div className="clock__foot" aria-hidden>
+          <i style={{ width: `${(made / total) * 100}%` }} />
+        </div>
+      )}
+
+      {/* The commissioner's controls are three buttons she needs twice a night
+          and everyone else never — so they fold away rather than standing
+          between the clock and the board on a phone. */}
+      {p.isCommissioner && tools && (
+        <div className="clock__ctl">
           {draft.status === "setup" && (
             <button className="btn" data-v="primary" data-size="sm" disabled={p.busy} onClick={p.onStart}>
               <Zap size={13} /> Start draft

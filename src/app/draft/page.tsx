@@ -12,12 +12,32 @@ import { playPickMade, playQueueSniped, playYourTurn, useSoundMuted } from "@/li
 import { TopBar } from "@/components/Shell";
 import { Clock } from "@/components/draft/Clock";
 import { Board } from "@/components/draft/Board";
-import { Pool } from "@/components/draft/Pool";
+import { Pool, type PoolTab } from "@/components/draft/Pool";
+import { Rosters } from "@/components/draft/Rosters";
+import { Ticker } from "@/components/draft/Ticker";
 import { PlayerSheet } from "@/components/player/PlayerSheet";
 import { SkeletonRows, useToast } from "@/components/ui";
 import { ClipboardList, Star } from "lucide-react";
 
 type State = { draft: Draft; picks: BoardPick[]; teams: Team[]; queueIds: string[] };
+
+/**
+ * One bar for everything a phone can show, in the order you reach for it.
+ *
+ * The room used to stack two segmented strips — Players/Board over
+ * Available/Queue/Roster — which is a hundred pixels of chrome, on the screen
+ * that has the least of it, to say twice that you are looking at players. The
+ * five destinations are five destinations.
+ */
+type View = "pool" | "board" | "teams";
+
+const VIEWS: { key: View; label: string; poolTab?: PoolTab }[] = [
+  { key: "pool", label: "Players", poolTab: "available" },
+  { key: "pool", label: "Queue", poolTab: "queue" },
+  { key: "pool", label: "Roster", poolTab: "roster" },
+  { key: "board", label: "Board" },
+  { key: "teams", label: "Teams" },
+];
 
 export default function DraftPage() {
   const { team, league, isCommissioner, ready } = useSession();
@@ -27,7 +47,10 @@ export default function DraftPage() {
 
   const [pool, setPool] = useState<PoolPlayer[]>([]);
   const [busy, setBusy] = useState(false);
-  const [view, setView] = useState<"board" | "pool">("pool");
+  const [view, setView] = useState<View>("pool");
+  /** Which of the two room views the wide layout's left column is showing. */
+  const [leftView, setLeftView] = useState<"board" | "teams">("board");
+  const [poolTab, setPoolTab] = useState<PoolTab>("available");
   const [lastSeenPick, setLastSeenPick] = useState<number | null>(null);
   /** The player card open over the room, if any. */
   const [openId, setOpenId] = useState<string | null>(null);
@@ -123,11 +146,11 @@ export default function DraftPage() {
   // How far off this manager's next turn is — the number ESPN puts in its
   // banner, and the one that decides whether to open a card or hit Draft.
   const mySlot = team?.draft_slot ?? null;
-  const picksUntilMine = useMemo(() => {
-    if (!data || !mySlot) return null;
-    const next = upcomingPicksFor(mySlot, data.draft.current_pick, data.draft.rounds, teamCount)[0];
-    return next == null ? null : next - data.draft.current_pick;
+  const myUpcoming = useMemo(() => {
+    if (!data || !mySlot) return [];
+    return upcomingPicksFor(mySlot, data.draft.current_pick, data.draft.rounds, teamCount);
   }, [data, mySlot, teamCount]);
+  const picksUntilMine = data && myUpcoming[0] != null ? myUpcoming[0] - data.draft.current_pick : null;
 
   const msLeft =
     data?.draft.status === "active" && data.draft.pick_deadline && synced
@@ -169,7 +192,7 @@ export default function DraftPage() {
     return (
       <>
         <TopBar status={status} />
-        <main className="page" data-width="wide"><div className="card"><SkeletonRows n={8} /></div></main>
+        <main className="page"><div className="card"><SkeletonRows n={8} /></div></main>
       </>
     );
   }
@@ -178,7 +201,7 @@ export default function DraftPage() {
     return (
       <>
         <TopBar status={status} />
-        <main className="page" data-width="narrow">
+        <main className="page">
           <div className="card">
             <div className="empty">
               Your account isn&apos;t linked to a team yet.
@@ -194,77 +217,136 @@ export default function DraftPage() {
   return (
     <>
       <TopBar status={status} />
-      <main className="page" data-width="wide">
-        <section className="card" style={{ marginBottom: "var(--s4)" }}>
-          <div className="card__head" style={{ alignItems: "center", gap: "var(--s4)", flexWrap: "wrap" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "var(--s3)" }}>
-              <span className="icon-box" aria-hidden><ClipboardList size={18} /></span>
-              <div>
-                <div className="eyebrow" style={{ color: "var(--gold)" }}>Practice room</div>
-                <strong>Rehearse before draft night</strong>
-                <p style={{ color: "var(--muted)", margin: "3px 0 0" }}>
-                  Run a private mock with the live player pool. It never changes the league draft or rosters.
-                </p>
+      <main className="page" data-layout="room">
+        <div className="draft-room">
+          <Clock
+            draft={data.draft}
+            onClock={onClock}
+            nextUp={nextUp}
+            myTeamId={team?.id ?? null}
+            teamCount={teamCount}
+            msLeft={msLeft}
+            picksUntilMine={picksUntilMine}
+            myUpcoming={myUpcoming}
+            isCommissioner={isCommissioner}
+            busy={busy}
+            onStart={() => call("ff_start_draft", { p_draft_id: DRAFT_ID }, "Draft started.")}
+            onPause={() => call("ff_pause_draft", { p_draft_id: DRAFT_ID }, "Draft paused.")}
+            onResume={() => call("ff_resume_draft", { p_draft_id: DRAFT_ID }, "Draft resumed.")}
+            onUndo={() => call("ff_undo_last_pick", { p_draft_id: DRAFT_ID }, "Last pick undone.")}
+            onReset={() => {
+              if (window.confirm("Delete every pick and start this draft over from setup? This can't be undone."))
+                void call("ff_reset_draft", { p_draft_id: DRAFT_ID }, "Draft reset.");
+            }}
+            soundMuted={soundMuted}
+            onToggleSound={() => setSoundMuted(!soundMuted)}
+          />
+
+          {/* Before the first pick there's nothing to run, and the mock room is
+              the only thing worth doing on this screen — so it gets the space.
+              Once the draft is live it would be sitting on top of the board,
+              and the ticker takes the room instead. */}
+          {data.draft.status === "setup" ? (
+            <section className="card">
+              <div className="card__head" style={{ alignItems: "center", gap: "var(--s4)", flexWrap: "wrap" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "var(--s3)", minWidth: 0 }}>
+                  <span className="icon-box" aria-hidden><ClipboardList size={18} /></span>
+                  <div style={{ minWidth: 0 }}>
+                    <div className="eyebrow" style={{ color: "var(--gold)" }}>Practice room</div>
+                    <strong>Rehearse before draft night</strong>
+                    <p style={{ color: "var(--muted)", margin: "3px 0 0" }}>
+                      Run a private mock with the live player pool. It never changes the league draft or rosters.
+                    </p>
+                  </div>
+                </div>
+                <Link className="btn" data-v="primary" href="/mock-draft" style={{ marginLeft: "auto" }}>
+                  Start mock draft
+                </Link>
               </div>
-            </div>
-            <Link className="btn" data-v="primary" href="/mock-draft" style={{ marginLeft: "auto" }}>
-              Start mock draft
-            </Link>
-          </div>
-        </section>
-
-        <Clock
-          draft={data.draft}
-          onClock={onClock}
-          nextUp={nextUp}
-          myTeamId={team?.id ?? null}
-          teamCount={teamCount}
-          msLeft={msLeft}
-          picksUntilMine={picksUntilMine}
-          isCommissioner={isCommissioner}
-          busy={busy}
-          onStart={() => call("ff_start_draft", { p_draft_id: DRAFT_ID }, "Draft started.")}
-          onPause={() => call("ff_pause_draft", { p_draft_id: DRAFT_ID }, "Draft paused.")}
-          onResume={() => call("ff_resume_draft", { p_draft_id: DRAFT_ID }, "Draft resumed.")}
-          onUndo={() => call("ff_undo_last_pick", { p_draft_id: DRAFT_ID }, "Last pick undone.")}
-          onReset={() => {
-            if (window.confirm("Delete every pick and start this draft over from setup? This can't be undone."))
-              void call("ff_reset_draft", { p_draft_id: DRAFT_ID }, "Draft reset.");
-          }}
-          soundMuted={soundMuted}
-          onToggleSound={() => setSoundMuted(!soundMuted)}
-        />
-
-        <div data-only="narrow" style={{ display: "flex", justifyContent: "center" }}>
-          <div className="segmented">
-            {(["pool", "board"] as const).map((v) => (
-              <button key={v} className="segmented__opt" data-on={view === v} onClick={() => setView(v)}>
-                {v === "pool" ? "Players" : "Board"}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="draft-grid">
-          <div className="draft-pane" data-show={view === "board"}>
-            <Board draft={data.draft} teams={data.teams} picks={data.picks} myTeamId={team?.id ?? null} poolById={byId} onOpen={setOpenId} />
-          </div>
-          <div className="draft-pane" data-show={view === "pool"}>
-            <Pool
-              pool={pool}
-              currentPick={data.draft.current_pick}
-              draftedIds={draftedIds}
-              takenBy={takenBy}
-              queue={queue}
-              myPicks={myPicks}
-              slots={league?.roster_slots ?? []}
-              needs={needs}
-              canPick={canPick}
-              busy={busy}
+            </section>
+          ) : (
+            <Ticker
+              picks={data.picks}
+              poolById={byId}
+              myTeamId={team?.id ?? null}
+              teamCount={teamCount}
               onOpen={setOpenId}
-              onDraft={(p) => call("ff_pick_for_my_team", { p_draft_id: DRAFT_ID, p_player_id: p.id }, `Drafted ${p.full_name}.`)}
-              onQueueChange={(ids) => team ? call("ff_set_queue", { p_team_id: team.id, p_player_ids: ids }) : undefined}
             />
+          )}
+
+          {/* A phone shows one pane at a time; a desktop shows the pool
+              permanently and switches only the left column. Same state, two
+              controls, so the two layouts never disagree about what's open. */}
+          <div className="draft-tabs draft-only-narrow">
+            <div className="segmented">
+              {VIEWS.map((v) => {
+                const on = v.key === "pool" ? view === "pool" && poolTab === v.poolTab : view === v.key;
+                const count = v.poolTab === "queue" ? queue.filter((p) => !draftedIds.has(p.id)).length
+                  : v.poolTab === "roster" ? myPicks.length : 0;
+                return (
+                  <button key={v.label} className="segmented__opt" data-on={on}
+                    onClick={() => {
+                      setView(v.key);
+                      if (v.key === "pool") setPoolTab(v.poolTab ?? "available");
+                      else setLeftView(v.key as "board" | "teams");
+                    }}>
+                    {v.label}{count ? <i className="pool__scarce num">{count}</i> : null}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div className="draft-tabs draft-only-wide">
+            <div className="segmented">
+              {(["board", "teams"] as const).map((v) => (
+                <button key={v} className="segmented__opt" data-on={leftView === v}
+                  onClick={() => { setLeftView(v); if (view !== "pool") setView(v); }}>
+                  {v === "board" ? "The board" : "Team rosters"}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="draft-grid">
+            {/* On a wide screen the left column carries the board and the team
+                rosters behind one toggle; on a phone all three are tabs. */}
+            <div className="draft-pane" data-show={view !== "pool"}>
+              {leftView === "teams" ? (
+                <Rosters
+                  teams={data.teams}
+                  picks={data.picks}
+                  myTeamId={team?.id ?? null}
+                  slots={league?.roster_slots ?? []}
+                  poolById={byId}
+                  teamCount={teamCount}
+                  rounds={data.draft.rounds}
+                  currentPick={data.draft.current_pick}
+                  onOpen={setOpenId}
+                />
+              ) : (
+                <Board draft={data.draft} teams={data.teams} picks={data.picks} myTeamId={team?.id ?? null} poolById={byId} onOpen={setOpenId} />
+              )}
+            </div>
+            <div className="draft-pane" data-show={view === "pool"}>
+              <Pool
+                pool={pool}
+                currentPick={data.draft.current_pick}
+                draftedIds={draftedIds}
+                takenBy={takenBy}
+                allPicks={data.picks}
+                queue={queue}
+                myPicks={myPicks}
+                slots={league?.roster_slots ?? []}
+                needs={needs}
+                tab={poolTab}
+                onTabChange={setPoolTab}
+                canPick={canPick}
+                busy={busy}
+                onOpen={setOpenId}
+                onDraft={(p) => call("ff_pick_for_my_team", { p_draft_id: DRAFT_ID, p_player_id: p.id }, `Drafted ${p.full_name}.`)}
+                onQueueChange={(ids) => team ? call("ff_set_queue", { p_team_id: team.id, p_player_ids: ids }) : undefined}
+              />
+            </div>
           </div>
         </div>
       </main>
@@ -315,25 +397,6 @@ export default function DraftPage() {
           />
         );
       })()}
-
-      <style>{`
-        .draft-grid { display: grid; gap: var(--s4); min-height: 0; }
-        .draft-pane { min-height: 0; display: flex; }
-        .draft-pane > * { flex: 1; }
-        @media (max-width: 1099px) {
-          .draft-pane[data-show="false"] { display: none; }
-          .draft-pane > * { max-height: calc(100dvh - 300px); }
-        }
-        @media (min-width: 1100px) {
-          [data-only="narrow"] { display: none !important; }
-          .draft-grid { grid-template-columns: minmax(0, 1.25fr) minmax(440px, 0.9fr); }
-          .draft-pane[data-show="false"] { display: flex; }
-          .draft-pane > * { max-height: calc(100dvh - 250px); }
-        }
-        @media (min-width: 1500px) {
-          .draft-grid { grid-template-columns: minmax(0, 1.45fr) minmax(480px, 0.85fr); }
-        }
-      `}</style>
     </>
   );
 }

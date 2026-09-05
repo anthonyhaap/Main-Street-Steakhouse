@@ -132,7 +132,7 @@ export default function TeamPage() {
     return (
       <>
         <TopBar status={status} />
-        <main className="page" data-width="narrow">
+        <main className="page">
           <div className="card">
             {error
               ? <div className="note" data-kind="error">Couldn&apos;t load your team: {error}</div>

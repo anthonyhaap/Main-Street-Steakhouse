@@ -44,7 +44,7 @@ export default function Preview() {
   return (
     <>
       <TopBar status="live" />
-      <main className="page" data-width="narrow">
+      <main className="page">
         <section className="card">
           <div className="card__head">
             <div>

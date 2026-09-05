@@ -247,7 +247,7 @@ export default function TonightPreview() {
           </div>
         </div>
       </div>
-      <main className="page tonight" data-width="narrow">
+      <main className="page tonight">
         <TonightsTable b={b} now={now} onShare={() => alert("Share sheet")} />
         <Carousel b={b} live={phase === "live"} />
         <RoomBoard feed={room(now)} now={now} />

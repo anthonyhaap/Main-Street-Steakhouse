@@ -83,7 +83,7 @@ export default function ChatPage() {
   return (
     <>
       <TopBar status={status} />
-      <main className="page" data-width="mid">
+      <main className="page">
         <header style={{ marginBottom: "var(--s5)" }}>
           <div className="eyebrow" data-tone="gold">League clubhouse</div>
           <h1 className="display" style={{ fontSize: "var(--t-title)", margin: "var(--s2) 0" }}>

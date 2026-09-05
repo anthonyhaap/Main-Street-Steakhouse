@@ -39,7 +39,7 @@ export default function PlayerRoute({ params }: PageProps<"/player/[id]">) {
     return (
       <>
         <TopBar status={status} />
-        <main className="page" data-width="narrow">
+        <main className="page">
           <div className="card">
             <div className="note" data-kind="error">Couldn&apos;t load this player: {error}</div>
           </div>
@@ -52,7 +52,7 @@ export default function PlayerRoute({ params }: PageProps<"/player/[id]">) {
     return (
       <>
         <TopBar status={status} />
-        <main className="page" data-width="mid">
+        <main className="page">
           <div className="card"><SkeletonRows n={8} /></div>
         </main>
       </>

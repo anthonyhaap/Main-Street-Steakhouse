@@ -41,7 +41,7 @@ export default function HistoryPage() {
     <>
       <TopBar status={status} />
       {error && !data ? (
-        <main className="page" data-width="narrow">
+        <main className="page">
           <div className="card"><div className="note" data-kind="error">Couldn&apos;t open the wall: {error}</div></div>
         </main>
       ) : (

@@ -67,7 +67,7 @@ export default function DraftPreviewPage() {
         with the season projection priced under this league&apos;s rules. Click any name
         for the in-room card; it shows the player fixture regardless of who was clicked.
       </div>
-      <main className="page" data-width="narrow">
+      <main className="page">
         <Pool
           pool={POOL}
           currentPick={11}

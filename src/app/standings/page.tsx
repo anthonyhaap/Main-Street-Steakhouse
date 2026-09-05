@@ -28,7 +28,7 @@ export default function StandingsPage() {
   return (
     <>
       <TopBar status={status} />
-      <main className="page" data-width="mid">
+      <main className="page">
         <StandingsBoard outlook={data} myTeamId={team?.id} crestOf={crestOf} />
       </main>
     </>
