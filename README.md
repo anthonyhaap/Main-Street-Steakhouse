@@ -461,6 +461,48 @@ The `/preview` routes are public. They read nothing from the database; every
 one is an invented league rendered through the real components, which is what
 lets `tests/e2e/tonight.spec.ts` assert the card's sentences without a session.
 
+### Trades, counters and the block
+
+The transaction log already knew how to say this. `transaction_items` carries a
+from-team **and** a to-team on every row, which add/drop and waivers only ever
+used one half of; a trade is the case both halves were designed for. So an
+executed trade is one `kind = 'trade'` header with an item per player, and
+`ff_owner_at` needed no changes — the last word about a player is now sometimes
+"he went that way".
+
+What is new is the negotiation, which is not a transaction at all until somebody
+says yes. `trades` is the offer on the table; nothing reaches the log until it
+is accepted, and a declined offer leaves no mark on any roster. A **counter** is
+a new offer that closes the one it answers and links back to it, so a
+negotiation reads as one thread rather than four unrelated rows. The **block**
+is a notice board: players their manager will listen about, so a manager with a
+surplus at running back need not message eleven people to find who needs one.
+
+The deadline is the league's own — `settings.trade_deadline_week` has said 12
+since the league was configured.
+
+**Everything is validated twice**, when the offer is made and again when it is
+accepted. That is not belt and braces: an offer sits on the table for days and a
+roster does not, so what was legal on Sunday can be nonsense by Wednesday. Both
+sides must still own what they are offering, neither man may have kicked off,
+and neither roster may end over the limit — uneven trades are fine, over-full
+ones are not. Accepting also invalidates every other live offer naming a player
+who just moved, with a sentence saying why, rather than leaving the next manager
+to discover it by pressing accept on something that cannot happen.
+
+**A live offer is between the two managers in it.** The league sees it once it
+is settled. That is an RLS claim rather than a function check, so
+`supabase/tests/trades.sql` sets `role authenticated` and real JWT claims and
+asserts a third manager sees neither the offer nor its contents — the one place
+in the suite where the policies themselves are exercised rather than the
+`SECURITY DEFINER` functions in front of them. Every other check in these files
+runs as the database owner, which bypasses RLS entirely.
+
+**Verified by 24 SQL checks and 5 e2e checks** against `/preview/trades`, which
+has an open desk and one after the deadline. The e2e caught a real split: the
+"Make an offer" button lived in the page while the deadline that disables it
+lived in the desk component, so the two could drift. It is one component now.
+
 ### The wire
 
 `/waivers` is the screen the waiver backend was built for. It says when the next
