@@ -26,15 +26,6 @@ create table if not exists public.waiver_runs (
   league_id  uuid not null references public.leagues(id) on delete cascade,
   week       integer not null,
   ran_at     timestamptz not null default now(),
-  -- The transaction log's high-water mark when this run STARTED.
-  --
-  -- Not a timestamp. A run awards a claim and writes its drop inside the same
-  -- database transaction that writes this row, so `now()` is frozen and
-  -- identical for both — and a `dropped_at > ran_at` comparison would exclude
-  -- the player the settlement itself just released, making him a free agent
-  -- instead of putting him on the wire for the next cycle. `transactions.ord`
-  -- is a sequence and cannot tie, so the boundary is taken from it.
-  boundary_ord   bigint  not null default 0,
   claims_seen    integer not null default 0,
   claims_awarded integer not null default 0
 );
@@ -228,23 +219,33 @@ stable
 security definer
 set search_path = public
 as $$
-  with last_run as (
-    select coalesce(max(boundary_ord), 0) as ord
-      from waiver_runs where league_id = p_league_id
-  ),
-  last_move as (
+  with last_move as (
     select distinct on (i.player_id)
-           i.player_id, i.to_team_id, t.created_at, t.ord
+           i.player_id, i.to_team_id, t.created_at
       from transaction_items i
       join transactions t on t.id = i.transaction_id
      where t.league_id = p_league_id
      order by i.player_id, t.week desc, t.ord desc, i.seq desc
+  ),
+  dropped as (
+    select m.player_id, m.created_at as dropped_at,
+           ff_next_waiver_run(p_league_id, m.created_at) as clears_at
+      from last_move m
+     where m.to_team_id is null
   )
-  select m.player_id, m.created_at,
-         ff_next_waiver_run(p_league_id, m.created_at)
-    from last_move m, last_run r
-   where m.to_team_id is null
-     and m.ord > r.ord
+  select d.player_id, d.dropped_at, d.clears_at
+    from dropped d
+   -- He is on the wire until a settlement happens at or after the time this
+   -- screen told everybody he would clear. Not "since the last run": a cron
+   -- that fires at 08:05 for an 08:00 settlement would otherwise sweep up a
+   -- player dropped at 08:02, three minutes after he was released and a week
+   -- before the clearing time the board was advertising for him. And a player
+   -- released BY a settlement has a clearing time next week, so that same run
+   -- cannot consume him either — which is the case a timestamp comparison
+   -- against `ran_at` got wrong in the other direction.
+   where not exists (
+     select 1 from waiver_runs r
+      where r.league_id = p_league_id and r.ran_at >= d.clears_at)
 $$;
 
 comment on function public.ff_on_waivers(uuid) is
@@ -400,7 +401,6 @@ declare
   v_seen   integer := 0;
   v_won    integer := 0;
   v_run    uuid;
-  v_boundary bigint;
   v_awards jsonb := '[]'::jsonb;
 begin
   -- The same key ff_add_drop takes, so a manager cannot sign a player out from
@@ -425,8 +425,6 @@ begin
   select count(*) into v_seen from waiver_claims
    where league_id = p_league_id and status = 'pending';
 
-  -- Taken before a single award, so the drops this run makes fall AFTER it.
-  select coalesce(max(ord), 0) into v_boundary from transactions where league_id = p_league_id;
 
   -- `on commit drop` fires at COMMIT, not when this function returns, and
   -- ff_process_waivers calls this once per league inside one transaction — so
@@ -435,8 +433,18 @@ begin
   if to_regclass('pg_temp._claimable') is not null then
     execute 'drop table _claimable';
   end if;
+  -- Only the men whose advertised clearing time has arrived. A wire the board
+  -- says clears next Wednesday must not be settled today because the cron
+  -- happened to run.
   create temp table _claimable on commit drop as
-    select w.player_id from ff_on_waivers(p_league_id) w;
+    select w.player_id from ff_on_waivers(p_league_id) w where w.clears_at <= now();
+
+  -- The same set, kept whole. `_claimable` shrinks as players are awarded, and
+  -- the closing "everyone else lost" below must only touch claims that were
+  -- actually in this settlement — a claim on a man who does not clear until
+  -- next Wednesday has not lost anything yet and stays pending.
+  if to_regclass('pg_temp._due') is not null then execute 'drop table _due'; end if;
+  create temp table _due on commit drop as select player_id from _claimable;
 
   loop
     -- Best remaining claim, by the league's order first and the manager's second.
@@ -462,6 +470,27 @@ begin
          where id = v_claim.id;
         continue;
       end if;
+    end if;
+
+    -- Kickoff, re-checked here and not only when the claim was filed. A
+    -- settlement delayed past a Thursday game would otherwise hand somebody a
+    -- player whose points are already on the board, or release a starter who
+    -- is mid-game — the same rule ff_add_drop applies, for the same reason.
+    if (select ff_lock_time(v_claim.add_player_id, v_week)) <= now() then
+      update waiver_claims set status = 'invalid', processed_at = now(),
+             priority_at_run = v_claim.waiver_priority,
+             outcome = 'his game had kicked off by the time waivers ran'
+       where id = v_claim.id;
+      delete from _claimable where player_id = v_claim.add_player_id;
+      continue;
+    end if;
+    if v_claim.drop_player_id is not null
+       and (select ff_lock_time(v_claim.drop_player_id, v_week)) <= now() then
+      update waiver_claims set status = 'invalid', processed_at = now(),
+             priority_at_run = v_claim.waiver_priority,
+             outcome = 'the player named to make way had already kicked off'
+       where id = v_claim.id;
+      continue;
     end if;
 
     select count(*) into v_size from ff_owner_at(p_league_id, v_week) o
@@ -513,15 +542,18 @@ begin
     v_claim := null;
   end loop;
 
-  -- Everyone else lost to somebody. Say so rather than leaving it pending.
+  -- Everyone else who was in this settlement lost to somebody. Say so rather
+  -- than leaving it pending — but only for players who were actually due.
   update waiver_claims set status = 'lost', processed_at = now(),
          outcome = 'another team had the higher claim'
-   where league_id = p_league_id and status = 'pending';
+   where league_id = p_league_id and status = 'pending'
+     and add_player_id in (select player_id from _due);
 
   drop table _claimable;
+  drop table _due;
 
-  insert into waiver_runs (league_id, week, boundary_ord, claims_seen, claims_awarded)
-  values (p_league_id, v_week, v_boundary, v_seen, v_won) returning id into v_run;
+  insert into waiver_runs (league_id, week, claims_seen, claims_awarded)
+  values (p_league_id, v_week, v_seen, v_won) returning id into v_run;
 
   if v_seen > 0 then
     insert into activity_events (league_id, event_type, headline, detail, source_type, source_id)
@@ -831,3 +863,14 @@ begin
     'roster_limit', v_limit
   );
 end $$;
+
+-- ------------------------------------------------------------- the wire, live --
+-- useLive subscribes to these, and a subscription to an unpublished table is a
+-- 60-second poll wearing a costume. The existing live features register the
+-- same way (20260826022547, 20260827025419).
+do $$ begin alter publication supabase_realtime add table public.waiver_claims;
+  exception when duplicate_object then null; end $$;
+do $$ begin alter publication supabase_realtime add table public.waiver_runs;
+  exception when duplicate_object then null; end $$;
+do $$ begin alter publication supabase_realtime add table public.transactions;
+  exception when duplicate_object then null; end $$;

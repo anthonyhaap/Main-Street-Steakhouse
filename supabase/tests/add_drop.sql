@@ -279,6 +279,10 @@ begin
   -- does on a Wednesday, and it leaves the property this check is actually about
   -- intact — that a player dropped earlier CAN be re-acquired, which is the case
   -- a naive "has he ever been dropped" rule gets wrong.
+  -- The wire only clears men whose advertised clearing time has arrived, so
+  -- age the drop before settling it — which is what a week passing does.
+  update transactions set created_at = now() - interval '8 days'
+   where league_id = v_league;
   perform ff_run_waivers(v_league, v_week);
 
   -- With room, a bare add is fine.

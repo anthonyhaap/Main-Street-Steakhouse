@@ -148,6 +148,13 @@ begin
   v_checks := v_checks + 1;
 
   -- ---------------------------------------------------------- the settling --
+  -- Age the drops so their advertised clearing time has arrived. A player
+  -- dropped a moment ago is NOT claimable at the next cron tick — that is the
+  -- late-run rule below — so a settlement test has to put the wire in the past
+  -- rather than pretend Wednesday is whenever the test runs.
+  update transactions set created_at = now() - interval '8 days'
+   where league_id = v_league;
+
   v_j := ff_run_waivers(v_league, v_week);
   if (v_j->>'claims_awarded')::int <> 2 then
     raise exception 'expected 2 awards, got %  (%)', v_j->>'claims_awarded', v_j;
@@ -193,26 +200,40 @@ begin
   v_checks := v_checks + 1;
 
   -- ------------------------------------------- a settlement's own drop stays --
-  -- A won claim that releases somebody writes that drop inside the same
-  -- database transaction as the run row, so now() is identical for both. A
-  -- timestamp comparison excluded him and handed him straight to free agency;
-  -- the boundary is a transaction sequence for exactly this reason.
-  declare v_p3 uuid; v_p4 uuid;
+  -- On a league of its own. The checks above have already recorded runs at
+  -- "now", and a drop aged into the past would count as settled by them — so
+  -- reusing that league would test the fixture rather than the rule.
+  declare
+    v_l3 uuid; v_d3 uuid; v_m uuid; v_n2 uuid; v_pa uuid; v_pb uuid;
   begin
-    -- From what C still owns, not from its draft picks: it has already dropped
-    -- two, and those pick rows are still there.
-    select o.player_id into v_p3 from ff_owner_at(v_league, v_week) o
-     where o.team_id = v_c limit 1;
-    perform ff_add_drop(v_c, null, v_p3, v_week);        -- onto the wire
-    select o.player_id into v_p4 from ff_owner_at(v_league, v_week) o
-     where o.team_id = v_a limit 1;
-    perform ff_claim_waiver(v_a, v_p3, v_p4, 1);         -- claim, releasing v_p4
-    perform ff_run_waivers(v_league, v_week);
+    insert into leagues (name, season, team_count, roster_slots, settings)
+    values ('Own Drop', 2026, 2, '["QB","BN","BN"]'::jsonb,
+            '{"waiver_run_day":"wednesday"}'::jsonb) returning id into v_l3;
+    insert into teams (league_id, name, draft_slot) values (v_l3,'M',1) returning id into v_m;
+    insert into teams (league_id, name, draft_slot) values (v_l3,'N',2) returning id into v_n2;
+    insert into drafts (league_id, rounds, status) values (v_l3, 2, 'complete') returning id into v_d3;
 
-    if (select team_id from ff_owner_at(v_league, v_week) where player_id = v_p3) <> v_a then
+    insert into players (full_name, position, nfl_team, status, sleeper_id)
+    values ('Own A','RB','AAA','ACT','otest-1') returning id into v_pa;
+    insert into players (full_name, position, nfl_team, status, sleeper_id)
+    values ('Own B','WR','AAA','ACT','otest-2') returning id into v_pb;
+    insert into draft_picks (draft_id, pick_number, round, team_id, player_id) values
+      (v_d3, 1, 1, v_n2, v_pa),
+      (v_d3, 2, 1, v_m,  v_pb);
+
+    perform ff_add_drop(v_n2, null, v_pa, v_week);   -- N puts A on the wire
+    perform ff_claim_waiver(v_m, v_pa, v_pb, 1);     -- M claims A, releasing B
+
+    -- Age the drop so it is due. The release the run itself makes is written
+    -- afterwards and keeps its own clearing time next week, which is what this
+    -- check is about.
+    update transactions set created_at = now() - interval '8 days' where league_id = v_l3;
+    perform ff_run_waivers(v_l3, v_week);
+
+    if (select team_id from ff_owner_at(v_l3, v_week) where player_id = v_pa) <> v_m then
       raise exception 'the claim releasing a player did not land';
     end if;
-    if not exists (select 1 from ff_on_waivers(v_league) w where w.player_id = v_p4) then
+    if not exists (select 1 from ff_on_waivers(v_l3) w where w.player_id = v_pb) then
       raise exception 'the player released BY the settlement went straight to free agency '
                       'instead of onto the wire for the next cycle';
     end if;
@@ -257,6 +278,102 @@ begin
   end if;
   perform set_config('request.jwt.claims', '', true);
   v_checks := v_checks + 1;
+
+  -- ------------------------------------------ a started player is not awarded --
+  -- On its own league, for the same reason as the check above: aging a drop
+  -- into the past in a league that already has runs recorded at "now" makes
+  -- those runs count as having settled it, and the claim never competes at all.
+  declare
+    v_l4 uuid; v_d4 uuid; v_p uuid; v_q uuid; v_kick uuid; v_cl uuid;
+  begin
+    insert into nfl_teams (id, name, espn_id) values ('ZZZ','Zed','ZZZ')
+      on conflict (id) do nothing;
+    -- Future kickoff: dropping and claiming a player whose game has begun is
+    -- already refused, and that is the rule this check leans on rather than the
+    -- one it is testing. The game moves into the past afterwards, which is what
+    -- a settlement delayed past a Thursday night actually meets.
+    insert into nfl_games (espn_event_id, season, season_type, week, home_team, away_team, kickoff_at)
+    values ('w-late', 2026, 2, v_week, 'ZZZ', 'ZZZ', now() + interval '2 days');
+
+    insert into leagues (name, season, team_count, roster_slots, settings)
+    values ('Late Kick League', 2026, 2, '["RB","BN","BN"]'::jsonb,
+            '{"waiver_run_day":"wednesday"}'::jsonb) returning id into v_l4;
+    insert into teams (league_id, name, draft_slot) values (v_l4,'P',1) returning id into v_p;
+    insert into teams (league_id, name, draft_slot) values (v_l4,'Q',2) returning id into v_q;
+    insert into drafts (league_id, rounds, status) values (v_l4, 2, 'complete') returning id into v_d4;
+
+    insert into players (full_name, position, nfl_team, status, sleeper_id)
+    values ('Late Kick', 'RB', 'ZZZ', 'ACT', 'wtest-late') returning id into v_kick;
+    insert into draft_picks (draft_id, pick_number, round, team_id, player_id)
+    values (v_d4, 1, 1, v_p, v_kick);
+
+    perform ff_add_drop(v_p, null, v_kick, v_week);
+    perform ff_claim_waiver(v_q, v_kick, null, 1);
+
+    update nfl_games set kickoff_at = now() - interval '1 hour' where espn_event_id = 'w-late';
+    update transactions set created_at = now() - interval '8 days' where league_id = v_l4;
+
+    perform ff_run_waivers(v_l4, v_week);
+
+    select id into v_cl from waiver_claims where add_player_id = v_kick;
+    if (select status from waiver_claims where id = v_cl) <> 'invalid' then
+      raise exception 'a claim on a player whose game had kicked off came back as %',
+        (select status from waiver_claims where id = v_cl);
+    end if;
+    if (select team_id from ff_owner_at(v_l4, v_week) where player_id = v_kick) is not null then
+      raise exception 'a player whose game had kicked off was handed to somebody';
+    end if;
+  end;
+  v_checks := v_checks + 2;
+
+  -- --------------------------------------- a late run does not sweep the wire --
+  -- The cron fires minutes after the settlement hour. A player dropped in that
+  -- gap is advertised as clearing NEXT week, so this run must neither award him
+  -- nor decide the claim on him — he has not been on the wire for a settlement
+  -- yet, and a blanket "everyone else lost" that reaches him is deciding a
+  -- contest he was never entered in.
+  --
+  -- Its own league: aging is not involved here, but the runs recorded above
+  -- would otherwise interact with the claim counting below.
+  declare
+    v_l5 uuid; v_d5 uuid; v_r uuid; v_s uuid; v_lp uuid; v_lq uuid; v_lc uuid;
+  begin
+    insert into leagues (name, season, team_count, roster_slots, settings)
+    values ('Late Cron', 2026, 2, '["RB","BN","BN"]'::jsonb,
+            '{"waiver_run_day":"wednesday"}'::jsonb) returning id into v_l5;
+    insert into teams (league_id, name, draft_slot) values (v_l5,'R',1) returning id into v_r;
+    insert into teams (league_id, name, draft_slot) values (v_l5,'S',2) returning id into v_s;
+    insert into drafts (league_id, rounds, status) values (v_l5, 2, 'complete') returning id into v_d5;
+
+    insert into players (full_name, position, nfl_team, status, sleeper_id)
+    values ('Late One','RB','AAA','ACT','ltest-1') returning id into v_lp;
+    insert into players (full_name, position, nfl_team, status, sleeper_id)
+    values ('Late Two','WR','AAA','ACT','ltest-2') returning id into v_lq;
+    insert into draft_picks (draft_id, pick_number, round, team_id, player_id) values
+      (v_d5, 1, 1, v_r, v_lp), (v_d5, 2, 1, v_s, v_lq);
+
+    perform ff_add_drop(v_r, null, v_lp, v_week);     -- dropped just now
+    if (select clears_at from ff_on_waivers(v_l5) where player_id = v_lp) <= now() then
+      raise exception 'a just-dropped player is advertised as already clear';
+    end if;
+
+    perform ff_claim_waiver(v_s, v_lp, null, 1);
+    select id into v_lc from waiver_claims where add_player_id = v_lp;
+
+    perform ff_run_waivers(v_l5, v_week);            -- the cron, minutes late
+
+    if not exists (select 1 from ff_on_waivers(v_l5) w where w.player_id = v_lp) then
+      raise exception 'a run swept up a player whose advertised clearing time had not arrived';
+    end if;
+    if (select team_id from ff_owner_at(v_l5, v_week) where player_id = v_lp) is not null then
+      raise exception 'a player was awarded a week before his advertised clearing time';
+    end if;
+    if (select status from waiver_claims where id = v_lc) <> 'pending' then
+      raise exception 'a claim on a not-yet-clear player was decided as % by a run that could not have settled him',
+        (select status from waiver_claims where id = v_lc);
+    end if;
+  end;
+  v_checks := v_checks + 3;
 
   -- ------------------------------------------- an unordered league settles right --
   -- Nothing calls the commissioner's seeder automatically, so a league that has
