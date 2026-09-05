@@ -2970,3 +2970,482 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
   font-family: var(--serif);
   line-height: 1.65;
 }
+
+/* ============================================================================
+   THE DRAFT ROOM — a screen, not a document
+   ----------------------------------------------------------------------------
+   Every other page in this app is a document: it flows, and the phone scrolls
+   it. The draft room can't be. A pick lasts ninety seconds and three things
+   have to stay on screen for all of it — who's on the clock, how long is left,
+   and the list you pick from. So the room sizes itself to the viewport once,
+   the page never scrolls, and only the lists inside it do. That is also what
+   kills the old double scroll, where the pool's own scrollbar sat inside a
+   page that was itself taller than the phone and the last row hid behind the
+   tab bar.
+
+   The frame is the viewport minus the chrome the shell already owns: the 68px
+   top bar and the tab bar (--bottom-nav, which the shell reserves as its own
+   padding).
+   ========================================================================== */
+
+/* The page stops being a document and becomes a frame: it is exactly as tall
+   as the space the shell leaves between the top bar and the tab bar, and the
+   room inside it takes whatever is left over after any header above it. */
+.page[data-layout="room"] {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
+  /* `.page` is normally flex: 1 with a zero basis, which makes a flex item
+     size to its content and quietly ignores `height`. The frame has to opt out
+     of growing before it can be given one. */
+  flex: 0 0 auto;
+  height: calc(100dvh - 68px - var(--bottom-nav));
+}
+
+.draft-room {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  flex: 1;
+  min-height: 0;
+}
+
+/* A laptop in a short window gets a usable list rather than a sliver: below
+   this the room stops shrinking and the page is allowed to scroll again. */
+@media (min-height: 620px) {
+  .draft-room { min-height: 460px; }
+}
+
+
+.draft-grid {
+  display: grid;
+  gap: var(--s3);
+  flex: 1;
+  min-height: 0;
+}
+.draft-pane { display: flex; min-height: 0; min-width: 0; }
+.draft-pane > * { flex: 1; min-height: 0; }
+
+@media (max-width: 1099px) {
+  .draft-pane[data-show="false"] { display: none; }
+  /* The room's own bar is already showing these three. */
+  .pool__tabs[data-lifted="true"] { display: none; }
+}
+.draft-only-wide { display: none !important; }
+
+@media (min-width: 1100px) {
+  .draft-only-narrow { display: none !important; }
+  .draft-only-wide { display: flex !important; }
+  .draft-grid { grid-template-columns: minmax(0, 1.3fr) minmax(420px, 0.9fr); gap: var(--s4); }
+  .draft-pane[data-show="false"] { display: flex; }
+  /* The wide toggle steers only the left column, so it sits over it rather
+     than spanning a row the pool half doesn't answer to. */
+  .draft-tabs.draft-only-wide { justify-content: flex-start; }
+  .draft-tabs.draft-only-wide .segmented { width: auto; }
+}
+@media (min-width: 1500px) {
+  .draft-grid { grid-template-columns: minmax(0, 1.5fr) minmax(460px, 0.85fr); }
+}
+
+/* A thumb at a tailgate holding a phone in one hand. The room's own controls
+   get the 44px the tab bar already takes for granted; the rest of the app is
+   read sitting down and keeps its tighter sizes. */
+@media (pointer: coarse) {
+  .draft-room .btn[data-size="sm"]   { min-height: 40px; padding: 8px 15px; }
+  .draft-room .btn[data-size="icon"] { width: 42px; height: 42px; min-height: 42px; }
+  .draft-room .segmented__opt        { padding: 10px 15px; }
+}
+
+/* --- the tab strip ------------------------------------------------------- */
+
+.draft-tabs {
+  display: flex;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.draft-tabs .segmented { width: 100%; justify-content: space-between; }
+.draft-tabs .segmented__opt { flex: 1; }
+
+/* --- the clock ----------------------------------------------------------- */
+
+.clock { position: relative; flex-shrink: 0; }
+
+/* The pick clock as a bar across the top of the card, so peripheral vision
+   catches it while your eyes are on a name three rows down. */
+.clock__bar {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: var(--rule-soft);
+}
+.clock__bar i {
+  display: block;
+  height: 100%;
+  background: var(--gold-dim);
+  transition: width 0.9s linear, background 0.3s var(--ease);
+}
+.clock__bar[data-state="urgent"] i { background: var(--gold-lit); }
+.clock__bar[data-state="expired"] i { background: var(--lose); }
+
+.clock__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--s3);
+  padding: var(--s3) var(--s5);
+}
+.clock__who { display: flex; align-items: center; gap: var(--s3); min-width: 0; }
+.clock__name {
+  font-size: clamp(1.15rem, 4.6vw, 1.9rem);
+  margin-top: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.clock__time {
+  font-size: clamp(1.9rem, 8.5vw, 3rem);
+  line-height: 1;
+  color: var(--cream);
+  transition: color 0.3s var(--ease);
+}
+.clock__time[data-state="urgent"] { color: var(--gold); }
+.clock__time[data-state="expired"] { color: var(--lose); }
+.clock__right { display: grid; justify-items: end; gap: 4px; }
+
+/* Everything the banner used to cram onto one ellipsised line: the pick, the
+   round, who's next, and how far off you are. As chips they wrap instead of
+   truncating, which is the whole difference on a 375px phone. */
+.clock__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px 8px;
+  margin-top: 6px;
+}
+.clock__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--rule);
+  background: var(--ink-2);
+  font: 700 var(--t-micro)/1.3 var(--sans);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.clock__chip b { font-weight: 700; color: var(--cream); }
+.clock__chip[data-tone="gold"] {
+  border-color: #c99c3f59;
+  background: var(--gold-haze);
+  color: var(--gold);
+}
+.clock__chip[data-tone="gold"] b { color: var(--gold); }
+.clock__chip[data-tone="wine"] { border-color: var(--wine-hair); background: var(--wine-wash); color: var(--wine); }
+.clock__chip[data-tone="wine"] b { color: var(--wine); }
+
+/* How much draft is left, as a rule along the foot of the card: a whole row of
+   height given back to the list, which on a phone is the entire argument. */
+.clock__foot {
+  height: 3px;
+  background: var(--rule-soft);
+}
+.clock__foot i { display: block; height: 100%; background: var(--gold-lit); transition: width 0.4s var(--ease); }
+
+.clock__ctl {
+  display: flex;
+  gap: var(--s2);
+  align-items: center;
+  padding: var(--s3) var(--s5);
+  border-top: 1px solid var(--rule-soft);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.clock__ctl::-webkit-scrollbar { display: none; }
+.clock__ctl .btn { flex-shrink: 0; }
+
+@media (max-width: 640px) {
+  .clock__grid { padding: var(--s3) var(--s4); gap: var(--s2); }
+  .clock__ctl { padding: var(--s2) var(--s4); }
+  .clock__name { margin-top: 1px; }
+}
+
+/* --- the ticker: what the room just did ---------------------------------- */
+
+.tick {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  flex-shrink: 0;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+}
+.tick::-webkit-scrollbar { display: none; }
+
+.tick__item {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 11px 4px 4px;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: var(--ink-1);
+  cursor: pointer;
+  scroll-snap-align: start;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  transition: border-color 0.16s var(--ease), background 0.16s var(--ease);
+}
+.tick__item:hover { border-color: var(--rule-hard); background: var(--ink-2); }
+.tick__item[data-mine="true"] { border-color: #c99c3f66; background: var(--gold-haze); }
+.tick__text { display: grid; gap: 2px; min-width: 0; }
+.tick__name {
+  font-size: var(--t-small);
+  font-weight: 600;
+  line-height: 1.15;
+  white-space: nowrap;
+  max-width: 148px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tick__sub {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font: 700 9px/1 var(--sans);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+.tick__sub b { color: var(--muted); font-weight: 700; }
+.tick__by {
+  max-width: 88px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+}
+.tick__dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.tick__empty { padding: var(--s2) var(--s3); color: var(--faint); font-size: var(--t-small); font-style: italic; }
+
+/* --- the board ----------------------------------------------------------- */
+
+.board__grid { display: grid; gap: 4px; }
+.board__row {
+  display: grid;
+  grid-template-columns: 26px repeat(var(--board-cols), minmax(0, 1fr));
+  gap: 3px;
+}
+.board__head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--ink-1);
+  padding-bottom: 3px;
+}
+.board__team {
+  padding: 5px 2px;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  letter-spacing: 0.08em;
+  color: var(--dim);
+}
+.board__team[data-mine="true"] { color: var(--gold); }
+
+.board__cell {
+  position: relative;
+  min-height: 52px;
+  padding: 6px 7px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--ink-2);
+  border: 1px solid transparent;
+  transition: background 0.2s var(--ease), border-color 0.2s var(--ease);
+}
+.board__cell[data-filled="true"] { background: #ffffff; box-shadow: var(--shadow-1); }
+.board__cell[data-mine="true"] { border-color: #c99c3f4d; }
+.board__cell[data-current="true"] {
+  background: var(--gold-wash);
+  border-color: var(--gold);
+  animation: onclock-breathe 2.4s ease-in-out infinite;
+}
+.board__cell[role="button"] { cursor: pointer; }
+.board__cell[role="button"]:hover { background: #fffdf7; border-color: var(--rule-hard); }
+
+.board__player { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.board__pname {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.board__pmeta {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-top: 4px;
+  font-size: 10px;
+  color: var(--dim);
+}
+.board__grade {
+  position: absolute;
+  top: 4px; right: 4px;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+}
+.board__empty { font-size: 10px; color: var(--faint); }
+.board__cell[data-current="true"] .board__empty { color: var(--gold); font-weight: 700; }
+
+/* On a phone the grid is a horizontal scroll either way; the question is how
+   many teams fit before you swipe. 96px keeps a first name and a position
+   legible and puts three and a half columns on a 375px screen, against the
+   128px that fit two and a half. */
+.board__scroll { padding: var(--s3); min-height: 0; }
+.board__inner { min-width: calc(26px + var(--board-cols) * 96px); }
+@media (min-width: 700px)  { .board__inner { min-width: calc(26px + var(--board-cols) * 112px); } }
+@media (min-width: 1100px) { .board__inner { min-width: calc(26px + var(--board-cols) * 124px); } }
+
+/* --- every team's roster ------------------------------------------------- */
+
+.rost__pick {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  overflow-x: auto;
+  padding: var(--s3) var(--s4);
+  border-bottom: 1px solid var(--rule);
+  scrollbar-width: none;
+  flex-shrink: 0;
+}
+.rost__pick::-webkit-scrollbar { display: none; }
+.rost__team {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 5px 14px 5px 5px;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: var(--ink-1);
+  color: var(--muted);
+  font: 700 var(--t-micro)/1 var(--sans);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.16s var(--ease), background 0.16s var(--ease), color 0.16s var(--ease);
+}
+.rost__team:hover { border-color: var(--rule-hard); color: var(--cream); }
+.rost__team[data-on="true"] { border-color: var(--gold-lit); background: var(--gold-haze); color: var(--wine); }
+.rost__team[data-onclock="true"] { box-shadow: inset 0 0 0 1px var(--gold-lit); }
+.rost__slot { min-width: 46px; }
+.rost__foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2) var(--s3);
+  align-items: center;
+  padding: var(--s3) var(--s4);
+  border-top: 1px solid var(--rule);
+  background: var(--ink-2);
+}
+
+/* --- the pool ------------------------------------------------------------ */
+
+/* The filters are the room's steering wheel, and on a phone they were the
+   first thing to scroll away. They stay. */
+.pool__filters {
+  padding: var(--s3) var(--s4);
+  border-bottom: 1px solid var(--rule);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--s2);
+  min-width: 0;
+  flex-shrink: 0;
+}
+/* Positions, "drafted" and the sort order used to wrap onto two rows on a
+   phone, which cost a player row for controls that fit on one if the position
+   pills are allowed to scroll instead of the row to grow. */
+.pool__ctl { display: flex; gap: var(--s2); align-items: center; flex-wrap: nowrap; min-width: 0; }
+.pool__ctl > .scroll { flex: 1 1 auto; min-width: 0; }
+.pool__ctl > .btn { flex: 0 0 auto; }
+.pool__sort { letter-spacing: 0.08em; }
+
+/* The count rides beside the label rather than under it — same fact, no
+   second line of height across the whole filter row. */
+.pool__scarce {
+  margin-left: 4px;
+  font: 700 8px/1 var(--sans);
+  letter-spacing: 0.04em;
+  opacity: 0.7;
+  vertical-align: 2px;
+}
+.segmented__opt[data-on="true"] .pool__scarce { opacity: 0.9; }
+
+/* What the room has been taking. Reads as a sentence, wraps as chips. */
+.pool__run {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  font: 700 var(--t-micro)/1.4 var(--sans);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+.pool__run .pos { min-width: 0; height: 19px; padding: 0 7px; font-size: 9px; }
+.pool__run b { color: var(--muted); }
+
+/* A pool row on a phone is a name, a projection and two controls in 366px.
+   Letting the sub line wrap turned every row into four — team, bye, ADP and
+   the grade each on their own line, three players to a screen. It truncates
+   instead: the card behind the name carries all of it anyway. */
+@media (max-width: 860px) {
+  .pool__row .pbadge__sub { flex-wrap: nowrap; overflow: hidden; }
+  .pool__row .pbadge__sub > * { flex-shrink: 0; }
+}
+
+.pool__posinline { display: none; }
+
+@media (max-width: 640px) {
+  .pool__filters { padding: var(--s2) var(--s3); gap: var(--s2); }
+  .pool__row { gap: 5px; }
+  .pool__row .pbadge { gap: var(--s2); }
+  .draft-room .pool__row .btn[data-size="sm"] { padding: 8px 10px; }
+  .draft-room .pool__row .btn[data-size="icon"] { width: 36px; height: 36px; min-height: 36px; }
+  /* The pill in front of the name is the widest thing on the row that the
+     sub line can say instead. */
+  .pool__row > .pos { display: none; }
+  .pool__posinline { display: inline; }
+  .pool__posrank { display: none; }
+  .pool__proj { min-width: 36px; }
+  /* Every row the chrome gives back is a player you can see without scrolling
+     while a clock runs. */
+  .draft-room .card__head .segmented__opt { padding: 8px 12px; }
+  .draft-room .rows .row { padding-block: 9px; }
+  /* The Available/Queue/Roster switch is a control, not a masthead. */
+  .draft-room .card__head { padding: var(--s2) var(--s3); }
+  .draft-room .pool__ctl { gap: var(--s2); }
+  .rost__pick { padding: var(--s2) var(--s3); }
+}
+
+/* A short screen — an SE, or a laptop with the window half up — can't afford
+   the readouts that are nice to have. The clock, the list and the buttons
+   stay; the rest gives way rather than pushing the list off the screen. */
+@media (max-height: 700px) {
+  .pool__run { display: none; }
+  .clock__name { font-size: 1.05rem; }
+  .clock__time { font-size: 2.1rem; }
+  .tick__item { padding: 3px 9px 3px 3px; }
+}

@@ -1,12 +1,25 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { NflImage } from "@/components/nfl";
 import { headshot, teamColor } from "@/lib/nfl/assets";
 import type { BoardPick, Draft, PoolPlayer, Team } from "@/lib/types";
-import { gradePick, marketRankOf, snakeSlot } from "@/lib/draft";
+import { gradePick, marketRankOf, roundForPick, snakeSlot } from "@/lib/draft";
 
 const GRADE_COLOR: Record<string, string> = {
   ok: "var(--win)", warn: "var(--warn)", danger: "var(--lose)", neutral: "var(--dim)",
+};
+
+/**
+ * A board cell is one twelfth of a phone's width. "Ja'Marr Chase" truncates to
+ * "Ja'Marr C…" there and tells you nothing; the surname alone fits and is what
+ * a draft board has always printed. A defense keeps its full name — "Ravens
+ * D/ST" is the name.
+ */
+const shortName = (name: string, position: string) => {
+  if (position === "DST") return name;
+  const parts = name.split(" ");
+  return parts.length > 1 ? parts.slice(1).join(" ") : name;
 };
 
 type Props = {
@@ -24,6 +37,16 @@ export function Board({ draft, teams, picks, myTeamId, poolById, onOpen }: Props
   const teamCount = teams.length || 12;
   const byPick = new Map(picks.map((p) => [p.pick_number, p]));
   const rounds = Array.from({ length: draft.rounds }, (_, i) => i + 1);
+  const round = roundForPick(draft.current_pick, teamCount);
+
+  // Fifteen rounds is a long grid, and by round six the live pick is below the
+  // fold with no way to know it. Follow the clock down the board instead —
+  // wherever you have scrolled to, a new pick brings the room back with it.
+  const scroller = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const row = scroller.current?.querySelector<HTMLElement>('[data-round="' + round + '"]');
+    row?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [round]);
 
   return (
     <div className="card" style={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
@@ -45,31 +68,25 @@ export function Board({ draft, teams, picks, myTeamId, poolById, onOpen }: Props
         </div>
       </div>
 
-      <div className="scroll" style={{ padding: "var(--s3)", minHeight: 0 }}>
-        <div style={{ minWidth: teamCount * 128, display: "grid", gap: 4 }}>
+      <div className="scroll board__scroll" ref={scroller}>
+        <div className="board__inner board__grid" style={{ "--board-cols": teamCount } as React.CSSProperties}>
 
-          <div style={{ display: "grid", gridTemplateColumns: `30px repeat(${teamCount}, 1fr)`, gap: 3, position: "sticky", top: 0, zIndex: 2, background: "var(--ink-1)", paddingBottom: 3 }}>
+          <div className="board__row board__head">
             <div />
             {teams.map((t) => (
-              <div key={t.id} className="eyebrow" title={t.name}
-                style={{
-                  padding: "5px 3px", textAlign: "center",
-                  color: t.id === myTeamId ? "var(--gold)" : "var(--dim)",
-                  overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                  letterSpacing: "0.1em",
-                }}>
+              <div key={t.id} className="eyebrow board__team" data-mine={t.id === myTeamId} title={t.name}>
                 {t.name}
               </div>
             ))}
           </div>
 
-          {rounds.map((round) => (
-            <div key={round} style={{ display: "grid", gridTemplateColumns: `30px repeat(${teamCount}, 1fr)`, gap: 3 }}>
-              <div className="eyebrow num" style={{ display: "grid", placeItems: "center" }}>{round}</div>
+          {rounds.map((r) => (
+            <div key={r} className="board__row" data-round={r}>
+              <div className="eyebrow num" style={{ display: "grid", placeItems: "center" }}>{r}</div>
 
               {Array.from({ length: teamCount }, (_, i) => {
                 const slot = i + 1;
-                const base = (round - 1) * teamCount;
+                const base = (r - 1) * teamCount;
                 let pickNo = base + 1;
                 for (let k = 1; k <= teamCount; k++) {
                   if (snakeSlot(base + k, teamCount) === slot) { pickNo = base + k; break; }
@@ -79,10 +96,15 @@ export function Board({ draft, teams, picks, myTeamId, poolById, onOpen }: Props
                 const isMine = teams[i]?.id === myTeamId;
                 const grade = pick ? gradePick(pickNo, marketRankOf(poolById?.get(pick.player_id))) : null;
                 const notable = grade && grade.label !== "On plan" ? grade : null;
-
                 const clickable = !!pick && !!onOpen;
+                const club = pick ? teamColor(pick.nfl_team) : null;
+
                 return (
                   <div key={slot}
+                    className="board__cell"
+                    data-filled={!!pick}
+                    data-current={isCurrent || undefined}
+                    data-mine={isMine || undefined}
                     role={clickable ? "button" : undefined}
                     tabIndex={clickable ? 0 : undefined}
                     onClick={clickable ? () => onOpen(pick.player_id) : undefined}
@@ -90,46 +112,30 @@ export function Board({ draft, teams, picks, myTeamId, poolById, onOpen }: Props
                     title={pick
                       ? `${pick.player_name} — ${pick.team_name}${notable ? ` · ${notable.label} (${notable.delta > 0 ? "+" : ""}${notable.delta} vs ADP)` : ""}`
                       : `Pick ${pickNo}`}
-                    style={{
-                      position: "relative",
-                      minHeight: 50, padding: "7px 8px", borderRadius: 6, overflow: "hidden",
-                      background: pick ? "#ffffff" : isCurrent ? "var(--gold-wash)" : "var(--ink-2)",
-                      border: `1px solid ${isCurrent ? "var(--gold)" : isMine ? "var(--gold-lit)" : "transparent"}`,
-                      borderLeft: pick ? `2px solid var(--${pick.position.toLowerCase()})` : undefined,
-                      transition: "background 0.2s var(--ease)",
-                      cursor: clickable ? "pointer" : undefined,
-                    }}>
+                    style={pick ? { borderLeft: `2px solid var(--${pick.position.toLowerCase()})` } : undefined}>
                     {pick ? (
                       <>
                         {notable && (
-                          <span aria-hidden style={{
-                            position: "absolute", top: 4, right: 4, width: 6, height: 6, borderRadius: "50%",
-                            background: GRADE_COLOR[notable.tone],
-                          }} />
+                          <span aria-hidden className="board__grade" style={{ background: GRADE_COLOR[notable.tone] }} />
                         )}
-                        <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+                        <div className="board__player">
                           <NflImage
                             src={headshot(pick.espn_id)}
                             alt={pick.player_name}
                             size={24}
                             fit={pick.position === "DST" ? "contain" : "cover"}
-                            background={teamColor(pick.nfl_team)
-                              ? `${teamColor(pick.nfl_team)}1f` : "var(--ink-2)"}
+                            background={club ? `${club}1f` : "var(--ink-2)"}
                           />
-                          <span style={{ fontSize: 12, fontWeight: 600, lineHeight: 1.25, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                            {pick.player_name}
-                          </span>
+                          <span className="board__pname">{shortName(pick.player_name, pick.position)}</span>
                         </div>
-                        <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4, fontSize: 10, color: "var(--dim)" }}>
+                        <div className="board__pmeta">
                           <span style={{ color: `var(--${pick.position.toLowerCase()})`, fontWeight: 600 }}>{pick.position}</span>
                           <span>{pick.nfl_team ?? ""}</span>
                           {pick.is_autopick && <span title="Autopicked" style={{ marginLeft: "auto" }}>auto</span>}
                         </div>
                       </>
                     ) : (
-                      <div className="num" style={{ fontSize: 10, color: isCurrent ? "var(--gold)" : "var(--faint)" }}>
-                        {pickNo}
-                      </div>
+                      <div className="num board__empty">{isCurrent ? "on the clock" : pickNo}</div>
                     )}
                   </div>
                 );
