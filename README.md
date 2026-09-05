@@ -461,6 +461,36 @@ The `/preview` routes are public. They read nothing from the database; every
 one is an invented league rendered through the real components, which is what
 lets `tests/e2e/tonight.spec.ts` assert the card's sentences without a session.
 
+### The wire
+
+`/waivers` is the screen the waiver backend was built for. It says when the next
+settlement is and that claims are blind until then; it lists a manager's own
+claims **in the order they will be answered**, because the run gives a team at
+most one claim per pass and which one is first is therefore the whole decision;
+it lists who is on the wire and when each clears; and it shows the league's
+running order, which is the only place a manager can see that winning a claim
+costs him his place.
+
+A claim may name who makes way, or not. That is not a shortcut — it is the
+difference between a claim and a signing. A claim settles on Wednesday against
+the roster the manager has *then*, so naming a drop says "take him anyway" and
+leaving it blank says "only if I have room". The run enforces exactly that and
+marks the second kind invalid, in those words, when there is no room.
+
+`/players` had to learn about waivers too. A dropped player is unowned, so
+without this the page would have offered a Sign button that the database
+refuses every time; on-waivers players now get a Claim button instead, and the
+free-agent count stops counting them.
+
+**Verified by `tests/e2e/waivers.spec.ts`** — six checks against
+`/preview/waivers`, a fixture that reads no database, because the real screen
+needs a session, a drafted league and somebody to have dropped a player. It has
+a Busy and a Quiet state, since an empty wire is what most Tuesdays look like
+and "explains itself rather than showing nothing" is a claim worth testing. One
+of the six caught a real bug: a disabled button reading *Claimed* still
+announced itself to a screen reader as *Claim Jaylen Wright*, which is the
+opposite of what the screen says.
+
 ### Add / drop, and who owns whom
 
 A roster used to exist only as rows in `rosters`, one set per week, written by

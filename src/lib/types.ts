@@ -316,3 +316,35 @@ export type Pulse = {
   activity: PulseEvent[];
   generated_at: string;
 };
+
+/** One player sitting on the wire until the next settlement. */
+export type WaiverPlayer = {
+  player_id: string;
+  player: string;
+  position: string;
+  nfl_team: string | null;
+  dropped_at: string;
+  clears_at: string;
+};
+
+/** A manager's own claim. Pending ones are visible only to their owner. */
+export type WaiverClaim = {
+  claim_id: string;
+  order: number;
+  add: string;
+  add_player_id: string;
+  drop: string | null;
+  drop_player_id: string | null;
+  status: string;
+  outcome: string | null;
+};
+
+/** Everything the wire screen renders, from one ff_waiver_board call. */
+export type WaiverBoard = {
+  settles_at: string;
+  my_priority: number | null;
+  order: { team: string; priority: number | null }[];
+  on_waivers: WaiverPlayer[];
+  my_claims: WaiverClaim[];
+  recent: { ran_at: string; week: number; seen: number; awarded: number }[];
+};
