@@ -228,15 +228,35 @@ try {
  */
 function armedBy(sql) {
   const out = { authenticated: [], anon: [] };
-  const re = /grant\s+execute\s+on\s+function\s+([\s\S]*?)\s+to\s+([^;]+);/gi;
-  for (const m of sql.matchAll(re)) {
-    const fns = m[1]
-      .split(",")
-      .map((f) => f.trim().replace(/^public\./, "").replace(/\s*\(.*$/, ""))
-      .filter(Boolean);
-    const roles = m[2].toLowerCase();
-    if (/\bauthenticated\b/.test(roles)) out.authenticated.push(...fns);
-    if (/\banon\b/.test(roles)) out.anon.push(...fns);
+  const add = (roles, names) => {
+    const r = roles.toLowerCase();
+    if (/\bauthenticated\b/.test(r)) out.authenticated.push(...names);
+    if (/\banon\b/.test(r)) out.anon.push(...names);
+  };
+
+  // `grant execute on all functions in schema public to authenticated` arms
+  // everything in one line — 20260824034350 does exactly that — so it is
+  // reported as itself rather than expanded into a list it cannot know.
+  for (const m of sql.matchAll(
+    /grant\s+execute\s+on\s+all\s+functions\s+in\s+schema\s+(\w+)\s+to\s+([^;]+);/gi,
+  )) {
+    add(m[2], [`EVERY function in schema ${m[1]}`]);
+  }
+
+  for (const m of sql.matchAll(
+    /grant\s+execute\s+on\s+function\s+([\s\S]*?)\s+to\s+([^;]+);/gi,
+  )) {
+    // Split on the commas BETWEEN signatures, not the ones inside them:
+    // ff_update_team(uuid, text, integer, text) is one function, not four.
+    // Splitting on every comma reported the argument types as callable
+    // function names, which made this summary worse than useless — a reviewer
+    // is being asked to vouch for the line, so the line has to be right.
+    add(
+      m[2],
+      [...m[1].matchAll(/([A-Za-z_][\w.]*)\s*\([^()]*\)/g)].map((f) =>
+        f[1].replace(/^public\./, ""),
+      ),
+    );
   }
   return out;
 }
@@ -320,9 +340,10 @@ for (const file of files.sort()) {
   } else if (pending.has(slug)) {
     errors.push(
       `${file}: "${slug}" is listed in pending_migrations.txt, but version ${version} IS\n` +
-        `    recorded in ${source}. It has been applied, so the entry is now telling CI\n` +
-        `    something untrue. Remove it from pending_migrations.txt; applied_versions.txt\n` +
-        `    is where it belongs.`,
+        `    recorded in ${source}. It has been applied — possibly by the Supabase\n` +
+        `    integration on merge rather than by you. Do NOT apply it again: move the\n` +
+        `    name out of pending_migrations.txt and into applied_versions.txt under the\n` +
+        `    version above, and rename the file to match if it does not already.`,
     );
   } else if (name !== slug) {
     errors.push(
@@ -369,6 +390,27 @@ for (const file of files.sort()) {
   // checked in twice under a fresh timestamp looks, so it is worth saying.
   if (!bySlug.has(slug)) bySlug.set(slug, []);
   bySlug.get(slug).push(file);
+}
+
+// One entry, one file. Membership is keyed by name, so a single `foo` entry
+// would otherwise approve every unrecorded *_foo.sql in the directory — and a
+// repeated slug is only a warning, so a migration accidentally checked in twice
+// under two timestamps would pass and both copies would be eligible to run.
+const perSlug = new Map();
+for (const f of unapplied) {
+  const slug = FILENAME.exec(f)[2];
+  if (!perSlug.has(slug)) perSlug.set(slug, []);
+  perSlug.get(slug).push(f);
+}
+for (const [slug, group] of perSlug) {
+  if (group.length > 1) {
+    errors.push(
+      `pending_migrations.txt lists "${slug}" once, but ${group.length} unapplied files carry\n` +
+        `    that name: ${group.join(", ")}.\n` +
+        `    One entry approves one migration. If these are genuinely separate, give them\n` +
+        `    distinct names; if one is the other checked in twice, delete it.`,
+    );
+  }
 }
 
 for (const [file, a] of arming) {

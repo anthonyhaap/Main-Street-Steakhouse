@@ -810,10 +810,14 @@ You can tell the stronger mode is live from the check's own output — it logs
 ledger*, and drops the note about configuring the secret. To undo the role
 entirely: `drop owned by ci_migrations_reader; drop role ci_migrations_reader;`
 
-**When adding a migration**, apply it first, name the file after the version the
-database recorded for it — not a timestamp you picked — and add that version to
-the ledger (the refresh query is in its header). The two differ because
-`apply_migration` stamps its own. Getting this backwards is what left
+**When adding a migration**, declare it pending and let it be reviewed before it
+is applied — see *A migration is reviewed before it is applied* above, which
+replaced the apply-first instruction that used to live in this paragraph.
+
+Once it is applied, by you or by the integration, name the file after the
+version the database recorded for it — not a timestamp you picked — and add that
+version to the ledger (the refresh query is in its header). The two differ
+because `apply_migration` stamps its own. Getting this backwards is what left
 `20260902010000` and `20260902011500` on disk against `20260902005227` and
 `20260902005322` recorded, and days later checked a whole migration in a second
 time as `20260902120000`, which would have re-run a `drop function` against

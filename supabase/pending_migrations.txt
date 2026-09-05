@@ -20,12 +20,25 @@
 #   2. add <name> to this file
 #   3. open the pull request — CI accepts it, and prints what it would arm
 #   4. merge
-#   5. apply it, take the version the database assigns, rename the file to match
-#   6. move <name> out of here and into applied_versions.txt
+#   5. CHECK whether it is already recorded:
+#        select version, name from supabase_migrations.schema_migrations
+#         where name = '<name>';
+#      The Supabase GitHub integration applies unrecorded migrations on merge,
+#      and if it did, applying again would RUN THE SQL TWICE. Non-idempotent
+#      statements — an insert, a drop, a data fix — do not survive that.
+#   6. only if it came back empty: apply it, and rename the file to the version
+#      the database assigns
+#   7. move <name> out of here and into applied_versions.txt
 #
-# Step 5 matters: `apply_migration` stamps its own version from the clock, not
-# from your filename, so the two rarely agree until you rename. The check will
-# tell you when this file and the ledger disagree, in either direction.
+# Whether the integration actually applies to THIS project is currently unknown:
+# its pull-request check reports "skipped" and points at a project ref that is
+# not in this organisation, and the branch record has not attempted a build
+# since 2026-08-27. Step 5 is cheap and settles it every time, which is why it
+# is a check rather than an assumption in either direction.
+#
+# `apply_migration` stamps its own version from the clock, not from your
+# filename, so the two rarely agree until you rename. The check will tell you
+# when this file and the ledger disagree, in either direction.
 #
 # A name here with no file is an error, and so is a name here whose file HAS
 # been recorded — both mean step 6 was skipped and the entry is now lying.
