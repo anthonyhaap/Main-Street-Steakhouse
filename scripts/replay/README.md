@@ -10,7 +10,7 @@ The two checks are different claims and both are needed.
 | check | claim |
 |-------|-------|
 | `npm run check:migrations` | every file names a version production recorded, and its body is what production ran |
-| `npm run check:replay` | the directory, replayed in order onto nothing, produces a schema |
+| `npm run check:replay` | the directory, replayed in order onto nothing, produces a schema — and the database it produces behaves |
 
 A file can pass the first and fail the second, and that is not a corner case —
 it is what happened. Migrations applied by hand over months were applied in the
@@ -52,10 +52,17 @@ together are the claim, and neither is the claim alone.
 ## Running it
 
 ```
-npm run check:replay                   # replay, report, tear down
+npm run check:replay                   # replay, run the tests, tear down
 scripts/replay-migrations.sh --keep    # leave the cluster up to poke at
 scripts/replay-migrations.sh --summary # print an object census at the end
+scripts/replay-migrations.sh --test    # run supabase/tests/*.sql after the replay
 ```
+
+`--test` runs every file in `supabase/tests/` against the replayed database,
+which is the only honest place to run a behavioural test: it has the schema the
+migrations actually build, not the one production drifted into. Each test file
+opens and rolls back its own transaction, so they run in any order and leave
+nothing behind. A failing file fails the run.
 
 Needs the Postgres **server** binaries (`initdb`, `pg_ctl`), not just `psql` —
 `postgresql-16` on Debian and Ubuntu. It writes the shims into the extension

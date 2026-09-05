@@ -461,6 +461,79 @@ The `/preview` routes are public. They read nothing from the database; every
 one is an invented league rendered through the real components, which is what
 lets `tests/e2e/tonight.spec.ts` assert the card's sentences without a session.
 
+### Add / drop, and who owns whom
+
+A roster used to exist only as rows in `rosters`, one set per week, written by
+`ff_seed_rosters` from `draft_picks` and called by hand for week 1. Nothing
+carried it into week 2 — `ff_team_hub` reads `rosters where week = ?` with no
+fallback, so week 2 rendered an empty team. That was survivable before kickoff
+and unbuildable-on the moment anyone wanted to change their side.
+
+So ownership is now **derived, not stored**: a player belongs to the team his
+last transaction gave him to, or to the team that drafted him if he has none.
+`transactions` is the log, `ff_owner_at(league, week)` is the derivation, and
+`rosters` is demoted to a cache that `ff_materialize_roster` rebuilds from it.
+Every existing reader — the team hub, `roster_points`, scoring, standings, the
+recaps — keeps reading `rosters` and did not change.
+
+The log is a header plus items rather than one flat row, because the next three
+asks are waivers, trades and a transaction history. A trade is one header with
+four items; a waiver claim is one header with a status; an add/drop is one
+header with two. None of those needs a new shape.
+
+**What the database refuses**, all of it in `ff_add_drop` and none of it in the
+browser: a signing before the draft is complete, a week other than the current
+one, a player you do not own, a player already on someone's roster, either side
+of a move once his game has kicked off, an empty move, the same man on both
+sides, and a bare add onto a full roster. The last one is what opens the drop
+picker — the browser does not pre-empt it, because the cap is the league's, the
+count is derived, and a page that greyed the button out in advance would be
+wrong exactly when two managers want the same man. An add and its drop go up as
+**one call**, so nobody releases a player for a signing that then fails.
+
+Three of those guards were missing from the first cut and found by review
+before the league had drafted. Each was reachable by any manager with a team.
+A **signing before the draft** writes a transaction that `ff_make_pick` cannot
+see — it rejects duplicates through a unique constraint on `draft_picks` alone —
+so the player stays draftable, and `ff_owner_at` then hands him to whoever
+signed him, stripping the team that spent a pick. A **week chosen by the
+caller** sits invisible against the current week and then outranks every
+legitimate move made in between, because the derivation orders by week before
+`ord`. And **two managers claiming the same free agent** both read a null owner
+and both succeed, because a log cannot express "current owner" as a unique
+constraint; the serialization is a per-league advisory lock held for the
+transaction, which closes the same race on the roster cap for free. Resetting a
+draft now clears the league's moves and roster cache as well as its picks, since
+clearing one without the other leaves rosters disagreeing with the draft board.
+
+Two things carry the model. `transactions.ord` is a sequence, not a timestamp:
+inside one database transaction `now()` is frozen, so two moves tie and the
+derivation picks the wrong one — a bug the test suite caught rather than a
+theory. And `ff_materialize_roster` refuses to act on an *empty* derivation: a
+league with no picks and no moves has not drafted, which is not the same as
+"every roster is empty", and treating it that way would let the daily roll
+delete rosters it cannot rebuild. That is the state this project sits in all
+preseason, so the guard is the normal case.
+
+`ff_roll_rosters` runs daily at 09:20 UTC and materializes the current week for
+every league — daily rather than weekly for the same reason the recaps are: a
+flexed game or a missed run should not cost a league its rosters, and
+materializing a week that is already correct is a no-op.
+
+**Verified by `supabase/tests/add_drop.sql`** — 27 checks against a seeded
+two-team league, run by `npm run check:replay` (and by CI) on a database built
+by replaying every migration, and rolled back at the end so it leaves nothing
+behind. It covers the cap, each
+refusal, ownership moving both ways, the cache agreeing with the derivation, a
+re-signing of a player dropped earlier (the case a naive "has he ever been
+dropped" rule gets wrong), a week-5 move *not* leaking back into week 4, and the
+week-6 roll inheriting week 5's lineup. The authenticated paths are exercised
+through real JWT claims rather than the service-role hatch, so the ownership and
+current-week checks are tested as a manager meets them. The empty-derivation
+guard, the pre-draft guard and the advisory lock each have a test confirmed to
+fail without the code that satisfies it — the pre-draft one is a cap-neutral
+swap, so nothing but the draft check can refuse it.
+
 ## Setup
 
 1. `npm install && npm run dev`
