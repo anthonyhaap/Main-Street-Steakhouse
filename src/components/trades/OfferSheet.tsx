@@ -29,13 +29,14 @@ export function OfferSheet({
     toTeamId: string, give: string[], get: string[], message: string, countersId: string | null,
   ) => void;
 }) {
-  const counterTeamId = useMemo(() => {
-    if (!counters) return null;
-    const other = counters.items.find((i) => !i.leaving);
-    return other ? owners.find((o) => o.player_id === other.player_id)?.team_id ?? null : null;
-  }, [counters, owners]);
-
-  const [toTeam, setToTeam] = useState<string>(counterTeamId ?? teams[0]?.id ?? "");
+  // A counter goes back to whoever made the offer, taken from the offer rather
+  // than inferred from the players in it: an offer that asks for somebody and
+  // gives nobody has no arriving player to read a team off, and the old guess
+  // fell through to the first club in the list — closing one manager's offer
+  // while sending its answer to another. The database refuses that now too.
+  const [toTeam, setToTeam] = useState<string>(
+    counters?.proposer_team_id ?? teams[0]?.id ?? "",
+  );
   const [give, setGive] = useState<Set<string>>(
     () => new Set(counters?.items.filter((i) => i.leaving).map((i) => i.player_id) ?? []),
   );

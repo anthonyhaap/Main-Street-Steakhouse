@@ -75,10 +75,12 @@ export default function PlayersPage() {
     const term = q.trim().toLowerCase();
     return pool
       .filter((p) => pos === "ALL" || p.position === pos)
-      .filter((p) => !onlyFree || !taken.has(p.id))
+      // On the wire is not free: the count below already excluded them, and a
+      // filter that disagrees with its own total is worse than no filter.
+      .filter((p) => !onlyFree || (!taken.has(p.id) && !waivers.has(p.id)))
       .filter((p) => !term || p.full_name.toLowerCase().includes(term) || (p.nfl_team ?? "").toLowerCase().includes(term))
       .slice(0, 300);
-  }, [pool, pos, q, onlyFree, taken]);
+  }, [pool, pos, q, onlyFree, taken, waivers]);
 
   /**
    * Sign a free agent, dropping someone in the same move when one is named.

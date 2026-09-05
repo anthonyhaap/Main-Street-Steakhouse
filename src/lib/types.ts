@@ -378,6 +378,8 @@ export type TradeOffer = {
   created_at: string;
   outcome: string | null;
   counters_id: string | null;
+  proposer_team_id: string;
+  receiver_team_id: string;
   /** True when this team made the offer rather than received it. */
   mine: boolean;
   from_team: string;

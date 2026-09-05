@@ -24,6 +24,7 @@ const BLOCK = [
 const INCOMING = {
   id: "o1", status: "proposed", message: "you need a back, I need a receiver",
   created_at: "2026-09-08T14:02:00.000Z", outcome: null, counters_id: null,
+  proposer_team_id: "t2", receiver_team_id: "t1",
   mine: false, from_team: "Prime Cut", to_team: "Gridiron Butchers",
   items: [
     { player_id: "p1", player: "Rome Odunze", position: "WR", nfl_team: "CHI", leaving: true },
@@ -34,6 +35,7 @@ const INCOMING = {
 const OUTGOING = {
   id: "o2", status: "proposed", message: null,
   created_at: "2026-09-08T09:40:00.000Z", outcome: null, counters_id: null,
+  proposer_team_id: "t1", receiver_team_id: "t8",
   mine: true, from_team: "Gridiron Butchers", to_team: "Filet Force",
   items: [
     { player_id: "p3", player: "Tyjae Spears", position: "RB", nfl_team: "TEN", leaving: true },
@@ -44,6 +46,7 @@ const OUTGOING = {
 const SETTLED = {
   id: "o3", status: "declined", message: null,
   created_at: "2026-09-01T18:00:00.000Z", outcome: "declined", counters_id: null,
+  proposer_team_id: "t1", receiver_team_id: "t12",
   mine: true, from_team: "Gridiron Butchers", to_team: "Chuck Wagon",
   items: [{ player_id: "p5", player: "Adonai Mitchell", position: "WR", nfl_team: "IND", leaving: true }],
 };

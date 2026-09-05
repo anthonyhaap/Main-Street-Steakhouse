@@ -285,6 +285,13 @@ begin
     if v_prior.receiver_team_id <> p_from_team_id then
       raise exception 'you can only counter an offer made to you';
     end if;
+    -- And it goes back to whoever made it. Without this the browser could
+    -- close one manager's offer while sending its answer to a different club
+    -- entirely — which is what a counter to a give-me-nothing offer did, since
+    -- there was no arriving player to infer the counterparty from.
+    if v_prior.proposer_team_id <> p_to_team_id then
+      raise exception 'a counter goes back to the team that made the offer';
+    end if;
     update trades set status = 'countered', responded_at = now(), responded_by = v_uid,
            outcome = 'answered with a counter'
      where id = p_counters_id;
@@ -302,12 +309,11 @@ begin
   select v_id, pid, p_to_team_id, p_from_team_id, 100 + i
     from unnest(coalesce(p_i_get, '{}'::uuid[])) with ordinality as g(pid, i);
 
-  insert into activity_events (league_id, event_type, headline, detail, actor_id, source_type, source_id)
-  values (v_league, 'trade',
-          left((select name from teams where id = p_from_team_id) ||
-               case when p_counters_id is not null then ' countered ' else ' offered ' end ||
-               (select name from teams where id = p_to_team_id) || ' a trade', 140),
-          'Week ' || v_week, v_uid, 'trade', v_id);
+  -- Deliberately no activity_events row here. `activity_events` is readable by
+  -- every member, so announcing "A offered B a trade" would tell the league a
+  -- negotiation exists and who is in it — which is exactly what the RLS policy
+  -- on `trades` is written to prevent. The feed hears about it when it is
+  -- accepted, which is when it becomes the league's business.
 
   return jsonb_build_object('trade_id', v_id, 'week', v_week,
                             'counters', p_counters_id, 'status', 'proposed');
@@ -446,12 +452,22 @@ begin
         from trade_block b
         join teams t on t.id = b.team_id
         join players p on p.id = b.player_id
-       where t.league_id = v_league),
+       where t.league_id = v_league
+         -- A listed player who has since been dropped, traded or lost on
+         -- waivers is an advert for a car you sold. Filtered here rather than
+         -- cleaned up on every ownership change, so it is right even if a
+         -- cleanup is ever missed.
+         and exists (select 1 from ff_owner_at(v_league, v_week) o
+                      where o.player_id = b.player_id and o.team_id = b.team_id)),
     'offers', (
       select coalesce(jsonb_agg(x order by x.created_at desc), '[]'::jsonb)
       from (
         select tr.id, tr.status, tr.message, tr.created_at, tr.outcome,
                tr.counters_id,
+               -- Carried explicitly. The sheet used to infer the counterparty
+               -- from the first arriving player, which is nobody at all when
+               -- the offer asks for a player and gives none.
+               tr.proposer_team_id, tr.receiver_team_id,
                tr.proposer_team_id = p_team_id as mine,
                (select name from teams where id = tr.proposer_team_id) as from_team,
                (select name from teams where id = tr.receiver_team_id) as to_team,
@@ -490,3 +506,13 @@ grant execute on function public.ff_propose_trade(uuid,uuid,uuid[],uuid[],text,u
 grant execute on function public.ff_respond_trade(uuid,text)                         to authenticated, service_role;
 grant execute on function public.ff_trade_desk(uuid)                                 to authenticated, service_role;
 grant execute on function public.ff_validate_trade(uuid,uuid,uuid,uuid[],uuid[],integer) to service_role;
+
+-- --------------------------------------------------------- the desk, live --
+-- The trade screen subscribes to these; an unpublished table makes that a
+-- 60-second poll and a counter that lands a minute late.
+do $$ begin alter publication supabase_realtime add table public.trades;
+  exception when duplicate_object then null; end $$;
+do $$ begin alter publication supabase_realtime add table public.trade_items;
+  exception when duplicate_object then null; end $$;
+do $$ begin alter publication supabase_realtime add table public.trade_block;
+  exception when duplicate_object then null; end $$;
