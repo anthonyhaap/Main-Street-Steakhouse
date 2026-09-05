@@ -48,15 +48,15 @@ export default function PlayersPage() {
   return (
     <>
       <TopBar />
-      <main className="page" data-width="narrow">
+      <main className="page">
         <div className="card">
           <div className="card__head">
             <h2>Players</h2>
             <span className="eyebrow"><span className="num">{pool?.length ?? 0}</span> in the pool</span>
           </div>
 
-          <div style={{ padding: "var(--s3) var(--s4)", borderBottom: "1px solid var(--rule)", display: "grid", gap: "var(--s3)" }}>
-            <div style={{ position: "relative" }}>
+          <div style={{ padding: "var(--s3) var(--s4)", borderBottom: "1px solid var(--rule)", display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: "var(--s3)", minWidth: 0 }}>
+            <div style={{ position: "relative", minWidth: 0 }}>
               <Search size={15} style={{ position: "absolute", left: 12, top: 13, color: "var(--faint)", pointerEvents: "none" }} />
               <input className="field" style={{ paddingLeft: 36, paddingRight: 36 }}
                 placeholder="Search players or NFL teams" value={q}

@@ -48,7 +48,7 @@ export default function ChallengesPage() {
   };
   const resolve = (id: string, winnerId: string) => run(() => supabaseBrowser().rpc("ff_resolve_challenge", { p_challenge_id: id, p_winner_id: winnerId, p_evidence: "Commissioner verified the recorded league result." }));
 
-  return <><TopBar status={status}/><main className="page" data-width="mid">
+  return <><TopBar status={status}/><main className="page">
     <header style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: "var(--s4)", marginBottom: "var(--s5)", flexWrap: "wrap" }}>
       <div><div className="eyebrow" data-tone="gold">HEAD TO HEAD</div><h1 className="display" style={{ fontSize: "var(--t-title)", margin: "var(--s2) 0" }}>Call your shot.</h1><p className="prose">Lock the terms. Let official scores settle the argument.</p></div>
       <div style={{ display: "flex", gap: "var(--s2)", flexWrap: "wrap" }}><button className="btn" onClick={() => setDialog("profile")}><Settings2 size={14}/>{myProfile?.settlement_handle ? `@${myProfile.settlement_handle}` : "Settlement setup"}</button><button className="btn" data-v="primary" onClick={() => setDialog("challenge")}><Plus size={14}/>New challenge</button></div>

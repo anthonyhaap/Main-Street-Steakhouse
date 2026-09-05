@@ -135,7 +135,7 @@ export default function MockDraftPage() {
   return (
     <>
       <TopBar />
-      <main className="page" data-width="wide">
+      <main className="page">
         <section className="card" style={{ marginBottom: "var(--s4)" }}>
           <div className="card__head" style={{ alignItems: "flex-start", gap: "var(--s4)", flexWrap: "wrap" }}>
             <div>

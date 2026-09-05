@@ -96,7 +96,7 @@ export default function Preview() {
   return (
     <>
       <TopBar status="live" />
-      <main className="page" data-width="mid">
+      <main className="page">
         <div className="segmented" style={{ width: "max-content" }}>
           <button className="segmented__opt" data-on={!drafted} onClick={() => setDrafted(false)}>
             Before the draft

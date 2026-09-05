@@ -24,7 +24,7 @@ export function HistoryWall({ history, historicalStandings = [], myManager = nul
 }) {
   if (!history) {
     return (
-      <main className="page wall" data-width="mid">
+      <main className="page wall">
         <section className="plaque ink"><div className="plaque__head"><span className="eyebrow">Main Street Steakhouse · Est. 2016</span><h1>The Wall</h1></div></section>
         <div className="card"><SkeletonRows n={8} /></div>
       </main>
@@ -42,7 +42,7 @@ export function HistoryWall({ history, historicalStandings = [], myManager = nul
   }, {});
 
   return (
-    <main className="page wall" data-width="mid">
+    <main className="page wall">
       {/* ================================================== the plaque == */}
       <section className="plaque ink">
         <div className="plaque__head">

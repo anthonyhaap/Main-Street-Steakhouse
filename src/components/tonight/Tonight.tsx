@@ -110,7 +110,7 @@ export function Tonight({ initial, serverNow }: { initial: Briefing | null; serv
       <TopBar status={status} />
       <Curtain />
       <PullToRefresh onRefresh={refetch}>
-        <main className="page tonight" data-width="narrow">
+        <main className="page tonight">
           {!b && !error && <TonightSkeleton />}
           {!b && error && (
             <section className="tt">

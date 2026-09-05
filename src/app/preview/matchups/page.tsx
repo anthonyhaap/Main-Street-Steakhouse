@@ -272,7 +272,7 @@ export default function MatchupsPreviewPage() {
         real ESPN ids; the teams, scores, projections and lineups are invented.
       </div>
 
-      <main className="page sb-board" data-width="mid">
+      <main className="page sb-board">
         <div className="scroll" style={{ overflowX: "auto", overflowY: "hidden", paddingBottom: 2 }}>
           <div className="segmented" style={{ width: "max-content" }}>
             {STAGES.map((s) => (

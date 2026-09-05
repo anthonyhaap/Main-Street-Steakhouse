@@ -105,8 +105,13 @@ export function Pool(props: Props) {
 
       {tab === "available" && (
         <>
-          <div style={{ padding: "var(--s3) var(--s4)", borderBottom: "1px solid var(--rule)", display: "grid", gap: "var(--s3)" }}>
-            <div style={{ position: "relative" }}>
+          {/* An implicit `auto` track sizes to max-content, and the search
+              input's intrinsic width is ~350px, so the filter block used to be
+              wider than the phone holding it and the card clipped the right
+              edge off. minmax(0, 1fr) is the same floor the rest of the sheet
+              uses; it lets the row shrink to whatever the screen gives it. */}
+          <div style={{ padding: "var(--s3) var(--s4)", borderBottom: "1px solid var(--rule)", display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: "var(--s3)", minWidth: 0 }}>
+            <div style={{ position: "relative", minWidth: 0 }}>
               <Search size={15} style={{ position: "absolute", left: 12, top: 13, color: "var(--faint)", pointerEvents: "none" }} />
               <input className="field" style={{ paddingLeft: 36, paddingRight: 36 }}
                 placeholder="Search players or NFL teams" value={q}
@@ -306,7 +311,7 @@ function PlayerRow({
   const value = grade?.tone === "ok" ? grade : null;
   return (
     <div className="row" data-hover="true" style={taken ? { opacity: 0.5 } : undefined}>
-      <span className="num" style={{ width: 26, fontSize: "var(--t-micro)", color: "var(--faint)", textAlign: "right" }}>
+      <span className="num pool__rank" style={{ width: 26, fontSize: "var(--t-micro)", color: "var(--faint)", textAlign: "right" }}>
         {p.overall_rank ?? "–"}
       </span>
       <span className="pos" data-p={p.position}>{p.position}</span>

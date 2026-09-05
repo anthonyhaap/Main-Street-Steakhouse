@@ -95,7 +95,10 @@
 
   --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
 
-  --shell-max: 1600px;
+  /* The shell spans the device at every width. Line length is held by the
+     component that owns the text (.prose, at 62ch), not by a centred column —
+     so a phone gets the whole screen and a monitor gets no dead margins. */
+  --shell-max: 100%;
   --bottom-nav: 0px;
 }
 
@@ -320,9 +323,23 @@ body {
   gap: clamp(var(--s4), 2.2vw, var(--s5));
   align-content: start;
 }
-.page[data-width="narrow"] { max-width: 940px; }
-.page[data-width="mid"]    { max-width: 1180px; }
-.page[data-width="wide"]   { max-width: 1960px; }
+
+/* A grid item's automatic minimum size is its min-content, so a single wide
+   child — a nowrap badge, an input sitting at its intrinsic size — could size
+   the column past the viewport and drag the whole document sideways with it.
+   Pinning every direct child to zero lets the screen decide the width and
+   leaves the child to wrap, ellipsise or scroll inside it. */
+.page > * { min-width: 0; }
+
+/* The same trap one level in. A grid with no explicit columns auto-places its
+   items in an implicit column sized `auto`, which tracks max-content — one
+   nowrap row of filters is enough to push a card wider than the phone. Every
+   explicit track in this sheet is already written minmax(0, 1fr); this makes
+   that the floor for the implicit ones too. Grids that do declare their
+   columns are unaffected. */
+:where(.page, .card, .card__body, .modal__panel, .sheet__panel) {
+  grid-auto-columns: minmax(0, 1fr);
+}
 
 /* ============================================================================
    WIRE STATUS
@@ -395,6 +412,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: var(--s4);
   padding: var(--s4) var(--s5);
   border-bottom: 1px solid var(--rule);
@@ -421,6 +439,14 @@ body {
   box-shadow: inset 3px 0 0 var(--gold-lit);
 }
 .row[data-hover="true"]:hover { background: var(--ink-2); }
+
+/* A pool row carries a rank, a position, a name and two controls. At 24px of
+   side padding that leaves the name almost nothing on a small phone, and every
+   line of the sub — team, bye, ADP — breaks onto its own row. The gutter is
+   what gives way first; the content it was framing is the point. */
+@media (max-width: 480px) {
+  .row { padding-inline: var(--s3); gap: var(--s2); }
+}
 
 .grid-auto {
   display: grid;
@@ -482,6 +508,10 @@ body {
 
 .field {
   width: 100%;
+  /* An input's intrinsic width (its `size`, ~20 characters) survives
+     width:100% when the track is auto-sized, so without this the search box
+     sets the floor for the card around it on a narrow phone. */
+  min-width: 0;
   padding: 11px 14px;
   min-height: 44px;
   background: #fffdf8;
@@ -506,7 +536,14 @@ body {
   background: var(--ink-2);
   border: 1px solid var(--rule);
   border-radius: 999px;
+  /* The options never shrink — they are the labels — so the group scrolls
+     within whatever the screen allows rather than widening it. */
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
 }
+.segmented::-webkit-scrollbar { display: none; }
 .segmented__opt {
   padding: 7px 14px;
   border: 0;
@@ -568,9 +605,16 @@ body {
   font: 700 var(--t-micro)/1 var(--sans);
   letter-spacing: 0.11em;
   text-transform: uppercase;
-  white-space: nowrap;
+  /* Short labels still sit on one line at 22px tall. A long one — "Questionable
+     · Knee - ACL" — now takes a second line instead of forcing its card wider
+     than the phone holding it. Wrapping stays at word boundaries: breaking
+     anywhere would stack a one-word badge like "Value" a letter per line. */
+  max-width: 100%;
+  min-width: 0;
+  line-height: 1.3;
+  padding-block: 3px;
 }
-.badge svg { width: 12px; height: 12px; }
+.badge svg { width: 12px; height: 12px; flex-shrink: 0; }
 .badge[data-tone="wine"]    { color: var(--wine); }
 .badge[data-tone="ok"]      { color: var(--win); }
 .badge[data-tone="warn"]    { color: var(--warn); }
@@ -1382,11 +1426,19 @@ a.kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); border-c
 .sheet__fact b { font: 400 1.25rem/1 var(--serif); font-variant-numeric: tabular-nums; }
 .sheet__fact span { font-size: var(--t-micro); color: var(--dim); }
 
-.gamelog { display: flex; align-items: flex-end; gap: 4px; padding: var(--s4) var(--s5); height: 132px; }
+/* Columns hold a legible floor and the strip scrolls once a season stops
+   fitting; on a wide screen they grow and the scroller never appears. */
+.gamelog {
+  display: flex; align-items: flex-end; gap: 4px;
+  padding: var(--s4) var(--s5); height: 132px;
+  overflow-x: auto; overflow-y: hidden;
+  scrollbar-width: thin; scrollbar-color: #1b181426 transparent;
+  overscroll-behavior-x: contain;
+}
 /* Three rows, the middle one definite, so a bar's percentage height has
    something real to resolve against and the column reads as a chart. */
 .gamelog__col {
-  flex: 1; height: 100%;
+  flex: 1 0 22px; min-width: 0; height: 100%;
   display: grid; grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 5px; justify-items: center;
 }
@@ -1587,6 +1639,13 @@ a.kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); border-c
   color: var(--dim);
 }
 .pool__proj[data-empty="true"] { color: var(--faint); font-size: var(--t-small); }
+
+/* The board's overall rank, sitting in front of a name that needs the room
+   more. Every row's sub line already carries ADP, which is the same reading,
+   so on a small phone the column goes and the name gets its width back. */
+@media (max-width: 480px) {
+  .pool__rank { display: none; }
+}
 
 /* ============================================================================
    MATERIAL — paper and ink

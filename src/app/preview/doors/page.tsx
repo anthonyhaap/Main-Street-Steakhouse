@@ -23,7 +23,7 @@ export default function Page() {
   }
 
   return (
-    <main className="page" data-width="narrow">
+    <main className="page">
       <section className="card">
         <div className="card__head">
           <div>

@@ -126,7 +126,7 @@ export default function AdminPage() {
     return (
       <>
         <TopBar status={status} />
-        <main className="page" data-width="narrow">
+        <main className="page">
           <div className="card"><SkeletonRows n={6} /></div>
         </main>
       </>
@@ -141,7 +141,7 @@ export default function AdminPage() {
   return (
     <>
       <TopBar status={status} />
-      <main className="page" data-width="narrow">
+      <main className="page">
         {!claimed && (
           <section className="card" data-accent="gold">
             <div className="card__head"><h2>Claim the league</h2><Crown size={17} color="var(--gold)" /></div>

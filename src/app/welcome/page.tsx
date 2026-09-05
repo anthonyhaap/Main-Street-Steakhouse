@@ -98,12 +98,12 @@ export default function WelcomePage() {
 
   const progress = useMemo(() => ["Welcome", "Your team", "Quick tour"], []);
 
-  if (!ready || !team) return <><TopBar /><main className="page" data-width="narrow"><div className="card"><SkeletonRows n={5} /></div></main></>;
+  if (!ready || !team) return <><TopBar /><main className="page"><div className="card"><SkeletonRows n={5} /></div></main></>;
 
   return (
     <>
       <TopBar />
-      <main className="page" data-width="narrow">
+      <main className="page">
         <div style={{ display: "flex", gap: 8, marginBottom: "var(--s4)" }} aria-label={`Step ${step + 1} of 3`}>
           {progress.map((label, index) => <div key={label} style={{ flex: 1 }}>
             <div style={{ height: 3, borderRadius: 9, background: index <= step ? "var(--gold)" : "var(--rule)" }} />

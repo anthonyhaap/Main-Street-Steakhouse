@@ -99,7 +99,7 @@ export default function MatchupsPage() {
     <>
       <TopBar status={status} />
       <PullToRefresh onRefresh={refetch}>
-        <main className="page sb-board" data-width="mid">
+        <main className="page sb-board">
           <div className="scroll" style={{ overflowX: "auto", overflowY: "hidden", paddingBottom: 2 }}>
             <div className="segmented" style={{ width: "max-content" }}>
               {Array.from({ length: weeks }, (_, i) => i + 1).map((w) => (

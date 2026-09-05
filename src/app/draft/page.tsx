@@ -169,7 +169,7 @@ export default function DraftPage() {
     return (
       <>
         <TopBar status={status} />
-        <main className="page" data-width="wide"><div className="card"><SkeletonRows n={8} /></div></main>
+        <main className="page"><div className="card"><SkeletonRows n={8} /></div></main>
       </>
     );
   }
@@ -178,7 +178,7 @@ export default function DraftPage() {
     return (
       <>
         <TopBar status={status} />
-        <main className="page" data-width="narrow">
+        <main className="page">
           <div className="card">
             <div className="empty">
               Your account isn&apos;t linked to a team yet.
@@ -194,7 +194,7 @@ export default function DraftPage() {
   return (
     <>
       <TopBar status={status} />
-      <main className="page" data-width="wide">
+      <main className="page">
         <section className="card" style={{ marginBottom: "var(--s4)" }}>
           <div className="card__head" style={{ alignItems: "center", gap: "var(--s4)", flexWrap: "wrap" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "var(--s3)" }}>
