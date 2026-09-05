@@ -9,6 +9,8 @@ on:
       - "supabase/migrations/**"
       - "supabase/applied_versions.txt"
       - "scripts/check-migrations.mjs"
+      - "scripts/replay-migrations.sh"
+      - "scripts/replay/**"
       - ".github/workflows/migrations.yml"
   push:
     branches: [main]
@@ -60,3 +62,38 @@ jobs:
       # is empty when no database URL is configured, and the check says so in
       # its output rather than implying more than it verified.
       - run: node scripts/check-migrations.mjs ${REMOTE_ARGS:-}
+
+  # ---------------------------------------------------------------------------
+  # The filenames job proves each file is a faithful copy of a statement that
+  # ran. It cannot prove the directory BUILDS — a set of migrations can each be
+  # correct and still not replay, because the order they were applied in by hand
+  # is not the order their filenames sort in. That is what put the `main`
+  # preview branch in MIGRATIONS_FAILED, and it stayed invisible because the
+  # only thing that replays the directory is Supabase, on a branch, after merge.
+  #
+  # This runs the same replay here, on the runner's own Postgres, before merge.
+  # It found two failures the first time it was run: a `create or replace` that
+  # cannot change a function's OUT parameters, and a seed whose foreign key
+  # points at a league no migration creates.
+  # ---------------------------------------------------------------------------
+  replay:
+    name: the directory builds an empty database
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The ubuntu runners ship a Postgres 16 cluster, stopped. Only the server
+      # binaries are wanted here — the harness builds its own throwaway cluster,
+      # so the preinstalled one is left alone.
+      - name: check for the postgres server binaries
+        run: |
+          set -euo pipefail
+          ls /usr/lib/postgresql/*/bin/initdb >/dev/null 2>&1 \
+            || sudo apt-get install -y --no-install-recommends postgresql
+          pg_config --version
+
+      # sudo because the harness installs its `http` and `pg_cron` stand-ins
+      # into the Postgres extension directory, which is how the first migration
+      # gets to run verbatim instead of being edited before it is tested.
+      - name: replay all migrations against an empty database
+        run: sudo --preserve-env=REPLAY_RUNDIR bash scripts/replay-migrations.sh --summary

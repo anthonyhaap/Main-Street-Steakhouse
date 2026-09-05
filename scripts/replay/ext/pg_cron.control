@@ -1,0 +1,7 @@
+# Stand-in for pg_cron, which needs shared_preload_libraries and a superuser
+# background worker. See scripts/replay/README.md — this exists so the nine
+# `cron.schedule` calls in the migrations resolve. It never runs anything.
+comment = 'replay shim for pg_cron (records jobs, runs nothing)'
+default_version = '1.6'
+relocatable = false
+schema = 'cron'

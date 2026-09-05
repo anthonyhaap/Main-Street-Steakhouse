@@ -26,11 +26,22 @@ create policy historical_standings_members_read on public.historical_standings
 revoke all on table public.historical_standings from public, anon;
 grant select on table public.historical_standings to authenticated;
 
+-- These rows hang off a league, and the league is not created by any migration
+-- in this directory — it was made through the app on the live project. So on a
+-- database rebuilt from these files the `leagues` table is empty and every row
+-- below violates the foreign key, which is where a fresh Supabase branch died.
+--
+-- The guard is `where exists`, not a seeded league: a rebuilt database having
+-- the TABLE is schema, and inventing a league to hang nine years of another
+-- league's history on would be fabricating data. A branch gets the table, the
+-- policy and no rows; the live project, which has the league, is unaffected and
+-- still gets all 97. The casts on the first row give the VALUES list its
+-- column types, which `values` alone no longer infers once it feeds a select.
 insert into public.historical_standings
   (league_id, season, final_rank, team_name, manager_names, wins, losses, ties, points_for, points_against, moves)
-values
+select v.* from (values
 -- 2017
-('11111111-1111-1111-1111-111111111111',2017,1,'Fournetteflix and Hill','Bradley Ehlers',11,2,0,1666.50,1349.68,35),
+('11111111-1111-1111-1111-111111111111'::uuid,2017,1,'Fournetteflix and Hill'::text,'Bradley Ehlers'::text,11,2,0,1666.50::numeric,1349.68::numeric,35),
 ('11111111-1111-1111-1111-111111111111',2017,2,'Green Eggs and Cam','andy kros',10,3,0,1691.10,1458.06,17),
 ('11111111-1111-1111-1111-111111111111',2017,3,'Stairway to Evans','Mitch Groeschl',9,4,0,1441.24,1373.96,20),
 ('11111111-1111-1111-1111-111111111111',2017,4,'Twan gets No TDs','TYLER KOHTALA',8,5,0,1458.92,1463.40,21),
@@ -134,4 +145,8 @@ values
 ('11111111-1111-1111-1111-111111111111',2025,9,'Dookie Dookers','Josh Groeschl',5,9,0,1373.58,1521.48,15),
 ('11111111-1111-1111-1111-111111111111',2025,10,'TBD','Mikole Pierce',7,7,0,1629.06,1630.96,14),
 ('11111111-1111-1111-1111-111111111111',2025,11,'Litty City','Mitch Groeschl',5,9,0,1470.70,1622.16,12),
-('11111111-1111-1111-1111-111111111111',2025,12,'Hit The Twan','anthony haapalainen',7,7,0,1397.84,1564.54,11);
+('11111111-1111-1111-1111-111111111111',2025,12,'Hit The Twan','anthony haapalainen',7,7,0,1397.84,1564.54,11)
+) as v (league_id, season, final_rank, team_name, manager_names,
+        wins, losses, ties, points_for, points_against, moves)
+where exists (select 1 from public.leagues l
+               where l.id = '11111111-1111-1111-1111-111111111111');
