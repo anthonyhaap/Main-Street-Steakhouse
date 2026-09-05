@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Search, X, Plus, UserMinus } from "lucide-react";
+import { Search, X, Plus, UserMinus, Gavel } from "lucide-react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { useSession } from "@/lib/session";
 import { LEAGUE_ID } from "@/lib/config";
@@ -10,6 +10,7 @@ import { TopBar } from "@/components/Shell";
 import { PlayerBadge } from "@/components/PlayerBadge";
 import { SkeletonRows, useToast } from "@/components/ui";
 import { DropPicker, type Owned } from "@/components/players/DropPicker";
+import { ClaimSheet } from "@/components/waivers/ClaimSheet";
 
 const POSITIONS = ["ALL", "QB", "RB", "WR", "TE", "K", "DST"] as const;
 
@@ -27,13 +28,23 @@ export default function PlayersPage() {
   const [signing, setSigning] = useState<PoolPlayer | null>(null);
   // Releasing is two clicks. One is how you cut a man you meant to start.
   const [confirming, setConfirming] = useState<string | null>(null);
+  // A player somebody dropped is not signable — he goes to the best claim on
+  // settlement day. Without this the page would offer a Sign button that the
+  // database refuses every time.
+  const [waivers, setWaivers] = useState<Map<string, string>>(new Map());
+  const [claiming, setClaiming] = useState<PoolPlayer | null>(null);
 
   // Ownership comes from ff_pool_owners, not from the draft board. During the
   // draft the two agree — no transactions have happened — and after it only
   // this one is right.
   const loadOwners = useCallback(async () => {
-    const { data } = await supabaseBrowser().rpc("ff_pool_owners", { p_league_id: LEAGUE_ID });
-    setOwners((data ?? []) as Owned[]);
+    const [owned, wire] = await Promise.all([
+      supabaseBrowser().rpc("ff_pool_owners", { p_league_id: LEAGUE_ID }),
+      supabaseBrowser().rpc("ff_on_waivers", { p_league_id: LEAGUE_ID }),
+    ]);
+    setOwners((owned.data ?? []) as Owned[]);
+    setWaivers(new Map(((wire.data ?? []) as { player_id: string; clears_at: string }[])
+      .map((w) => [w.player_id, w.clears_at])));
   }, []);
 
   useEffect(() => {
@@ -116,9 +127,26 @@ export default function PlayersPage() {
     await loadOwners();
   }, [team, week, toast, loadOwners]);
 
+  /** File a claim from the pool, rather than sending the manager elsewhere. */
+  const claim = useCallback(async (add: PoolPlayer, dropId: string | null) => {
+    if (!team) return;
+    setBusy(add.id);
+    const { error } = await supabaseBrowser().rpc("ff_claim_waiver", {
+      p_team_id: team.id,
+      p_add_player_id: add.id,
+      p_drop_player_id: dropId,
+      p_claim_order: null,
+    });
+    setBusy(null);
+    if (error) { toast("error", error.message); return; }
+    setClaiming(null);
+    toast("ok", `Claim in for ${add.full_name}.`);
+    await loadOwners();
+  }, [team, toast, loadOwners]);
+
   const freeCount = useMemo(
-    () => (pool ? pool.filter((p) => !taken.has(p.id)).length : 0),
-    [pool, taken],
+    () => (pool ? pool.filter((p) => !taken.has(p.id) && !waivers.has(p.id)).length : 0),
+    [pool, taken, waivers],
   );
 
   return (
@@ -216,6 +244,24 @@ export default function PlayersPage() {
                         color: "var(--muted)", maxWidth: 110, overflow: "hidden",
                         textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: "right",
                       }}>{owner}</span>
+                    ) : waivers.has(p.id) ? (
+                      team ? (
+                        <button
+                          className="btn"
+                          data-size="sm"
+                          data-v="ghost"
+                          disabled={busy === p.id}
+                          onClick={() => setClaiming(p)}
+                          aria-label={`Claim ${p.full_name} off waivers`}
+                          style={{ display: "flex", alignItems: "center", gap: 5 }}
+                        >
+                          <Gavel size={13} />{busy === p.id ? "…" : "Claim"}
+                        </button>
+                      ) : (
+                        <span className="eyebrow" style={{ color: "var(--muted)", textAlign: "right" }}>
+                          On waivers
+                        </span>
+                      )
                     ) : team ? (
                       <button
                         className="btn" data-size="sm"
@@ -236,6 +282,17 @@ export default function PlayersPage() {
           )}
         </div>
       </main>
+
+      {claiming && (
+        <ClaimSheet
+          player={{ id: claiming.id, name: claiming.full_name }}
+          roster={mine}
+          settlesAt={waivers.get(claiming.id) ?? null}
+          busy={busy === claiming.id}
+          onCancel={() => setClaiming(null)}
+          onSubmit={(dropId) => void claim(claiming, dropId)}
+        />
+      )}
 
       {signing && (
         <DropPicker
