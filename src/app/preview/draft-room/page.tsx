@@ -10,7 +10,8 @@
  * window size, with nobody on the clock but you.
  */
 
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { TopBar } from "@/components/Shell";
 import { Clock } from "@/components/draft/Clock";
 import { Board } from "@/components/draft/Board";
@@ -98,6 +99,12 @@ const DRAFT: Draft = {
   remaining_ms: null, started_at: new Date(Date.now() - 3.4e6).toISOString(), completed_at: null,
 };
 
+/** `?state=setup` — the room the night before, which is what most managers
+    open first and the state whose layout was worst. */
+const SETUP: Draft = {
+  ...DRAFT, status: "setup", current_pick: 1, pick_deadline: null, started_at: null,
+};
+
 type View = "pool" | "board" | "teams";
 
 const VIEWS: { key: View; label: string; poolTab?: PoolTab }[] = [
@@ -110,7 +117,21 @@ const VIEWS: { key: View; label: string; poolTab?: PoolTab }[] = [
 
 const MY_TEAM = TEAMS[2];
 
-export default function DraftRoomPreview() {
+/** `useSearchParams` opts the tree out of prerendering, so it sits behind its
+    own boundary and the shell around it still ships as static HTML. */
+export default function DraftRoomPreviewPage() {
+  return (
+    <Suspense fallback={<TopBar status="live" />}>
+      <DraftRoomPreview />
+    </Suspense>
+  );
+}
+
+function DraftRoomPreview() {
+  const setup = useSearchParams().get("state") === "setup";
+  const draft = setup ? SETUP : DRAFT;
+  const picks = useMemo(() => (setup ? [] : PICKS), [setup]);
+  const currentPick = setup ? 1 : CURRENT_PICK;
   const [view, setView] = useState<View>("pool");
   const [leftView, setLeftView] = useState<"board" | "teams">("board");
   const [poolTab, setPoolTab] = useState<PoolTab>("available");
@@ -118,9 +139,9 @@ export default function DraftRoomPreview() {
   const [muted, setMuted] = useState(false);
 
   const byId = useMemo(() => new Map(POOL.map((p) => [p.id, p])), []);
-  const draftedIds = useMemo(() => new Set(PICKS.map((p) => p.player_id)), []);
-  const takenBy = useMemo(() => new Map(PICKS.map((p) => [p.player_id, p.team_name])), []);
-  const myPicks = useMemo(() => PICKS.filter((p) => p.team_id === MY_TEAM.id), []);
+  const draftedIds = useMemo(() => new Set(picks.map((p) => p.player_id)), [picks]);
+  const takenBy = useMemo(() => new Map(picks.map((p) => [p.player_id, p.team_name])), [picks]);
+  const myPicks = useMemo(() => picks.filter((p) => p.team_id === MY_TEAM.id), [picks]);
   const queue = useMemo(() => queueIds.map((id) => byId.get(id)).filter(Boolean) as PoolPlayer[], [byId, queueIds]);
   const needs = useMemo(() => rosterNeeds(SLOTS, myPicks), [myPicks]);
 
@@ -130,14 +151,15 @@ export default function DraftRoomPreview() {
       <main className="page" data-layout="room">
         <div className="draft-room">
           <Clock
-            draft={DRAFT}
-            onClock={teamAtPick(CURRENT_PICK, TEAMS, TEAM_COUNT)}
-            nextUp={teamAtPick(CURRENT_PICK + 1, TEAMS, TEAM_COUNT)}
+            draft={draft}
+            onClock={teamAtPick(currentPick, TEAMS, TEAM_COUNT)}
+            nextUp={teamAtPick(currentPick + 1, TEAMS, TEAM_COUNT)}
             myTeamId={MY_TEAM.id}
             teamCount={TEAM_COUNT}
-            msLeft={47000}
-            picksUntilMine={4}
-            myUpcoming={[31, 42, 55]}
+            msLeft={setup ? null : 47000}
+            picksUntilMine={setup ? 2 : 4}
+            myUpcoming={setup ? [3, 22, 27] : [31, 42, 55]}
+            mockHref="/mock-draft"
             isCommissioner
             busy={false}
             onStart={() => {}} onPause={() => {}} onResume={() => {}}
@@ -146,7 +168,9 @@ export default function DraftRoomPreview() {
             onToggleSound={() => setMuted((m) => !m)}
           />
 
-          <Ticker picks={PICKS} poolById={byId} myTeamId={MY_TEAM.id} teamCount={TEAM_COUNT} onOpen={() => {}} />
+          {picks.length > 0 && (
+            <Ticker picks={picks} poolById={byId} myTeamId={MY_TEAM.id} teamCount={TEAM_COUNT} onOpen={() => {}} />
+          )}
 
           <div className="draft-tabs draft-only-narrow">
             <div className="segmented">
@@ -180,19 +204,19 @@ export default function DraftRoomPreview() {
           <div className="draft-grid">
             <div className="draft-pane" data-show={view !== "pool"}>
               {leftView === "teams" ? (
-                <Rosters teams={TEAMS} picks={PICKS} myTeamId={MY_TEAM.id} slots={SLOTS} poolById={byId}
-                  teamCount={TEAM_COUNT} rounds={DRAFT.rounds} currentPick={CURRENT_PICK} />
+                <Rosters teams={TEAMS} picks={picks} myTeamId={MY_TEAM.id} slots={SLOTS} poolById={byId}
+                  teamCount={TEAM_COUNT} rounds={draft.rounds} currentPick={currentPick} />
               ) : (
-                <Board draft={DRAFT} teams={TEAMS} picks={PICKS} myTeamId={MY_TEAM.id} poolById={byId} />
+                <Board draft={draft} teams={TEAMS} picks={picks} myTeamId={MY_TEAM.id} poolById={byId} />
               )}
             </div>
             <div className="draft-pane" data-show={view === "pool"}>
               <Pool
                 pool={POOL}
-                currentPick={CURRENT_PICK}
+                currentPick={currentPick}
                 draftedIds={draftedIds}
                 takenBy={takenBy}
-                allPicks={PICKS}
+                allPicks={picks}
                 queue={queue}
                 myPicks={myPicks}
                 slots={SLOTS}

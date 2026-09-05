@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { useLive, useServerClock, useTicker } from "@/lib/live";
 import { useSession } from "@/lib/session";
@@ -17,7 +16,7 @@ import { Rosters } from "@/components/draft/Rosters";
 import { Ticker } from "@/components/draft/Ticker";
 import { PlayerSheet } from "@/components/player/PlayerSheet";
 import { SkeletonRows, useToast } from "@/components/ui";
-import { ClipboardList, Star } from "lucide-react";
+import { Star } from "lucide-react";
 
 type State = { draft: Draft; picks: BoardPick[]; teams: Team[]; queueIds: string[] };
 
@@ -240,31 +239,13 @@ export default function DraftPage() {
             }}
             soundMuted={soundMuted}
             onToggleSound={() => setSoundMuted(!soundMuted)}
+            mockHref="/mock-draft"
           />
 
-          {/* Before the first pick there's nothing to run, and the mock room is
-              the only thing worth doing on this screen — so it gets the space.
-              Once the draft is live it would be sitting on top of the board,
-              and the ticker takes the room instead. */}
-          {data.draft.status === "setup" ? (
-            <section className="card">
-              <div className="card__head" style={{ alignItems: "center", gap: "var(--s4)", flexWrap: "wrap" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "var(--s3)", minWidth: 0 }}>
-                  <span className="icon-box" aria-hidden><ClipboardList size={18} /></span>
-                  <div style={{ minWidth: 0 }}>
-                    <div className="eyebrow" style={{ color: "var(--gold)" }}>Practice room</div>
-                    <strong>Rehearse before draft night</strong>
-                    <p style={{ color: "var(--muted)", margin: "3px 0 0" }}>
-                      Run a private mock with the live player pool. It never changes the league draft or rosters.
-                    </p>
-                  </div>
-                </div>
-                <Link className="btn" data-v="primary" href="/mock-draft" style={{ marginLeft: "auto" }}>
-                  Start mock draft
-                </Link>
-              </div>
-            </section>
-          ) : (
+          {/* No picks, no ticker: before the draft starts it would be an empty
+              shelf sitting on top of the player list, which is the one thing
+              this screen is for. */}
+          {data.picks.length > 0 && (
             <Ticker
               picks={data.picks}
               poolById={byId}

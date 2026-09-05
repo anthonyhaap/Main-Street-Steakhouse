@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowUpDown, ChevronDown, ChevronUp, Eye, EyeOff, Search, Star, X } from "lucide-react";
 import { PlayerBadge } from "@/components/PlayerBadge";
 import {
@@ -75,6 +75,12 @@ export function Pool(props: Props) {
   const [sort, setSort] = useState<Sort>("rank");
   const [q, setQ] = useState("");
   const [showDrafted, setShowDrafted] = useState(false);
+  // On a phone the search box is a permanent 52px levy on the player list for
+  // something you use a few times a night. It folds behind its own button
+  // there and stays open on a desktop, where the room isn't paying for it.
+  const [searching, setSearching] = useState(false);
+  const searchBox = useRef<HTMLInputElement>(null);
+  useEffect(() => { if (searching) searchBox.current?.focus(); }, [searching]);
 
   const byId = useMemo(() => new Map(pool.map((p) => [p.id, p])), [pool]);
 
@@ -142,14 +148,14 @@ export function Pool(props: Props) {
               wider than the phone holding it and the card clipped the right
               edge off. minmax(0, 1fr) is the same floor the rest of the sheet
               uses; it lets the row shrink to whatever the screen gives it. */}
-          <div className="pool__filters">
-            <div style={{ position: "relative", minWidth: 0 }}>
+          <div className="pool__filters" data-search={searching || q ? "open" : "closed"}>
+            <div className="pool__search" style={{ position: "relative", minWidth: 0 }}>
               <Search size={15} style={{ position: "absolute", left: 12, top: 13, color: "var(--faint)", pointerEvents: "none" }} />
-              <input className="field" style={{ paddingLeft: 36, paddingRight: 36 }}
+              <input ref={searchBox} className="field" style={{ paddingLeft: 36, paddingRight: 36 }}
                 placeholder="Search players or NFL teams" value={q}
                 onChange={(e) => setQ(e.target.value)} aria-label="Search players" />
-              {q && (
-                <button onClick={() => setQ("")} aria-label="Clear search"
+              {(q || searching) && (
+                <button onClick={() => { setQ(""); setSearching(false); }} aria-label="Clear search"
                   style={{ position: "absolute", right: 9, top: 10, background: "none", border: 0, color: "var(--dim)", cursor: "pointer", padding: 4 }}>
                   <X size={14} />
                 </button>
@@ -183,6 +189,10 @@ export function Pool(props: Props) {
               <button className="btn pool__sort" data-size="sm" onClick={() => setSort(sort === "rank" ? "proj" : "rank")}
                 title={sort === "rank" ? "Sorted by ADP — switch to projected points" : "Sorted by projection — switch to ADP"}>
                 <ArrowUpDown size={12} /> {sort === "rank" ? "ADP" : "Proj"}
+              </button>
+              <button className="btn pool__searchbtn" data-v="ghost" data-size="icon"
+                onClick={() => setSearching(true)} aria-label="Open player search" title="Search players">
+                <Search size={15} />
               </button>
               <button className="btn" data-v="ghost" data-size="icon" aria-pressed={showDrafted}
                 onClick={() => setShowDrafted((v) => !v)}

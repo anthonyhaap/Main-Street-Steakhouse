@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { AlertTriangle, Pause, Play, RefreshCw, RotateCcw, SlidersHorizontal, Volume2, VolumeX, Zap } from "lucide-react";
+import Link from "next/link";
+import { AlertTriangle, ClipboardList, Pause, Play, RefreshCw, RotateCcw, SlidersHorizontal, Volume2, VolumeX, Zap } from "lucide-react";
 import type { Draft, Team } from "@/lib/types";
 import { fmtClock, pickLabel, roundForPick } from "@/lib/draft";
 import { crestUrl } from "@/lib/crest";
@@ -27,6 +28,10 @@ type Props = {
   onReset: () => void;
   soundMuted: boolean;
   onToggleSound: () => void;
+  /** Where the practice room lives. Rendered as one small button, never a card:
+      it is a thing you do once in August, and it was costing draft night four
+      hundred pixels of the screen the player list needed. */
+  mockHref?: string;
 };
 
 /**
@@ -41,9 +46,13 @@ type Props = {
 export function Clock(p: Props) {
   const { draft, onClock, nextUp, myTeamId, teamCount, msLeft, picksUntilMine, myUpcoming } = p;
   const [tools, setTools] = useState(false);
-  const mine = !!onClock && onClock.id === myTeamId;
   const total = teamCount * draft.rounds;
   const done = draft.status === "complete" || draft.current_pick > total;
+  const started = draft.status !== "setup";
+  // Nobody is on the clock before the draft starts. Saying "You're on the
+  // clock" over a stopped clock — which is what the room did to whoever drew
+  // the first pick — is the screen lying about the only thing it exists for.
+  const mine = started && !!onClock && onClock.id === myTeamId;
   const myTurnLive = mine && !done && draft.status === "active";
 
   const urgent = msLeft !== null && msLeft <= 15000 && msLeft > 0;
@@ -72,42 +81,24 @@ export function Clock(p: Props) {
           {onClock && !done && <Seal name={onClock.name} src={crestUrl(onClock.logo_path)} mine={mine} size={40} />}
           <div style={{ minWidth: 0 }}>
             <div className="eyebrow" data-tone={mine && !done ? "gold" : undefined}>
-              {done ? "Draft" : mine ? "You're on the clock" : "On the clock"}
+              {done ? "Draft"
+                : !started ? (onClock?.id === myTeamId ? "You pick first" : "Picking first")
+                : mine ? "Your pick" : "On the clock"}
             </div>
             <div className="display clock__name">
               {done ? "Complete" : (onClock?.name ?? "—")}
             </div>
-
-            {!done && (
-              <div className="clock__meta">
-                <span className="clock__chip" title={`Round ${round} of ${draft.rounds} · ${made} picks made`}>
-                  <b className="num">{pickLabel(draft.current_pick, teamCount)}</b>
-                  <span className="num">{draft.current_pick}/{total}</span>
-                </span>
-                {nextUp && !mine && (
-                  <span className="clock__chip" title={`${nextUp.name} picks next`}>
-                    next <b>{nextUp.name}</b>
-                  </span>
-                )}
-                {!mine && picksUntilMine != null && picksUntilMine > 0 && (
-                  <span className="clock__chip" data-tone="gold">
-                    {picksUntilMine === 1
-                      ? "you're up next"
-                      : <>you in <b className="num">{picksUntilMine}</b></>}
-                  </span>
-                )}
-                {laterPicks.length > 0 && (
-                  <span className="clock__chip" data-tone="wine" title="Your remaining picks">
-                    yours <b className="num">{laterPicks.join(" · ")}</b>
-                  </span>
-                )}
-              </div>
-            )}
           </div>
         </div>
 
         <div className="clock__right">
           <div style={{ display: "flex", gap: 2 }}>
+            {p.mockHref && (
+              <Link className="btn" data-v="ghost" data-size="icon" href={p.mockHref}
+                title="Practice room — run a private mock draft" aria-label="Run a mock draft">
+                <ClipboardList size={14} />
+              </Link>
+            )}
             {p.isCommissioner && (
               <button className="btn" data-v="ghost" data-size="icon" onClick={() => setTools((t) => !t)}
                 aria-expanded={tools} title={tools ? "Hide commissioner controls" : "Commissioner controls"}
@@ -135,13 +126,55 @@ export function Clock(p: Props) {
         </div>
       </div>
 
+      {/* The chips get the card's whole width rather than the column left over
+          beside a 40px crest. In that column each one took a line to itself:
+          four facts, a hundred and thirty pixels of header, on the screen with
+          the least of it to give. "Next up" goes on a phone — it's a tap away
+          on the board, and the two that decide what you do next are yours. */}
+      {!done && (
+        <div className="clock__meta">
+          <span className="clock__chip" title={`Round ${round} of ${draft.rounds} · ${made} picks made`}>
+            <b className="num">{pickLabel(draft.current_pick, teamCount)}</b>
+            <span className="num">{draft.current_pick}/{total}</span>
+          </span>
+          {nextUp && !mine && (
+            <span className="clock__chip hide-sm" title={`${nextUp.name} picks next`}>
+              next <b>{nextUp.name}</b>
+            </span>
+          )}
+          {!mine && picksUntilMine != null && picksUntilMine > 0 && (
+            <span className="clock__chip" data-tone="gold">
+              {picksUntilMine === 1
+                ? "you're up next"
+                : <>you in <b className="num">{picksUntilMine}</b></>}
+            </span>
+          )}
+          {laterPicks.length > 0 && (
+            <span className="clock__chip" data-tone="wine" title="Your remaining picks">
+              yours <b className="num">{laterPicks.join(" · ")}</b>
+            </span>
+          )}
+        </div>
+      )}
+
       {/* How much night is left, as a rule along the foot of the card. Fifteen
           rounds is a long sit; "41 of 180" is a number, this is a feeling —
           and it costs no height, which on a phone is the whole argument. */}
-      {!done && draft.status !== "setup" && (
+      {!done && started && (
         <div className="clock__foot" aria-hidden>
           <i style={{ width: `${(made / total) * 100}%` }} />
         </div>
+      )}
+
+      {/* Before the first pick the practice room is the only thing on this
+          screen worth doing, so it gets a line — one, at the foot, rather than
+          the card that used to sit between the clock and the players. */}
+      {!started && p.mockHref && (
+        <Link className="clock__mock" href={p.mockHref}>
+          <span className="eyebrow" data-tone="gold">Practice room</span>
+          <span>Rehearse with a private mock — it never touches the league draft.</span>
+          <b>Start →</b>
+        </Link>
       )}
 
       {/* The commissioner's controls are three buttons she needs twice a night
