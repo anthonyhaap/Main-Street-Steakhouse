@@ -395,3 +395,26 @@ export type TradeDesk = {
   offers: TradeOffer[];
   settled: { trade_id: string; when: string; from_team: string; to_team: string }[];
 };
+
+/** One player moving, inside one transaction. A null team is the free-agent
+ *  pool: `from_team` null means he arrived from it, `to_team` null means he
+ *  went back to it. */
+export type LedgerItem = {
+  player_id: string;
+  player: string;
+  position: string;
+  nfl_team: string | null;
+  from_team: string | null;
+  to_team: string | null;
+};
+
+/** One entry in the league's ledger, as ff_transactions returns it. `ord` is
+ *  the total order the database assigns; created_at ties on a busy Sunday. */
+export type LedgerEntry = {
+  id: string;
+  kind: "add" | "drop" | "add_drop" | "waiver" | "trade";
+  week: number;
+  created_at: string;
+  ord: number;
+  items: LedgerItem[];
+};
