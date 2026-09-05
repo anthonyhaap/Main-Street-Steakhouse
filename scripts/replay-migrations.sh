@@ -23,6 +23,7 @@
 #   scripts/replay-migrations.sh              # replay, report, tear down
 #   scripts/replay-migrations.sh --keep       # leave the cluster up
 #   scripts/replay-migrations.sh --summary    # also print an object census
+#   scripts/replay-migrations.sh --test       # also run supabase/tests/*.sql
 #
 # Requires: postgresql-16 server binaries (initdb/pg_ctl) and psql. On Debian
 # and Ubuntu that is `postgresql-16`; the GitHub Actions ubuntu runners have it
@@ -38,11 +39,13 @@ REPLAY="$ROOT/scripts/replay"
 
 KEEP=0
 SUMMARY=0
+TEST=0
 for arg in "$@"; do
   case "$arg" in
     --keep)    KEEP=1 ;;
     --summary) SUMMARY=1 ;;
-    *) echo "usage: $0 [--keep] [--summary]" >&2; exit 2 ;;
+    --test)    TEST=1 ;;
+    *) echo "usage: $0 [--keep] [--summary] [--test]" >&2; exit 2 ;;
   esac
 done
 
@@ -171,4 +174,45 @@ if [ "$SUMMARY" -eq 1 ]; then
     union all select 'policies',  count(*) from pg_policies  where schemaname = 'public'
     union all select 'cron jobs', count(*) from cron.job
     order by 1;"
+fi
+
+# ------------------------------------------------------------------ the tests
+# A replayed database is the only honest place to run a behavioural test: it
+# has the schema the migrations actually build, not the one production drifted
+# into. Each file owns its own transaction and rolls itself back, so they can
+# run in any order and leave the database as they found it.
+if [ "$TEST" -eq 1 ]; then
+  TESTS="$ROOT/supabase/tests"
+  if [ ! -d "$TESTS" ]; then
+    echo "no supabase/tests directory — nothing to run."
+  else
+    mapfile -t TFILES < <(find "$TESTS" -maxdepth 1 -name '*.sql' -printf '%f\n' | sort)
+    if [ "${#TFILES[@]}" -eq 0 ]; then
+      echo "no tests in supabase/tests."
+    else
+      echo
+      echo "→ running ${#TFILES[@]} test file(s) against the replayed database"
+      tfailed=0
+      for t in "${TFILES[@]}"; do
+        # No --single-transaction: each file opens and rolls back its own, and
+        # psql would otherwise commit the whole run on success.
+        if out="$("${PSQL[@]}" -d "$DB" -f "$TESTS/$t" 2>&1)"; then
+          # The tally each file raises as a NOTICE is the only thing worth
+          # echoing; a passing test is otherwise silent by design.
+          printf '  ok   %s\n' "$t"
+          echo "$out" | grep -o 'NOTICE:.*' | sed 's/^NOTICE: */       /'
+        else
+          printf '  FAIL %s\n' "$t"
+          echo "$out" | grep -E 'ERROR|CONTEXT' | sed 's/^/       /'
+          tfailed=$((tfailed + 1))
+        fi
+      done
+      echo
+      if [ "$tfailed" -gt 0 ]; then
+        echo "$tfailed of ${#TFILES[@]} test file(s) failed."
+        exit 1
+      fi
+      echo "tests clean: ${#TFILES[@]}/${#TFILES[@]} file(s) passed."
+    fi
+  fi
 fi

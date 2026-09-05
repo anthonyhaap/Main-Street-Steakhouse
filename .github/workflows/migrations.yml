@@ -11,6 +11,7 @@ on:
       - "scripts/check-migrations.mjs"
       - "scripts/replay-migrations.sh"
       - "scripts/replay/**"
+      - "supabase/tests/**"
       - ".github/workflows/migrations.yml"
   push:
     branches: [main]
@@ -95,5 +96,9 @@ jobs:
       # sudo because the harness installs its `http` and `pg_cron` stand-ins
       # into the Postgres extension directory, which is how the first migration
       # gets to run verbatim instead of being edited before it is tested.
-      - name: replay all migrations against an empty database
-        run: sudo --preserve-env=REPLAY_RUNDIR bash scripts/replay-migrations.sh --summary
+      # --test runs supabase/tests/*.sql against the replayed database. A
+      # behavioural test belongs here rather than beside the app: this is the
+      # schema the migrations actually build, and the only place a claim about
+      # what the database refuses can be checked without a live project.
+      - name: replay all migrations against an empty database, then test it
+        run: sudo --preserve-env=REPLAY_RUNDIR bash scripts/replay-migrations.sh --summary --test

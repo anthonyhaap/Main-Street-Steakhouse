@@ -505,8 +505,9 @@ flexed game or a missed run should not cost a league its rosters, and
 materializing a week that is already correct is a no-op.
 
 **Verified by `supabase/tests/add_drop.sql`** — 22 checks against a seeded
-two-team league, run on a database built by replaying every migration, and
-rolled back at the end so it leaves nothing behind. It covers the cap, each
+two-team league, run by `npm run check:replay` (and by CI) on a database built
+by replaying every migration, and rolled back at the end so it leaves nothing
+behind. It covers the cap, each
 refusal, ownership moving both ways, the cache agreeing with the derivation, a
 re-signing of a player dropped earlier (the case a naive "has he ever been
 dropped" rule gets wrong), a week-5 move *not* leaking back into week 4, and the
