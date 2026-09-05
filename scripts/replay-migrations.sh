@@ -103,6 +103,32 @@ for ext in http pg_cron; do
 done
 
 # ---------------------------------------------------------------- the cluster
+# `--keep` leaves a cluster running, and a later run pointed at the same
+# REPLAY_RUNDIR used to `rm -rf` its data directory out from under the live
+# postmaster. What follows is not a clean failure: initdb rebuilds the
+# directory, the old postmaster is still holding the socket, and psql then
+# talks to a server whose files have been deleted — so the replay reports
+# errors that have nothing to do with the migrations. Stop it first, and
+# refuse to delete anything that will not die.
+#
+# (The port is not the hazard here and does not need to be unique: the server
+# is started with `listen_addresses=` empty, so it opens no TCP socket at all
+# and the port only names a file inside this run's own socket directory.)
+if [ -f "$PGDATA/postmaster.pid" ]; then
+  echo "stopping a cluster left behind in $RUNDIR"
+  run "$PGBIN/pg_ctl -D $PGDATA -m immediate -w stop" >/dev/null 2>&1 || true
+  pid="$(head -1 "$PGDATA/postmaster.pid" 2>/dev/null || true)"
+  if [ -n "${pid:-}" ] && kill -0 "$pid" 2>/dev/null; then
+    # Disarm cleanup before dying. It ends in `rm -rf "$RUNDIR"`, so leaving the
+    # trap armed would delete on the way out the very directory this branch
+    # exists to refuse to delete — the bug, with an error message in front of it.
+    trap - EXIT
+    die "postgres (pid $pid) is still running in $PGDATA and would not stop.
+    Stop it by hand before re-running, or point REPLAY_RUNDIR somewhere else.
+    Nothing has been deleted."
+  fi
+fi
+
 rm -rf "$RUNDIR"
 mkdir -p "$PGDATA" "$SOCK"
 [ -n "$AS_USER" ] && chown -R "$AS_USER" "$RUNDIR"
