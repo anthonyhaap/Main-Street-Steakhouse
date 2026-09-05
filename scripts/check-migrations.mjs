@@ -23,6 +23,21 @@
  *
  * ── how much this proves, and when ──────────────────────────────────────────
  *
+ * ── migrations that have NOT been applied yet ───────────────────────────────
+ *
+ * A file whose version is unrecorded is rejected, because the integration would
+ * treat it as new work and run it against production. That is right for a file
+ * that has already been applied under a different version — the case this was
+ * built for — and it was wrong for genuinely new work, because it left one way
+ * to get a migration through CI: run it against production BEFORE opening the
+ * pull request. Three manager-reachable holes went live that way on 2026-09-05.
+ *
+ * So there is now a third state. A migration listed in supabase/pending_migrations.txt
+ * is checked in but not yet applied, and its version is allowed to be unrecorded
+ * while it is reviewed. It is applied after it merges. The original protection is
+ * untouched: a mis-stamped file for something already applied is not listed there,
+ * so it still fails.
+ *
  * Offline (no arguments) it compares filenames against supabase/applied_versions.txt,
  * a ledger committed alongside them. That catches both incidents above, because
  * both left the ledger alone. It does NOT catch a consistent mistake: name the
@@ -64,6 +79,7 @@ import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const LEDGER = join(root, "supabase", "applied_versions.txt");
+const PENDING = join(root, "supabase", "pending_migrations.txt");
 const DIR = join(root, "supabase", "migrations");
 
 /** `20260902011636_commissioner_year_round.sql` and nothing else. */
@@ -172,6 +188,59 @@ const CONTENT_EXCEPTIONS = new Map([
 
 const recorded = parseLedger(readFileSync(LEDGER, "utf8"), "applied_versions.txt");
 
+/**
+ * Names of migrations checked in but not yet applied. One per line, comments
+ * ignored — the same shape as the ledger, minus the version, because a pending
+ * migration does not have one yet. `apply_migration` assigns the version from
+ * the clock when it runs, which is why this keys on the name instead.
+ */
+const pending = new Set();
+try {
+  for (const raw of readFileSync(PENDING, "utf8").split("\n")) {
+    const line = raw.trim();
+    if (!line || line.startsWith("#")) continue;
+    if (!/^[a-z0-9_]+$/.test(line)) {
+      errors.push(`pending_migrations.txt: "${line}" is not a migration name (lower_snake_case).`);
+      continue;
+    }
+    if (pending.has(line)) {
+      errors.push(`pending_migrations.txt: "${line}" is listed twice.`);
+      continue;
+    }
+    pending.add(line);
+  }
+} catch (e) {
+  if (e.code !== "ENOENT") throw e; // absent is fine: nothing is pending
+}
+
+/**
+ * What a migration would let a manager call.
+ *
+ * The three holes that went live on 2026-09-05 were reachable because the
+ * migration that created `ff_add_drop` also granted it to `authenticated` in the
+ * same breath — so the function was live, callable, and unreviewed together.
+ * This does not forbid that; a grant has to happen somewhere. It puts the list
+ * in the CI output, so "this pull request makes N new things callable by every
+ * manager in the league" is a sentence the reviewer reads rather than infers.
+ *
+ * Landing a new RPC revoked and arming it in a follow-up migration, once the
+ * feature is verified, keeps the blast radius of an unreviewed mistake at zero.
+ */
+function armedBy(sql) {
+  const out = { authenticated: [], anon: [] };
+  const re = /grant\s+execute\s+on\s+function\s+([\s\S]*?)\s+to\s+([^;]+);/gi;
+  for (const m of sql.matchAll(re)) {
+    const fns = m[1]
+      .split(",")
+      .map((f) => f.trim().replace(/^public\./, "").replace(/\s*\(.*$/, ""))
+      .filter(Boolean);
+    const roles = m[2].toLowerCase();
+    if (/\bauthenticated\b/.test(roles)) out.authenticated.push(...fns);
+    if (/\banon\b/.test(roles)) out.anon.push(...fns);
+  }
+  return out;
+}
+
 // ------------------------------------------- the ledger against the database
 // Only reached when CI has a database URL. A ledger row the database does not
 // have is the forgeable case: the file and the ledger agree with each other,
@@ -210,6 +279,8 @@ if (remotePath) {
 const files = readdirSync(DIR).filter((f) => !f.startsWith("."));
 const byVersion = new Map();
 const bySlug = new Map();
+const unapplied = [];      // declared pending, and genuinely not recorded
+const arming = [];         // [file, {authenticated, anon}] for those files
 
 for (const file of files.sort()) {
   const m = FILENAME.exec(file);
@@ -233,13 +304,25 @@ for (const file of files.sort()) {
   const entry = truth.get(version);
   const name = entry?.name;
 
-  if (entry === undefined) {
+  if (entry === undefined && pending.has(slug)) {
+    // Declared unapplied. This is the reviewable state: the SQL is in the pull
+    // request, production has not run it, and it is applied after merge.
+    unapplied.push(file);
+  } else if (entry === undefined) {
     errors.push(
       `${file}: version ${version} is not in ${source}.\n` +
         `    The integration would treat this as new work and run it against production.\n` +
         `    If it HAS been applied, use the version the database recorded for it — not the\n` +
         `    one in this filename — and rename the file to match. If it has NOT been applied,\n` +
-        `    apply it first, then name the file after the version that comes back.`,
+        `    add "${slug}" to supabase/pending_migrations.txt and it will be reviewed here\n` +
+        `    before it is applied — which is the point of that file.`,
+    );
+  } else if (pending.has(slug)) {
+    errors.push(
+      `${file}: "${slug}" is listed in pending_migrations.txt, but version ${version} IS\n` +
+        `    recorded in ${source}. It has been applied, so the entry is now telling CI\n` +
+        `    something untrue. Remove it from pending_migrations.txt; applied_versions.txt\n` +
+        `    is where it belongs.`,
     );
   } else if (name !== slug) {
     errors.push(
@@ -274,11 +357,39 @@ for (const file of files.sort()) {
     }
   }
 
+  // Only pending files are inspected for grants. An applied migration's grants
+  // are already in force, so reporting them would be noise rather than news.
+  if (pending.has(slug)) {
+    const a = armedBy(readFileSync(join(DIR, file), "utf8"));
+    if (a.authenticated.length || a.anon.length) arming.push([file, a]);
+  }
+
   // Not an error: 20260829020645 and 20260829021500 are both recorded as
   // "team_hub", so a repeated slug is legal. It is still how a migration
   // checked in twice under a fresh timestamp looks, so it is worth saying.
   if (!bySlug.has(slug)) bySlug.set(slug, []);
   bySlug.get(slug).push(file);
+}
+
+for (const [file, a] of arming) {
+  if (a.anon.length) {
+    warnings.push(
+      `${file} grants execute to anon (${[...new Set(a.anon)].join(", ")}).\n` +
+        `    20260824034323 revoked anon from every function in public on purpose, and\n` +
+        `    ff_share_card is the one deliberate exception in the league. If this is not\n` +
+        `    another one, it is a mistake.`,
+    );
+  }
+}
+
+for (const slug of pending) {
+  if (!bySlug.has(slug)) {
+    errors.push(
+      `pending_migrations.txt lists "${slug}", which has no file in supabase/migrations.\n` +
+        `    Either the file was never added, or it was applied and renamed and this entry\n` +
+        `    was left behind.`,
+    );
+  }
 }
 
 for (const [slug, group] of bySlug) {
@@ -305,12 +416,50 @@ if (errors.length) {
   process.exit(1);
 }
 
+// ------------------------------------------------ what is waiting to be applied
+// Printed before the tally, because on a pull request that adds a migration this
+// is the part worth reading: what has NOT run yet, and what it would let a
+// manager do the moment it does.
+if (unapplied.length) {
+  console.log(
+    `\n${unapplied.length} migration${unapplied.length === 1 ? " is" : "s are"} checked in and NOT applied:`,
+  );
+  for (const f of unapplied) console.log(`  pending  ${f}`);
+
+  if (arming.length) {
+    console.log("\nwhat they would make callable once applied:");
+    for (const [file, a] of arming) {
+      if (a.authenticated.length) {
+        console.log(`  ${file}`);
+        console.log(`    authenticated: ${[...new Set(a.authenticated)].join(", ")}`);
+      }
+      if (a.anon.length) {
+        console.log(`  ${file}`);
+        console.log(`    anon: ${[...new Set(a.anon)].join(", ")}`);
+      }
+    }
+    console.log(
+      "\n  Landing a new RPC revoked and arming it in a follow-up migration keeps the\n" +
+        "  blast radius of an unreviewed mistake at zero. Not a rule — a reminder that\n" +
+        "  this is the line the reviewer is being asked to vouch for.",
+    );
+  } else {
+    console.log("\nnone of them grant execute to authenticated or anon.");
+  }
+
+  console.log(
+    "\nAfter this merges: apply it, rename the file to the version the database\n" +
+      "assigns, and move the name out of pending_migrations.txt into applied_versions.txt.",
+  );
+}
+
 const truth = remote ?? recorded;
 const unfiled = [...truth.keys()].filter((v) => !byVersion.has(v)).length;
 const compared = [...byVersion.keys()].filter((v) => truth.get(v)?.sql != null).length;
 console.log(
-  `supabase/migrations: ${byVersion.size} file${byVersion.size === 1 ? "" : "s"}, ` +
-    `each matching a version recorded in ${remote ? "the database" : "the ledger"} ` +
+  `\nsupabase/migrations: ${byVersion.size} file${byVersion.size === 1 ? "" : "s"}, ` +
+    `${byVersion.size - unapplied.length} matching a version recorded in ` +
+    `${remote ? "the database" : "the ledger"} and ${unapplied.length} declared pending ` +
     `(${truth.size} recorded, ${unfiled} with no file, which is fine).`,
 );
 if (compared) {
