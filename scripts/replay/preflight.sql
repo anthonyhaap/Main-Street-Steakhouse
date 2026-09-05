@@ -37,6 +37,25 @@ end $$;
 grant anon, authenticated, service_role to authenticator;
 grant usage on schema public to anon, authenticated, service_role;
 
+-- A Supabase project hands every NEW function in `public` straight to the API
+-- roles. Without this the replay is more restrictive than production, which is
+-- the dangerous direction for a harness to be wrong in: a migration that only
+-- revokes `from public, anon` looks correct here and leaves the function
+-- callable by any signed-in user there.
+--
+-- That is not hypothetical. It is how twenty functions — ff_run_waivers and
+-- ff_process_waivers among them — came to be manager-callable on the live
+-- project while this harness reported the intended grants. 20260905144124
+-- takes them back; this is what would have caught it, and supabase/tests/
+-- grants.sql is what asserts it from now on.
+--
+-- Two default ACLs, matching the live project: one owned by supabase_admin
+-- (which includes anon) and one by postgres (which does not).
+alter default privileges for role supabase_admin in schema public
+  grant execute on functions to postgres, anon, authenticated, service_role;
+alter default privileges for role postgres in schema public
+  grant execute on functions to postgres, authenticated, service_role;
+
 -- -------------------------------------------------------------- extensions --
 -- Supabase puts third-party extensions in `extensions`, not `public`, which is
 -- why the migrations say `extensions.http_get` and set

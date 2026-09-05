@@ -80,3 +80,7 @@
 20260904022842 weekly_special
 20260905022429 add_drop_free_agents
 20260905024533 add_drop_guards
+20260905125401 waivers
+20260905142709 trades
+20260905144124 revoke_service_only_from_authenticated
+20260905144856 revoke_helper_functions_from_public

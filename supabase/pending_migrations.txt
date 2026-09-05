@@ -30,11 +30,14 @@
 #      the database assigns
 #   7. move <name> out of here and into applied_versions.txt
 #
-# Whether the integration actually applies to THIS project is currently unknown:
-# its pull-request check reports "skipped" and points at a project ref that is
-# not in this organisation, and the branch record has not attempted a build
-# since 2026-08-27. Step 5 is cheap and settles it every time, which is why it
-# is a check rather than an assumption in either direction.
+# It does not, as of 2026-09-05. `waivers` and `trades` merged and the ledger
+# was still empty an hour later; both had to be applied by hand. Its pull-request
+# check reports "skipped" and points at a project ref that is not in this
+# organisation, and the branch record has not attempted a build since 2026-08-27.
+#
+# Step 5 stays a check rather than an assumption anyway. It costs one query, and
+# the day somebody connects the integration properly is the day skipping it
+# would run a migration twice.
 #
 # `apply_migration` stamps its own version from the clock, not from your
 # filename, so the two rarely agree until you rename. The check will tell you
@@ -44,5 +47,3 @@
 # been recorded — both mean step 6 was skipped and the entry is now lying.
 #
 # One name per line.
-waivers
-trades
