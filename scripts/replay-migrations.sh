@@ -116,8 +116,13 @@ if [ -f "$PGDATA/postmaster.pid" ]; then
   run "$PGBIN/pg_ctl -D $PGDATA -m immediate -w stop" >/dev/null 2>&1 || true
   pid="$(head -1 "$PGDATA/postmaster.pid" 2>/dev/null || true)"
   if [ -n "${pid:-}" ] && kill -0 "$pid" 2>/dev/null; then
+    # Disarm cleanup before dying. It ends in `rm -rf "$RUNDIR"`, so leaving the
+    # trap armed would delete on the way out the very directory this branch
+    # exists to refuse to delete — the bug, with an error message in front of it.
+    trap - EXIT
     die "postgres (pid $pid) is still running in $PGDATA and would not stop.
-    Stop it by hand before re-running, or point REPLAY_RUNDIR somewhere else."
+    Stop it by hand before re-running, or point REPLAY_RUNDIR somewhere else.
+    Nothing has been deleted."
   fi
 fi
 
