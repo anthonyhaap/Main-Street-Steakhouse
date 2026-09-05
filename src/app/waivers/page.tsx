@@ -84,7 +84,7 @@ export default function WaiversPage() {
   }, [team, board, run]);
 
   const skeleton = (
-    <><TopBar /><main className="page" data-width="narrow">
+    <><TopBar /><main className="page">
       <div className="card"><SkeletonRows n={8} /></div>
     </main></>
   );
@@ -94,7 +94,7 @@ export default function WaiversPage() {
   // Checked before the board, not after: a signed-in account with no team gets
   // a sentence rather than a skeleton that never resolves.
   if (!team) {
-    return <><TopBar /><main className="page" data-width="narrow">
+    return <><TopBar /><main className="page">
       <div className="card"><div className="empty">You need a team before you can claim anybody.</div></div>
     </main></>;
   }
@@ -106,7 +106,7 @@ export default function WaiversPage() {
   return (
     <>
       <TopBar />
-      <main className="page" data-width="narrow">
+      <main className="page">
         <Wire
           board={board}
           teamName={team.name}

@@ -65,13 +65,13 @@ export default function TradesPage() {
   [run]);
 
   const skeleton = (
-    <><TopBar /><main className="page" data-width="narrow">
+    <><TopBar /><main className="page">
       <div className="card"><SkeletonRows n={8} /></div>
     </main></>
   );
   if (!ready) return skeleton;
   if (!team) {
-    return <><TopBar /><main className="page" data-width="narrow">
+    return <><TopBar /><main className="page">
       <div className="card"><div className="empty">You need a team before you can trade.</div></div>
     </main></>;
   }
@@ -80,7 +80,7 @@ export default function TradesPage() {
   return (
     <>
       <TopBar />
-      <main className="page" data-width="narrow">
+      <main className="page">
         <Desk
           desk={desk}
           busy={busy}
