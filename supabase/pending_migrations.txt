@@ -1,0 +1,48 @@
+# Migrations that are CHECKED IN BUT NOT YET APPLIED.
+#
+# Until this file existed, there was no such state. scripts/check-migrations.mjs
+# rejected any file whose version the database had not recorded, and told you to
+# "apply it first, then name the file after the version that comes back" — so the
+# only way to get a migration through CI was to run it against production before
+# a pull request existed to review it. The gate built to stop production being
+# written to by accident was forcing it to be written to before review.
+#
+# On 2026-09-05 that cost three manager-reachable holes in ff_add_drop: a signing
+# before the draft, a caller-chosen effective week, and two managers claiming the
+# same free agent. All three were live before review saw the SQL, and all three
+# were found by a review bot reading the migration after the fact.
+#
+# So: list a migration here by its NAME (the part after the timestamp) and CI
+# will accept it with no recorded version. It is then reviewed like any other
+# code, and applied AFTER it merges.
+#
+#   1. write supabase/migrations/<timestamp>_<name>.sql
+#   2. add <name> to this file
+#   3. open the pull request — CI accepts it, and prints what it would arm
+#   4. merge
+#   5. CHECK whether it is already recorded:
+#        select version, name from supabase_migrations.schema_migrations
+#         where name = '<name>';
+#      The Supabase GitHub integration applies unrecorded migrations on merge,
+#      and if it did, applying again would RUN THE SQL TWICE. Non-idempotent
+#      statements — an insert, a drop, a data fix — do not survive that.
+#   6. only if it came back empty: apply it, and rename the file to the version
+#      the database assigns
+#   7. move <name> out of here and into applied_versions.txt
+#
+# Whether the integration actually applies to THIS project is currently unknown:
+# its pull-request check reports "skipped" and points at a project ref that is
+# not in this organisation, and the branch record has not attempted a build
+# since 2026-08-27. Step 5 is cheap and settles it every time, which is why it
+# is a check rather than an assumption in either direction.
+#
+# `apply_migration` stamps its own version from the clock, not from your
+# filename, so the two rarely agree until you rename. The check will tell you
+# when this file and the ledger disagree, in either direction.
+#
+# A name here with no file is an error, and so is a name here whose file HAS
+# been recorded — both mean step 6 was skipped and the entry is now lying.
+#
+# One name per line.
+waivers
+trades

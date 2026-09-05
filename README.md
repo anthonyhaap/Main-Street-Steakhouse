@@ -461,6 +461,151 @@ The `/preview` routes are public. They read nothing from the database; every
 one is an invented league rendered through the real components, which is what
 lets `tests/e2e/tonight.spec.ts` assert the card's sentences without a session.
 
+### Trades, counters and the block
+
+The transaction log already knew how to say this. `transaction_items` carries a
+from-team **and** a to-team on every row, which add/drop and waivers only ever
+used one half of; a trade is the case both halves were designed for. So an
+executed trade is one `kind = 'trade'` header with an item per player, and
+`ff_owner_at` needed no changes — the last word about a player is now sometimes
+"he went that way".
+
+What is new is the negotiation, which is not a transaction at all until somebody
+says yes. `trades` is the offer on the table; nothing reaches the log until it
+is accepted, and a declined offer leaves no mark on any roster. A **counter** is
+a new offer that closes the one it answers and links back to it, so a
+negotiation reads as one thread rather than four unrelated rows. The **block**
+is a notice board: players their manager will listen about, so a manager with a
+surplus at running back need not message eleven people to find who needs one.
+
+The deadline is the league's own — `settings.trade_deadline_week` has said 12
+since the league was configured.
+
+**Everything is validated twice**, when the offer is made and again when it is
+accepted. That is not belt and braces: an offer sits on the table for days and a
+roster does not, so what was legal on Sunday can be nonsense by Wednesday. Both
+sides must still own what they are offering, neither man may have kicked off,
+and neither roster may end over the limit — uneven trades are fine, over-full
+ones are not. Accepting also invalidates every other live offer naming a player
+who just moved, with a sentence saying why, rather than leaving the next manager
+to discover it by pressing accept on something that cannot happen.
+
+**A live offer is between the two managers in it.** The league sees it once it
+is settled. That is an RLS claim rather than a function check, so
+`supabase/tests/trades.sql` sets `role authenticated` and real JWT claims and
+asserts a third manager sees neither the offer nor its contents — the one place
+in the suite where the policies themselves are exercised rather than the
+`SECURITY DEFINER` functions in front of them. Every other check in these files
+runs as the database owner, which bypasses RLS entirely.
+
+**Verified by 24 SQL checks and 5 e2e checks** against `/preview/trades`, which
+has an open desk and one after the deadline. The e2e caught a real split: the
+"Make an offer" button lived in the page while the deadline that disables it
+lived in the desk component, so the two could drift. It is one component now.
+
+### The wire
+
+`/waivers` is the screen the waiver backend was built for. It says when the next
+settlement is and that claims are blind until then; it lists a manager's own
+claims **in the order they will be answered**, because the run gives a team at
+most one claim per pass and which one is first is therefore the whole decision;
+it lists who is on the wire and when each clears; and it shows the league's
+running order, which is the only place a manager can see that winning a claim
+costs him his place.
+
+A claim may name who makes way, or not. That is not a shortcut — it is the
+difference between a claim and a signing. A claim settles on Wednesday against
+the roster the manager has *then*, so naming a drop says "take him anyway" and
+leaving it blank says "only if I have room". The run enforces exactly that and
+marks the second kind invalid, in those words, when there is no room.
+
+`/players` had to learn about waivers too. A dropped player is unowned, so
+without this the page would have offered a Sign button that the database
+refuses every time; on-waivers players now get a Claim button instead, and the
+free-agent count stops counting them.
+
+**Verified by `tests/e2e/waivers.spec.ts`** — six checks against
+`/preview/waivers`, a fixture that reads no database, because the real screen
+needs a session, a drafted league and somebody to have dropped a player. It has
+a Busy and a Quiet state, since an empty wire is what most Tuesdays look like
+and "explains itself rather than showing nothing" is a claim worth testing. One
+of the six caught a real bug: a disabled button reading *Claimed* still
+announced itself to a screen reader as *Claim Jaylen Wright*, which is the
+opposite of what the screen says.
+
+### Add / drop, and who owns whom
+
+A roster used to exist only as rows in `rosters`, one set per week, written by
+`ff_seed_rosters` from `draft_picks` and called by hand for week 1. Nothing
+carried it into week 2 — `ff_team_hub` reads `rosters where week = ?` with no
+fallback, so week 2 rendered an empty team. That was survivable before kickoff
+and unbuildable-on the moment anyone wanted to change their side.
+
+So ownership is now **derived, not stored**: a player belongs to the team his
+last transaction gave him to, or to the team that drafted him if he has none.
+`transactions` is the log, `ff_owner_at(league, week)` is the derivation, and
+`rosters` is demoted to a cache that `ff_materialize_roster` rebuilds from it.
+Every existing reader — the team hub, `roster_points`, scoring, standings, the
+recaps — keeps reading `rosters` and did not change.
+
+The log is a header plus items rather than one flat row, because the next three
+asks are waivers, trades and a transaction history. A trade is one header with
+four items; a waiver claim is one header with a status; an add/drop is one
+header with two. None of those needs a new shape.
+
+**What the database refuses**, all of it in `ff_add_drop` and none of it in the
+browser: a signing before the draft is complete, a week other than the current
+one, a player you do not own, a player already on someone's roster, either side
+of a move once his game has kicked off, an empty move, the same man on both
+sides, and a bare add onto a full roster. The last one is what opens the drop
+picker — the browser does not pre-empt it, because the cap is the league's, the
+count is derived, and a page that greyed the button out in advance would be
+wrong exactly when two managers want the same man. An add and its drop go up as
+**one call**, so nobody releases a player for a signing that then fails.
+
+Three of those guards were missing from the first cut and found by review
+before the league had drafted. Each was reachable by any manager with a team.
+A **signing before the draft** writes a transaction that `ff_make_pick` cannot
+see — it rejects duplicates through a unique constraint on `draft_picks` alone —
+so the player stays draftable, and `ff_owner_at` then hands him to whoever
+signed him, stripping the team that spent a pick. A **week chosen by the
+caller** sits invisible against the current week and then outranks every
+legitimate move made in between, because the derivation orders by week before
+`ord`. And **two managers claiming the same free agent** both read a null owner
+and both succeed, because a log cannot express "current owner" as a unique
+constraint; the serialization is a per-league advisory lock held for the
+transaction, which closes the same race on the roster cap for free. Resetting a
+draft now clears the league's moves and roster cache as well as its picks, since
+clearing one without the other leaves rosters disagreeing with the draft board.
+
+Two things carry the model. `transactions.ord` is a sequence, not a timestamp:
+inside one database transaction `now()` is frozen, so two moves tie and the
+derivation picks the wrong one — a bug the test suite caught rather than a
+theory. And `ff_materialize_roster` refuses to act on an *empty* derivation: a
+league with no picks and no moves has not drafted, which is not the same as
+"every roster is empty", and treating it that way would let the daily roll
+delete rosters it cannot rebuild. That is the state this project sits in all
+preseason, so the guard is the normal case.
+
+`ff_roll_rosters` runs daily at 09:20 UTC and materializes the current week for
+every league — daily rather than weekly for the same reason the recaps are: a
+flexed game or a missed run should not cost a league its rosters, and
+materializing a week that is already correct is a no-op.
+
+**Verified by `supabase/tests/add_drop.sql`** — 27 checks against a seeded
+two-team league, run by `npm run check:replay` (and by CI) on a database built
+by replaying every migration, and rolled back at the end so it leaves nothing
+behind. It covers the cap, each
+refusal, ownership moving both ways, the cache agreeing with the derivation, a
+re-signing of a player dropped earlier (the case a naive "has he ever been
+dropped" rule gets wrong), a week-5 move *not* leaking back into week 4, and the
+week-6 roll inheriting week 5's lineup. The authenticated paths are exercised
+through real JWT claims rather than the service-role hatch, so the ownership and
+current-week checks are tested as a manager meets them. The empty-derivation
+guard, the pre-draft guard and the advisory lock each have a test confirmed to
+fail without the code that satisfies it — the pre-draft one is a cap-neutral
+swap, so nothing but the draft check can refuse it.
+
 ## Setup
 
 1. `npm install && npm run dev`
@@ -563,6 +708,60 @@ recorded versions makes these a no-op instead of a re-run against production.
 A recorded version with no file is harmless. **A file whose version is not
 recorded is the dangerous direction**, because that is the one the integration
 would run.
+
+### A migration is reviewed before it is applied
+
+The gate above had a hole in the shape of its own instruction. A file whose
+version was not recorded got rejected with "apply it first, then name the file
+after the version that comes back" — so the only way to get a new migration
+through CI was to run it against production **before a pull request existed**.
+The check built to stop production being written to by accident was forcing it
+to be written to before review.
+
+On 2026-09-05 that cost three manager-reachable holes in `ff_add_drop` — a
+signing before the draft, a caller-chosen effective week, and two managers
+claiming the same free agent. All three were live before anyone read the SQL,
+and all three were found by a review bot reading the migration afterwards.
+
+`supabase/pending_migrations.txt` is the missing third state: **checked in, not
+yet applied.** A migration named there may have an unrecorded version while it
+is reviewed, and is applied after it merges.
+
+```
+1. write supabase/migrations/<timestamp>_<name>.sql
+2. add <name> to supabase/pending_migrations.txt
+3. open the PR — CI accepts it, and prints what it would arm
+4. merge
+5. apply it; rename the file to the version the database assigns
+6. move <name> into applied_versions.txt
+```
+
+The original protection is untouched. A mis-stamped file for something already
+applied is not listed as pending, so it still fails exactly as before — and the
+list cannot rot, because a name with no file and a name whose file *is* recorded
+are both errors.
+
+**And CI now says what a pull request would arm.** The three holes were
+reachable because the migration that created `ff_add_drop` granted it to
+`authenticated` in the same breath — live, callable and unreviewed together. So
+for every pending migration the check prints the functions it would make
+callable:
+
+```
+1 migration is checked in and NOT applied:
+  pending  29990101000000_brand_new.sql
+
+what they would make callable once applied:
+  29990101000000_brand_new.sql
+    authenticated: ff_demo
+```
+
+That is a reminder rather than a rule — a grant has to happen somewhere. But
+landing a new RPC revoked and arming it in a follow-up migration, once the
+feature is verified, keeps the blast radius of an unreviewed mistake at zero,
+and the line above is the one a reviewer is being asked to vouch for. A grant to
+`anon` warns on its own: `20260824034323` revoked anon from every function in
+`public` deliberately, and `ff_share_card` is the league's one exception.
 
 ### The history is complete, and branches build
 
@@ -756,10 +955,14 @@ You can tell the stronger mode is live from the check's own output — it logs
 ledger*, and drops the note about configuring the secret. To undo the role
 entirely: `drop owned by ci_migrations_reader; drop role ci_migrations_reader;`
 
-**When adding a migration**, apply it first, name the file after the version the
-database recorded for it — not a timestamp you picked — and add that version to
-the ledger (the refresh query is in its header). The two differ because
-`apply_migration` stamps its own. Getting this backwards is what left
+**When adding a migration**, declare it pending and let it be reviewed before it
+is applied — see *A migration is reviewed before it is applied* above, which
+replaced the apply-first instruction that used to live in this paragraph.
+
+Once it is applied, by you or by the integration, name the file after the
+version the database recorded for it — not a timestamp you picked — and add that
+version to the ledger (the refresh query is in its header). The two differ
+because `apply_migration` stamps its own. Getting this backwards is what left
 `20260902010000` and `20260902011500` on disk against `20260902005227` and
 `20260902005322` recorded, and days later checked a whole migration in a second
 time as `20260902120000`, which would have re-run a `drop function` against

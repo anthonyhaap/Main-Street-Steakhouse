@@ -316,3 +316,82 @@ export type Pulse = {
   activity: PulseEvent[];
   generated_at: string;
 };
+
+/** One player sitting on the wire until the next settlement. */
+export type WaiverPlayer = {
+  player_id: string;
+  player: string;
+  position: string;
+  nfl_team: string | null;
+  dropped_at: string;
+  clears_at: string;
+};
+
+/** A manager's own claim. Pending ones are visible only to their owner. */
+export type WaiverClaim = {
+  claim_id: string;
+  order: number;
+  add: string;
+  add_player_id: string;
+  drop: string | null;
+  drop_player_id: string | null;
+  status: string;
+  outcome: string | null;
+};
+
+/** Everything the wire screen renders, from one ff_waiver_board call. */
+export type WaiverBoard = {
+  settles_at: string;
+  my_priority: number | null;
+  order: { team: string; priority: number | null }[];
+  on_waivers: WaiverPlayer[];
+  my_claims: WaiverClaim[];
+  recent: { ran_at: string; week: number; seen: number; awarded: number }[];
+};
+
+/** A player his manager will listen to offers on. */
+export type BlockedPlayer = {
+  player_id: string;
+  player: string;
+  position: string;
+  nfl_team: string | null;
+  team_id: string;
+  team: string;
+  note: string | null;
+  mine: boolean;
+};
+
+/** One side of one offer, from the reading team's point of view. */
+export type TradeItem = {
+  player_id: string;
+  player: string;
+  position: string;
+  nfl_team: string | null;
+  /** True when this player is leaving the team reading the offer. */
+  leaving: boolean;
+};
+
+export type TradeOffer = {
+  id: string;
+  status: string;
+  message: string | null;
+  created_at: string;
+  outcome: string | null;
+  counters_id: string | null;
+  proposer_team_id: string;
+  receiver_team_id: string;
+  /** True when this team made the offer rather than received it. */
+  mine: boolean;
+  from_team: string;
+  to_team: string;
+  items: TradeItem[];
+};
+
+/** Everything the trade screen renders, from one ff_trade_desk call. */
+export type TradeDesk = {
+  week: number;
+  deadline_week: number;
+  block: BlockedPlayer[];
+  offers: TradeOffer[];
+  settled: { trade_id: string; when: string; from_team: string; to_team: string }[];
+};
