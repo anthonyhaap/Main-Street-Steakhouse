@@ -14,8 +14,17 @@ import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "@/lib/config";
  * `/preview` is the fixture harnesses: invented leagues rendered through the
  * real components, reading nothing from the database. Public so the design
  * can be looked at and tested without a seat at the table.
+ *
+ * `/api/push/drain` is Vercel Cron, which arrives with no cookie and could
+ * not obtain one. It is not unauthenticated — it checks a bearer CRON_SECRET
+ * itself and refuses everything if that variable is unset — but the check has
+ * to be its own rather than a session, so it cannot be gated here.
+ *
+ * `/sw.js` must be served at the root for a service worker to claim the whole
+ * scope, and the browser fetches it without credentials.
  */
-const PUBLIC = ["/login", "/auth", "/join", "/share", "/splash", "/preview", "/manifest.webmanifest"];
+const PUBLIC = ["/login", "/auth", "/join", "/share", "/splash", "/preview",
+                "/manifest.webmanifest", "/sw.js", "/api/push/drain"];
 
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });

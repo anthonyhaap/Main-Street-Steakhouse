@@ -12,6 +12,7 @@ import { Seal, useCountUp } from "@/components/ui";
 import { PlayerRow } from "@/components/team/Lineup";
 import { Coach } from "@/components/team/Coach";
 import { InsightBoard, NewsWire, TeamStats } from "@/components/team/Rail";
+import { Notifications } from "@/components/team/Notifications";
 
 export { slotOk };
 
@@ -294,6 +295,9 @@ export function TeamDesk({
             <InsightBoard insights={insights} wire={wire} />
             <TeamStats hub={hub} />
             <NewsWire mine={tagged} all={wire?.articles ?? []} wire={wire} />
+            {/* Per-manager and per-device, so it belongs on his own screen
+                rather than in the commissioner's league settings. */}
+            <Notifications />
           </div>
         </div>
       </main>
