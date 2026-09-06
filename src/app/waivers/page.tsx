@@ -104,7 +104,7 @@ export default function WaiversPage() {
   // applied yet, and a manager staring at a spinner cannot tell that from a slow
   // network.
   if (error) {
-    return <><TopBar /><main className="page" data-width="narrow">
+    return <><TopBar /><main className="page">
       <div className="card">
         <div className="note" data-kind="error">Couldn&apos;t load the wire: {error}</div>
       </div>

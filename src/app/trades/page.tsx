@@ -78,7 +78,7 @@ export default function TradesPage() {
   // Said out loud rather than left as a skeleton that never resolves — see the
   // same guard on /waivers.
   if (error) {
-    return <><TopBar /><main className="page" data-width="narrow">
+    return <><TopBar /><main className="page">
       <div className="card">
         <div className="note" data-kind="error">Couldn&apos;t load the desk: {error}</div>
       </div>
