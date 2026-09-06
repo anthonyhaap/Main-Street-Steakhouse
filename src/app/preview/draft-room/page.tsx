@@ -147,8 +147,7 @@ function DraftRoomPreview() {
 
   return (
     <>
-      <TopBar status="live" />
-      <main className="page" data-layout="room">
+      <div className="draft-full">
         <div className="draft-room">
           <Clock
             draft={draft}
@@ -160,6 +159,8 @@ function DraftRoomPreview() {
             picksUntilMine={setup ? 2 : 4}
             myUpcoming={setup ? [3, 22, 27] : [31, 42, 55]}
             mockHref="/mock-draft"
+            status="live"
+            exitHref="/"
             isCommissioner
             busy={false}
             onStart={() => {}} onPause={() => {}} onResume={() => {}}
@@ -231,7 +232,7 @@ function DraftRoomPreview() {
             </div>
           </div>
         </div>
-      </main>
+      </div>
     </>
   );
 }

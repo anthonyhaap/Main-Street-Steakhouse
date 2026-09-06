@@ -215,8 +215,10 @@ export default function DraftPage() {
 
   return (
     <>
-      <TopBar status={status} />
-      <main className="page" data-layout="room">
+      {/* No TopBar, no tab bar: the room covers the shell. The wire and the way
+          out ride on the clock instead, and the banner with your team on it
+          starts at the top edge of the screen. */}
+      <div className="draft-full">
         <div className="draft-room">
           <Clock
             draft={data.draft}
@@ -240,6 +242,8 @@ export default function DraftPage() {
             soundMuted={soundMuted}
             onToggleSound={() => setSoundMuted(!soundMuted)}
             mockHref="/mock-draft"
+            status={status}
+            exitHref="/"
           />
 
           {/* No picks, no ticker: before the draft starts it would be an empty
@@ -330,7 +334,7 @@ export default function DraftPage() {
             </div>
           </div>
         </div>
-      </main>
+      </div>
 
       {openId && (() => {
         const p = byId.get(openId);

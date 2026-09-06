@@ -10,6 +10,20 @@ import {
 import type { BoardPick, PoolPlayer } from "@/lib/types";
 
 const POSITIONS = ["ALL", "QB", "RB", "WR", "TE", "K", "DST"] as const;
+
+/**
+ * The wire's word for it, in the letter every fantasy screen uses.
+ *
+ * "Questionable" is eleven characters on a line that has room for four, so it
+ * was the thing pushed off the end of every injured player's row. The letter
+ * carries the same meaning to anyone who has played, and the full word is on
+ * the badge's title and the player's card.
+ */
+const INJURY_SHORT: Record<string, string> = {
+  questionable: "Q", doubtful: "D", out: "O", "injured reserve": "IR", ir: "IR",
+  probable: "P", suspended: "SUS", "physically unable to perform": "PUP", pup: "PUP",
+};
+const injuryTag = (s: string) => INJURY_SHORT[s.trim().toLowerCase()] ?? s;
 type Tab = "available" | "queue" | "roster";
 type Sort = "rank" | "proj";
 
@@ -443,8 +457,9 @@ function PlayerRow({
                 </span>
               )}
               {p.injury_status && (
-                <span className="badge" data-tone="warn" style={{ minHeight: 17, fontSize: 9 }}>
-                  {p.injury_status}
+                <span className="badge" data-tone="warn" style={{ minHeight: 17, fontSize: 9 }}
+                  title={p.injury_status}>
+                  {injuryTag(p.injury_status)}
                 </span>
               )}
               {p.adp ? <span className="num pool__adp">ADP {Number(p.adp).toFixed(1)}</span> : null}
