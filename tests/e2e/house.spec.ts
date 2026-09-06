@@ -48,3 +48,35 @@ test("an empty House explains what will fill it", async ({ page }) => {
   await page.getByRole("button", { name: "Quiet" }).click();
   await expect(page.getByText(/Signings, waiver results and trades land here on their own/)).toBeVisible();
 });
+
+test("a reaction is a toggle, and says who is in the count", async ({ page }) => {
+  await page.goto("/preview/house");
+
+  // A tally you are already part of reads as pressed, and pressing it takes you
+  // back out rather than adding a second flame.
+  const flame = page.getByRole("button", { name: /^🔥 5, including you$/ });
+  await expect(flame).toBeVisible();
+  await expect(flame).toHaveAttribute("aria-pressed", "true");
+
+  await flame.click();
+  await expect(page.getByRole("button", { name: /^🔥 4$/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /^🔥 4$/ })).toHaveAttribute("aria-pressed", "false");
+
+  // And back again.
+  await page.getByRole("button", { name: /^🔥 4$/ }).click();
+  await expect(page.getByRole("button", { name: /^🔥 5, including you$/ })).toBeVisible();
+});
+
+test("a line nobody has reacted to offers one quiet button, not six", async ({ page }) => {
+  await page.goto("/preview/house");
+
+  // Six buttons under every row is noise; the palette opens on demand.
+  const adders = page.getByRole("button", { name: "Add a reaction" });
+  await expect(adders.first()).toBeVisible();
+
+  await adders.first().click();
+  await expect(page.getByRole("button", { name: "React with 😂" })).toBeVisible();
+
+  await page.getByRole("button", { name: "React with 😂" }).click();
+  await expect(page.getByRole("button", { name: /^😂 1, including you$/ })).toBeVisible();
+});

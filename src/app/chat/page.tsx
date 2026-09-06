@@ -42,6 +42,7 @@ export default function HousePage() {
   const [older, setOlder] = useState<FeedItem[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [reacting, setReacting] = useState<string | null>(null);
 
   const fetcher = useCallback(async (): Promise<HouseFeed> => {
     const { data, error: rpcError } = await supabaseBrowser()
@@ -50,8 +51,8 @@ export default function HousePage() {
     return data as HouseFeed;
   }, []);
 
-  const { data, status, error: feedError, refetch } = useLive<HouseFeed>(fetcher, {
-    tables: ["league_messages", "activity_events"],
+  const { data, status, error: feedError, refetch, mutate } = useLive<HouseFeed>(fetcher, {
+    tables: ["league_messages", "activity_events", "reactions"],
     channel: "house",
     pollMs: 30000,
     enabled: ready,
@@ -68,6 +69,41 @@ export default function HousePage() {
     const next = page as HouseFeed;
     setOlder((prev) => [...prev, ...next.items]);
     setCursor(next.next_before);
+  }
+
+  /**
+   * Press a reaction.
+   *
+   * Optimistic, because the whole value of a reaction is that it costs nothing
+   * — a tally that waits for a round trip before moving feels broken, and the
+   * server's answer is the same shape either way. The refetch afterwards
+   * reconciles, and a failure puts the row back.
+   */
+  async function react(item: FeedItem, emoji: string) {
+    const key = `${item.source}:${item.id}`;
+    setReacting(key);
+
+    const bump = (list: FeedItem[]) => list.map((f) => {
+      if (f.id !== item.id || f.source !== item.source) return f;
+      const existing = (f.reactions ?? []).find((r) => r.emoji === emoji);
+      const next = existing
+        ? (f.reactions ?? [])
+            .map((r) => r.emoji === emoji
+              ? { ...r, count: r.count + (r.mine ? -1 : 1), mine: !r.mine }
+              : r)
+            .filter((r) => r.count > 0)
+        : [...(f.reactions ?? []), { emoji, count: 1, mine: true }];
+      return { ...f, reactions: next };
+    });
+    setOlder(bump);
+    mutate(data ? { ...data, items: bump(data.items) } : data);
+
+    const { error: rpcError } = await supabaseBrowser().rpc("ff_react", {
+      p_league_id: LEAGUE_ID, p_source: item.source, p_target_id: item.id, p_emoji: emoji,
+    });
+    setReacting(null);
+    if (rpcError) setError(rpcError.message);
+    await refetch();
   }
 
   async function send(event: FormEvent) {
@@ -144,6 +180,8 @@ export default function HousePage() {
             hasMore={hasMore}
             loadingMore={loadingMore}
             onMore={() => void loadMore()}
+            reacting={reacting}
+            onReact={(item, emoji) => void react(item, emoji)}
           />
         )}
       </main>

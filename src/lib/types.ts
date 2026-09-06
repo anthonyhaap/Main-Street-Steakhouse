@@ -436,8 +436,17 @@ export type FeedItem = {
   mine: boolean;
   source_type: string | null;
   source_id: string | null;
+  reactions: Reaction[];
   matchup: { id: string; week: number; home: string; away: string; mine: boolean } | null;
 };
+
+/** One emoji's tally on one feed item. `mine` is whether you are in the count,
+ *  which is what makes the button a toggle rather than a vote you cast twice. */
+export type Reaction = { emoji: string; count: number; mine: boolean };
+
+/** The palette, fixed in the database by a check constraint. Anything a manager
+ *  can type is something a manager can type AT somebody. */
+export const EMOJI = ["🔥", "😂", "💀", "👀", "🫡", "🥩"] as const;
 
 /** One page of ff_house_feed. `next_before` is the cursor for the next call,
  *  and null when this page was the end. */

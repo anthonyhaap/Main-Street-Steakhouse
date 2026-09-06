@@ -3642,3 +3642,22 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
   .clock__time { font-size: 2.1rem; }
   .tick__item { padding: 3px 9px 3px 3px; }
 }
+
+/* --- reactions ---------------------------------------------------------- */
+/* Small enough to sit under a line without competing with it, and big enough
+   to hit with a thumb: 26px tall against the 44px targets elsewhere is a
+   deliberate exception, because these sit in a dense list and a mis-tap is
+   undone by the same tap. */
+.reaction {
+  display: inline-flex; align-items: center; gap: 4px;
+  min-height: 26px; padding: 2px 8px;
+  border: 1px solid var(--rule); border-radius: 999px;
+  background: transparent; color: var(--dim);
+  font-size: var(--t-micro); line-height: 1; cursor: pointer;
+  transition: border-color .12s ease, background .12s ease;
+}
+.reaction:hover:not(:disabled) { border-color: var(--gold-dim); }
+.reaction[data-on="true"] { border-color: var(--gold); background: color-mix(in oklab, var(--gold) 12%, transparent); }
+.reaction[data-quiet="true"] { border-color: transparent; opacity: .5; }
+.reaction[data-quiet="true"]:hover:not(:disabled) { opacity: 1; border-color: var(--rule); }
+.reaction:disabled { opacity: .5; cursor: default; }
