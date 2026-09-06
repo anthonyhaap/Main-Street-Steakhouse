@@ -2881,6 +2881,89 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
 /* `minmax(0, 1fr)` and not `1fr`: a grid child defaults to min-width auto, so
    the one-line teaser below — which is deliberately nowrap — would otherwise
    size the track to the whole sentence and push the card past the phone. */
+/* ----------------------------------------------------- manager profile -- */
+/* Opened from a card, and rendered under the row of them rather than over the
+   top: a career is something two people read together, and a dialog that dims
+   the league behind it is the wrong shape for that. */
+
+.mgrcard[role="button"] { cursor: pointer; }
+.mgrcard[role="button"]:hover { border-color: var(--gold-dim); }
+.mgrcard[role="button"]:focus-visible {
+  outline: 2px solid var(--gold); outline-offset: 2px;
+}
+.mgrcard[data-open="true"] {
+  border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold-dim) inset;
+}
+
+.prof {
+  margin-top: var(--s4);
+  border: 1px solid var(--gold-dim); border-radius: var(--r2);
+  background: var(--surface); overflow: hidden;
+}
+
+.prof__head {
+  display: flex; align-items: center; gap: var(--s3);
+  padding: var(--s4); border-bottom: 1px solid var(--rule-soft);
+}
+.prof__head h2 { margin: 0; font-size: var(--t-h2); line-height: 1.15; }
+.prof__head .btn { margin-left: auto; flex-shrink: 0; }
+.prof__sub { margin: 3px 0 0; font-size: var(--t-small); color: var(--muted); }
+
+.prof__title {
+  margin: 0; padding: var(--s3) var(--s4);
+  font-style: italic; color: var(--gold); font-size: var(--t-small);
+  border-bottom: 1px solid var(--rule-soft);
+}
+
+.prof__block { padding: var(--s4); border-bottom: 1px solid var(--rule-soft); }
+.prof__block:last-child { border-bottom: 0; }
+.prof__block > .eyebrow { display: block; margin-bottom: var(--s3); }
+.prof__empty { margin: 0; color: var(--dim); font-size: var(--t-small); }
+
+.prof__cab { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.prof__trophy {
+  display: flex; align-items: baseline; gap: var(--s2);
+  padding: 7px var(--s3); border-radius: var(--r1);
+  background: var(--gold-haze); border-left: 3px solid var(--gold);
+}
+.prof__trophy[data-good="false"] {
+  background: transparent; border-left-color: var(--rule);
+}
+.prof__trophy b { font-size: var(--t-small); }
+.prof__trophy span { margin-left: auto; color: var(--muted); font-size: var(--t-micro); }
+
+.prof__tbl { width: 100%; border-collapse: collapse; min-width: 420px; }
+.prof__tbl th, .prof__tbl td {
+  padding: 7px var(--s3); text-align: right; white-space: nowrap;
+  border-bottom: 1px solid var(--rule-soft);
+}
+.prof__tbl th:nth-child(2), .prof__tbl td:nth-child(2) { text-align: left; }
+.prof__tbl tbody tr:last-child td { border-bottom: 0; }
+.prof__won { color: var(--gold); }
+.prof__lost { color: var(--muted); }
+
+.prof__owns { margin: 0 0 var(--s3); font-size: var(--t-small); color: var(--muted); }
+.prof__owns b { color: var(--ink); }
+
+.prof__h2h {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); gap: 2px var(--s4);
+}
+.prof__h2h li {
+  display: flex; align-items: baseline; gap: var(--s2);
+  padding: 4px 0; font-size: var(--t-small); border-bottom: 1px solid var(--rule-soft);
+}
+.prof__h2h li span { color: var(--muted); min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.prof__h2h li b { margin-left: auto; font-variant-numeric: tabular-nums; }
+.prof__h2h li b[data-tone="up"]   { color: var(--win); }
+.prof__h2h li b[data-tone="down"] { color: var(--lose); }
+
+.prof__notes {
+  display: flex; flex-wrap: wrap; gap: var(--s2) var(--s5);
+  font-size: var(--t-small); color: var(--muted);
+}
+.prof__notes b { color: var(--ink); }
+
 /* ------------------------------------------------------ power rankings -- */
 /* A list, not a table: every row carries a sentence, and a sentence in a cell
    wraps into a column two words wide. */

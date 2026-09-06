@@ -13,7 +13,7 @@ import { useMemo } from "react";
 import { TopBar } from "@/components/Shell";
 import { HistoryWall } from "@/components/history/HistoryWall";
 import { mulberry32 } from "@/lib/playoffs";
-import type { History, HistoryCell, HistoryManager, HistorySeason } from "@/lib/history";
+import type { HistoricalStanding, History, HistoryCell, HistoryManager, HistorySeason } from "@/lib/history";
 
 const MANAGERS = ["Anthony", "Marcus", "Dev", "Dave", "Tom", "Nate", "Jules", "Sam", "Kai", "Priya", "Mike", "Ray"];
 const TEAMS = [
@@ -137,8 +137,38 @@ function fold(games: Game[]): History {
   };
 }
 
+/**
+ * The final tables, derived from the same invented games rather than invented
+ * separately — a fixture whose standings disagreed with its own results would
+ * exercise the profile against a league that cannot exist.
+ */
+function standingsOf(games: Game[]): HistoricalStanding[] {
+  const rows: HistoricalStanding[] = [];
+  for (const season of [...new Set(games.map((g) => g.season))]) {
+    const tally = MANAGERS.map((m, i) => {
+      const mine = games.filter(
+        (g) => g.season === season && g.round === "regular" && (g.home === m || g.away === m));
+      const pf = mine.reduce((s, g) => s + (g.home === m ? g.hp : g.ap), 0);
+      const pa = mine.reduce((s, g) => s + (g.home === m ? g.ap : g.hp), 0);
+      const wins = mine.filter((g) => (g.home === m ? g.hp > g.ap : g.ap > g.hp)).length;
+      return {
+        season, final_rank: 0, team_name: TEAMS[i], manager_names: m,
+        wins, losses: mine.length - wins, ties: 0,
+        points_for: Math.round(pf * 10) / 10, points_against: Math.round(pa * 10) / 10,
+        moves: null,
+      };
+    });
+    tally.sort((a, b) => b.wins - a.wins || b.points_for - a.points_for);
+    tally.forEach((r, i) => { r.final_rank = i + 1; });
+    rows.push(...tally);
+  }
+  return rows;
+}
+
 export default function HistoryPreview() {
-  const history = useMemo(() => fold(generate()), []);
+  const games = useMemo(() => generate(), []);
+  const history = useMemo(() => fold(games), [games]);
+  const standings = useMemo(() => standingsOf(games), [games]);
   return (
     <>
       <TopBar status="live" />
@@ -149,7 +179,7 @@ export default function HistoryPreview() {
         <strong>Fixture.</strong> Ten invented seasons for twelve invented managers, generated from a seed.
         Nobody here is a real person; every plaque, streak and beating is made up.
       </div>
-      <HistoryWall history={history} myManager="Anthony" importable />
+      <HistoryWall history={history} historicalStandings={standings} myManager="Anthony" importable />
     </>
   );
 }
