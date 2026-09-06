@@ -418,3 +418,31 @@ export type LedgerEntry = {
   ord: number;
   items: LedgerItem[];
 };
+
+/** One line in the House feed. `source` says which stream it came from: a
+ *  manager's message, or something the league did. An event has no `author`
+ *  when the league did it to itself — a settlement or a recap — because
+ *  attributing that to anybody would misstate who acted. */
+export type FeedItem = {
+  id: string;
+  at: string;
+  source: "message" | "event";
+  /** message kind ('manager' | 'house') or activity_events.event_type */
+  kind: string;
+  body: string;
+  detail: string | null;
+  author: string | null;
+  author_team_id: string | null;
+  mine: boolean;
+  source_type: string | null;
+  source_id: string | null;
+  matchup: { id: string; week: number; home: string; away: string; mine: boolean } | null;
+};
+
+/** One page of ff_house_feed. `next_before` is the cursor for the next call,
+ *  and null when this page was the end. */
+export type HouseFeed = {
+  items: FeedItem[];
+  next_before: string | null;
+  now: string;
+};
