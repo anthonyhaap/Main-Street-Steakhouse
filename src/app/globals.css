@@ -3011,6 +3011,39 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
    padding).
    ========================================================================== */
 
+/* The room takes the whole screen.
+   ----------------------------------------------------------------------------
+   Every other screen in this app is a page inside the shell, under the top bar
+   and above the tab bar. The draft room is not a page you browse to — it is a
+   place you sit for two hours, and the 132px the shell spends on getting you
+   somewhere else is 132px it is taking from the only two things that matter
+   while you are here: who's on the clock and who's left.
+
+   So it covers them, the way a draft room does everywhere else: the banner
+   with your team on it starts at the top edge of the screen. There is no nav
+   because there is nowhere else to be — the room carries its own board, its
+   own rosters and its own way out, and the wire that lived in the top bar
+   moves onto the clock.
+
+   Above the top bar (50) and the tab bar (60); below the toasts (90) and the
+   player card (100), both of which belong over the room rather than under it. */
+.draft-full {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  /* The body's paper gradient shows through; the insets keep the clock clear
+     of a notch and the list clear of the home indicator. */
+  padding:
+    max(env(safe-area-inset-top), var(--s2))
+    max(env(safe-area-inset-right), clamp(var(--s2), 2vw, var(--s4)))
+    max(env(safe-area-inset-bottom), var(--s2))
+    max(env(safe-area-inset-left), clamp(var(--s2), 2vw, var(--s4)));
+}
+.draft-full > .draft-room { flex: 1; min-height: 0; }
+
 /* The page stops being a document and becomes a frame: it is exactly as tall
    as the space the shell leaves between the top bar and the tab bar, and the
    room inside it takes whatever is left over after any header above it. */
@@ -3037,6 +3070,7 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
    this the room stops shrinking and the page is allowed to scroll again. */
 @media (min-height: 620px) {
   .draft-room { min-height: 460px; }
+  .draft-full > .draft-room { min-height: 0; }
 }
 
 

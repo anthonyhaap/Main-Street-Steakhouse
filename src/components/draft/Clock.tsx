@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, ClipboardList, Pause, Play, RefreshCw, RotateCcw, SlidersHorizontal, Volume2, VolumeX, Zap } from "lucide-react";
+import { AlertTriangle, Pause, Play, RefreshCw, RotateCcw, SlidersHorizontal, Volume2, VolumeX, X, Zap } from "lucide-react";
+import { Wire } from "@/components/Shell";
+import type { WireStatus } from "@/lib/live";
 import type { Draft, Team } from "@/lib/types";
 import { fmtClock, pickLabel, roundForPick } from "@/lib/draft";
 import { crestUrl } from "@/lib/crest";
@@ -28,10 +30,17 @@ type Props = {
   onReset: () => void;
   soundMuted: boolean;
   onToggleSound: () => void;
-  /** Where the practice room lives. Rendered as one small button, never a card:
-      it is a thing you do once in August, and it was costing draft night four
-      hundred pixels of the screen the player list needed. */
+  /** Where the practice room lives. One line at the foot of the card before
+      the draft starts, never a card of its own: it is a thing you do once in
+      August, and it was costing draft night four hundred pixels of the screen
+      the player list needed. */
   mockHref?: string;
+  /** Realtime status. The room covers the shell, so the wire that normally
+      lives in the top bar has to live here or nowhere. */
+  status?: WireStatus;
+  /** Where the door is. The room is a full-screen takeover with no nav of its
+      own, so it needs one. */
+  exitHref?: string;
 };
 
 /**
@@ -92,13 +101,8 @@ export function Clock(p: Props) {
         </div>
 
         <div className="clock__right">
-          <div style={{ display: "flex", gap: 2 }}>
-            {p.mockHref && (
-              <Link className="btn" data-v="ghost" data-size="icon" href={p.mockHref}
-                title="Practice room — run a private mock draft" aria-label="Run a mock draft">
-                <ClipboardList size={14} />
-              </Link>
-            )}
+          <div style={{ display: "flex", gap: 2, alignItems: "center" }}>
+            {p.status && <Wire status={p.status} />}
             {p.isCommissioner && (
               <button className="btn" data-v="ghost" data-size="icon" onClick={() => setTools((t) => !t)}
                 aria-expanded={tools} title={tools ? "Hide commissioner controls" : "Commissioner controls"}
@@ -112,6 +116,12 @@ export function Clock(p: Props) {
               aria-label={p.soundMuted ? "Unmute draft sounds" : "Mute draft sounds"}>
               {p.soundMuted ? <VolumeX size={14} /> : <Volume2 size={14} />}
             </button>
+            {p.exitHref && (
+              <Link className="btn" data-v="ghost" data-size="icon" href={p.exitHref}
+                title="Leave the draft room" aria-label="Leave the draft room">
+                <X size={15} />
+              </Link>
+            )}
           </div>
           {draft.status === "setup" && <div className="eyebrow">Not started</div>}
           {draft.status === "paused" && <div className="eyebrow" data-tone="gold">Paused</div>}
