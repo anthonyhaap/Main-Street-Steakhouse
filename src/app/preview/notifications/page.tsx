@@ -26,7 +26,7 @@ export default function PreviewNotifications() {
   return (
     <>
       <TopBar />
-      <main className="page" data-width="narrow">
+      <main className="page">
         <div className="card">
           <div className="card__head">
             <h2>Preview: notifications</h2>
