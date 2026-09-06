@@ -3661,3 +3661,26 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
 .reaction[data-quiet="true"] { border-color: transparent; opacity: .5; }
 .reaction[data-quiet="true"]:hover:not(:disabled) { opacity: 1; border-color: var(--rule); }
 .reaction:disabled { opacity: .5; cursor: default; }
+
+/* --- polls -------------------------------------------------------------- */
+.poll__opt {
+  position: relative; display: flex; align-items: center; gap: 8px;
+  width: 100%; min-height: 36px; padding: 7px 11px;
+  border: 1px solid var(--rule); border-radius: 9px;
+  background: transparent; color: var(--ink); text-align: left;
+  font-size: var(--t-small); line-height: 1.35; cursor: pointer;
+  overflow: hidden;                 /* the bar is clipped to the button */
+  transition: border-color .12s ease;
+}
+.poll__opt:hover:not(:disabled) { border-color: var(--gold-dim); }
+.poll__opt[data-mine="true"] { border-color: var(--gold); }
+.poll__opt:disabled { cursor: default; }
+/* Behind the label, not beside it, so a long answer is never squeezed by its
+   own result. */
+.poll__bar {
+  position: absolute; inset: 0 auto 0 0;
+  background: color-mix(in oklab, var(--gold) 14%, transparent);
+  pointer-events: none;
+}
+.poll__label { position: relative; display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; }
+.poll__count { position: relative; color: var(--dim); font-size: var(--t-micro); }

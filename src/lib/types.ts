@@ -426,7 +426,7 @@ export type LedgerEntry = {
 export type FeedItem = {
   id: string;
   at: string;
-  source: "message" | "event";
+  source: "message" | "event" | "poll";
   /** message kind ('manager' | 'house') or activity_events.event_type */
   kind: string;
   body: string;
@@ -437,7 +437,25 @@ export type FeedItem = {
   source_type: string | null;
   source_id: string | null;
   reactions: Reaction[];
+  poll: Poll | null;
   matchup: { id: string; week: number; home: string; away: string; mine: boolean } | null;
+};
+
+/** One answer. `count` is NULL until the reader has voted or the poll closes —
+ *  deliberately null rather than 0, because a reader takes a 0 for a number. */
+export type PollOption = { option_id: string; label: string; count: number | null; mine: boolean };
+
+export type Poll = {
+  poll_id: string;
+  question: string;
+  closes_at: string | null;
+  closed: boolean;
+  /** Turnout, always visible: "nine have voted" is pressure to join in without
+   *  being pressure to agree. */
+  votes: number;
+  my_option: string | null;
+  revealed: boolean;
+  options: PollOption[];
 };
 
 /** One emoji's tally on one feed item. `mine` is whether you are in the count,

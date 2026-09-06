@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowLeftRight, Gavel, MessageCircle, PenLine, Trophy, Megaphone, Swords } from "lucide-react";
 import type { FeedItem } from "@/lib/types";
 import { Reactions } from "./Reactions";
+import { PollCard } from "./PollCard";
 
 /**
  * The House: what the league said and what the league did, in one column.
@@ -87,10 +88,33 @@ function Did({ item, busy, onReact }: {
   );
 }
 
+/** A question, with its answers under it. Reads as speech — somebody asked it —
+ *  rather than as a record of something the league did. */
+function Asked({ item, busy, voting, onReact, onVote }: {
+  item: FeedItem; busy: boolean; voting: boolean;
+  onReact: (emoji: string) => void; onVote: (optionId: string) => void;
+}) {
+  return (
+    <div className="row" data-mine={item.mine} data-kind="poll" style={{ alignItems: "flex-start" }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="eyebrow" style={{ marginBottom: 5 }}>
+          {item.mine ? "You asked" : `${item.author ?? "League manager"} asked`}
+        </div>
+        <div className="chat__body">{item.body}</div>
+        {item.poll && <PollCard poll={item.poll} busy={voting} onVote={onVote} />}
+        <Reactions reactions={item.reactions ?? []} busy={busy} onPress={onReact} />
+      </div>
+      <time className="num" style={{ color: "var(--dim)", fontSize: "var(--t-micro)" }}>
+        {stamp(item.at)}
+      </time>
+    </div>
+  );
+}
+
 export type HouseFilter = "all" | "talk" | "moves";
 
 export function House({
-  items, filter, onFilter, hasMore, loadingMore, onMore, reacting, onReact,
+  items, filter, onFilter, hasMore, loadingMore, onMore, reacting, onReact, voting, onVote,
 }: {
   items: FeedItem[];
   filter: HouseFilter;
@@ -101,9 +125,16 @@ export function House({
   /** `${source}:${id}` of the item mid-flight, so only its own row goes quiet. */
   reacting: string | null;
   onReact: (item: FeedItem, emoji: string) => void;
+  /** The poll id mid-flight, so only its own answers go quiet. */
+  voting: string | null;
+  onVote: (item: FeedItem, optionId: string) => void;
 }) {
+  // A poll is talk: somebody asked it. Without this it belongs to neither
+  // filter and disappears from both, which is the quiet kind of wrong.
   const shown = items.filter((i) =>
-    filter === "all" ? true : filter === "talk" ? i.source === "message" : i.source === "event");
+    filter === "all" ? true
+    : filter === "talk" ? i.source === "message" || i.source === "poll"
+    : i.source === "event");
 
   return (
     <section className="card">
@@ -136,6 +167,18 @@ export function House({
         {shown.map((item) => {
           const busy = reacting === `${item.source}:${item.id}`;
           const react = (emoji: string) => onReact(item, emoji);
+          if (item.source === "poll") {
+            return (
+              <Asked
+                key={`p-${item.id}`}
+                item={item}
+                busy={busy}
+                voting={voting === item.id}
+                onReact={react}
+                onVote={(optionId) => onVote(item, optionId)}
+              />
+            );
+          }
           return item.source === "message"
             ? <Said key={`m-${item.id}`} item={item} busy={busy} onReact={react} />
             : <Did key={`e-${item.id}`} item={item} busy={busy} onReact={react} />;
