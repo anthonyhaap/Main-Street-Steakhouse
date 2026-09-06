@@ -131,6 +131,36 @@ begin
   end if;
   v_checks := v_checks + 1;
 
+  -- ------------------------------- no table takes a write it has no policy for --
+  -- The general form of what 20260906040000 fixed. A `create table` on this
+  -- project grants INSERT/UPDATE/DELETE to the API roles before any policy
+  -- exists, and `revoke all ... from public, anon` does not take them back.
+  -- Naming the tables would rot the moment somebody adds one, so this asks the
+  -- question instead: is there a table where a write is granted and no policy
+  -- could ever allow it? That combination is always a mistake — either the
+  -- grant is wrong, or the policy is missing and the feature is broken.
+  v_bad := '{}';
+  for v_name, v_sig in
+    select c.relname, cmd_needed
+      from pg_class c
+      join pg_namespace n on n.oid = c.relnamespace
+      cross join lateral (values ('INSERT'),('UPDATE'),('DELETE')) v(cmd_needed)
+     where n.nspname = 'public' and c.relkind = 'r' and c.relrowsecurity
+       and has_table_privilege('authenticated', c.oid, lower(v.cmd_needed))
+       and not exists (
+         select 1 from pg_policies p
+          where p.schemaname = 'public' and p.tablename = c.relname
+            and p.cmd in (v.cmd_needed, 'ALL'))
+  loop
+    v_bad := v_bad || (v_name || ' ' || v_sig);
+  end loop;
+
+  if array_length(v_bad, 1) is not null then
+    raise exception 'authenticated holds % table write grant(s) no policy can ever allow: %',
+      array_length(v_bad, 1), array_to_string(v_bad, ', ');
+  end if;
+  v_checks := v_checks + 1;
+
   raise notice 'grants: % checks passed', v_checks;
 end $$;
 
