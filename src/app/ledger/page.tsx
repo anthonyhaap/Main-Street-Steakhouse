@@ -59,7 +59,7 @@ export default function LedgerPage() {
     return (
       <>
         <TopBar status={status} />
-        <main className="page" data-width="narrow">
+        <main className="page">
           <div className="card"><SkeletonRows n={8} /></div>
         </main>
       </>
@@ -72,7 +72,7 @@ export default function LedgerPage() {
     return (
       <>
         <TopBar status={status} />
-        <main className="page" data-width="narrow">
+        <main className="page">
           <div className="card">
             <div className="note" data-kind="error">Couldn&apos;t load the ledger: {error}</div>
           </div>
@@ -84,7 +84,7 @@ export default function LedgerPage() {
   return (
     <>
       <TopBar status={status} />
-      <main className="page" data-width="narrow">
+      <main className="page">
         <Ledger
           entries={data ?? []}
           filter={filter}

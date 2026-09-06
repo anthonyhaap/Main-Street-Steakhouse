@@ -78,7 +78,7 @@ export default function PreviewLedger() {
   return (
     <>
       <TopBar />
-      <main className="page" data-width="narrow">
+      <main className="page">
         <div className="card">
           <div className="card__head">
             <h2>Preview: the ledger</h2>
