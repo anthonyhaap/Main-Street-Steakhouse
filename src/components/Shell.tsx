@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useRouter } from "next/navigation";
-import { ArrowLeftRight, BarChart3, CircleDollarSign, Crown, Gavel, Landmark, LogOut, MessageCircle, MoreHorizontal, Radio, Shield, Swords, Users, UtensilsCrossed, ScrollText, X } from "lucide-react";
+import { ArrowLeftRight, BarChart3, CircleDollarSign, Crown, Landmark, LogOut, MessageCircle, MoreHorizontal, Radio, Shield, Swords, UtensilsCrossed, X } from "lucide-react";
 import { useCrests, useSession } from "@/lib/session";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import type { WireStatus } from "@/lib/live";
@@ -19,6 +19,10 @@ import { Seal } from "@/components/ui";
  * you watch — the tab is Matchups. And the room is called the Clubhouse
  * everywhere in the app except the tab that opens it, which said Chat; a
  * product with two names for one place has neither.
+ *
+ * Players, Waivers, Trades and Ledger used to be four entries here. They are
+ * four views of one question — how a roster changes — so they are one
+ * destination, Transactions, and the tabs inside it.
  */
 type NavItem = {
   href: string;
@@ -29,18 +33,15 @@ type NavItem = {
 };
 
 const NAV: NavItem[] = [
-  { href: "/",           label: "Tonight",    Icon: UtensilsCrossed },
-  { href: "/matchups",   label: "Matchups",   Icon: Radio },
-  { href: "/team",       label: "My Team",    Icon: Shield },
-  { href: "/standings",  label: "Standings",  Icon: BarChart3 },
-  { href: "/draft",      label: "Draft",      Icon: Swords },
-  { href: "/history",    label: "History",    Icon: Landmark },
-  { href: "/players",    label: "Players",    Icon: Users },
-  { href: "/waivers",    label: "Waivers",    Icon: Gavel },
-  { href: "/trades",     label: "Trades",     Icon: ArrowLeftRight },
-  { href: "/ledger",     label: "Ledger",     Icon: ScrollText },
-  { href: "/chat",       label: "The House",  Icon: MessageCircle },
-  { href: "/challenges", label: "Challenges", Icon: CircleDollarSign },
+  { href: "/",             label: "Tonight",      Icon: UtensilsCrossed },
+  { href: "/matchups",     label: "Matchups",     Icon: Radio },
+  { href: "/team",         label: "My Team",      Icon: Shield },
+  { href: "/standings",    label: "Standings",    Icon: BarChart3 },
+  { href: "/draft",        label: "Draft",        Icon: Swords },
+  { href: "/history",      label: "History",      Icon: Landmark },
+  { href: "/transactions", label: "Transactions", Icon: ArrowLeftRight },
+  { href: "/chat",         label: "The House",    Icon: MessageCircle },
+  { href: "/challenges",   label: "Challenges",   Icon: CircleDollarSign },
 ];
 
 /** Four thumb-reachable tabs; everything else lives behind More. */

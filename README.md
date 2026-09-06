@@ -457,6 +457,19 @@ lose their equality — a rule before them and a crown on them — because sitti
 them at the same weight as My Team told eleven managers to read past that whole
 end of the bar.
 
+And four tabs were one thing. Players, Waivers, Trades and Ledger are four
+views of a single question — how a roster changes. Every move starts from the
+player pool, all three systems write the same rows to `transactions`, and the
+ledger is the account of all three. So they are one destination, **Transactions**,
+with the four as tabs inside it, and the bar is three entries shorter.
+`/transactions?tab=players|waivers|trades|ledger` is the address of each, and
+the old `/players`, `/waivers`, `/trades` and `/ledger` still resolve — they
+redirect to their tab, because they are in bookmarks, in the `url` a push
+notification carries, and in the `next=` a sign-in hands back. Only the open
+tab is mounted: each panel opens its own realtime channel and its own poll, and
+running four of those behind three hidden tabs is four times the traffic for
+one screen anybody is reading.
+
 The `/preview` routes are public. They read nothing from the database; every
 one is an invented league rendered through the real components, which is what
 lets `tests/e2e/tonight.spec.ts` assert the card's sentences without a session.
@@ -505,7 +518,7 @@ lived in the desk component, so the two could drift. It is one component now.
 
 ### The wire
 
-`/waivers` is the screen the waiver backend was built for. It says when the next
+The **Waivers** tab is the screen the waiver backend was built for. It says when the next
 settlement is and that claims are blind until then; it lists a manager's own
 claims **in the order they will be answered**, because the run gives a team at
 most one claim per pass and which one is first is therefore the whole decision;
@@ -519,8 +532,8 @@ the roster the manager has *then*, so naming a drop says "take him anyway" and
 leaving it blank says "only if I have room". The run enforces exactly that and
 marks the second kind invalid, in those words, when there is no room.
 
-`/players` had to learn about waivers too. A dropped player is unowned, so
-without this the page would have offered a Sign button that the database
+The **Players** tab had to learn about waivers too. A dropped player is
+unowned, so without this it would have offered a Sign button that the database
 refuses every time; on-waivers players now get a Claim button instead, and the
 free-agent count stops counting them.
 

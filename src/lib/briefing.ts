@@ -545,7 +545,7 @@ export function action(b: Briefing, phase: Phase): Action | null {
     case "recap":
       return { label: "Send the recap to the chat", kind: "share" };
     case "waivers":
-      return { label: "Work the waiver wire", href: "/players" };
+      return { label: "Work the waiver wire", href: "/transactions?tab=players" };
     case "preseason":
       return lu?.has_roster ? { label: "Set your week 1 lineup", href: "/team" } : { label: "See your team", href: "/team" };
     default: {
