@@ -1,0 +1,73 @@
+name: guard main
+
+# main is worked by several agents at once, and four separate changes landed on
+# it directly during one feature's review — one of them on top of a merge that
+# was still being discussed. Undoing the middle one would have meant rewriting
+# history under a session that was still running, so none of them could be
+# cleanly undone at all.
+#
+# AGENTS.md now asks for a branch and a pull request. A sentence in a file only
+# reaches an agent that reads it, though, and this is the half that does not
+# depend on being read: a commit that arrives on main without a pull request
+# turns the commit red, in public, immediately.
+#
+# It is a deterrent, not a lock. Only a repository ruleset can actually refuse
+# the push — Settings › Rules › Rulesets, "Require a pull request before
+# merging". Until that is switched on, this is what makes the rule visible, and
+# it is worth keeping afterwards as the thing that says so out loud.
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  through-a-pull-request:
+    name: the head commit arrived through a pull request
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            // "List pull requests associated with a commit" is the test that
+            // survives all three merge methods: a merge commit, a squash and a
+            // rebase each leave the resulting commit associated with the pull
+            // request it came from, while a commit pushed straight to main is
+            // associated with nothing. Matching on the commit MESSAGE instead
+            // would pass for anyone who writes "Merge pull request #12" by
+            // hand — which is exactly the shape a local `git merge --no-ff`
+            // produces, so it would have missed the four this exists for.
+            const branch = context.ref.replace('refs/heads/', '');
+            const sha = context.sha;
+
+            // The association is indexed a moment after the push, so a single
+            // lookup can miss a legitimate merge and go red for no reason. Five
+            // tries over twelve seconds is enough; the failure below is only
+            // reached once GitHub has had time to answer properly.
+            let associated = [];
+            for (let attempt = 1; attempt <= 5; attempt++) {
+              const { data } = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                commit_sha: sha,
+              });
+              associated = data.filter((pr) => pr.merged_at && pr.base.ref === branch);
+              if (associated.length) break;
+              if (attempt < 5) await new Promise((r) => setTimeout(r, 3000));
+            }
+
+            if (associated.length) {
+              core.info(`${sha.slice(0, 7)} arrived through #${associated[0].number}.`);
+              return;
+            }
+
+            core.setFailed(
+              `${sha.slice(0, 7)} was pushed straight to ${branch}.\n\n` +
+              `AGENTS.md asks for a branch and a pull request: ${branch} should be ` +
+              `what came out of a review, never what went into one.\n\n` +
+              `Nothing here is broken and nothing needs reverting — reverting a ` +
+              `shared branch under other sessions is worse than the push was. ` +
+              `Open the next change as a pull request.`
+            );
