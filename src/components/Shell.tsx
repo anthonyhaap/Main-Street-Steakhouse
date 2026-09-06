@@ -39,7 +39,7 @@ const NAV: NavItem[] = [
   { href: "/waivers",    label: "Waivers",    Icon: Gavel },
   { href: "/trades",     label: "Trades",     Icon: ArrowLeftRight },
   { href: "/ledger",     label: "Ledger",     Icon: ScrollText },
-  { href: "/chat",       label: "Clubhouse",  Icon: MessageCircle },
+  { href: "/chat",       label: "The House",  Icon: MessageCircle },
   { href: "/challenges", label: "Challenges", Icon: CircleDollarSign },
 ];
 

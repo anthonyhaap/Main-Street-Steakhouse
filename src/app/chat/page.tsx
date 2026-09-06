@@ -1,70 +1,74 @@
 "use client";
 
 import { FormEvent, useCallback, useState } from "react";
-import Link from "next/link";
-import { MessageCircle, Send } from "lucide-react";
+import { Send } from "lucide-react";
 import { TopBar } from "@/components/Shell";
 import { SkeletonRows } from "@/components/ui";
 import { LEAGUE_ID } from "@/lib/config";
 import { useLive } from "@/lib/live";
 import { useSession } from "@/lib/session";
 import { supabaseBrowser } from "@/lib/supabase/client";
-import type { LeagueMessage, Matchup } from "@/lib/types";
+import type { FeedItem, HouseFeed } from "@/lib/types";
+import { House, type HouseFilter } from "@/components/house/House";
 
 /**
- * The clubhouse.
+ * The House.
  *
- * It is no longer the only place a line can be said. A comment made on a
- * matchup card lands in this same table with a `matchup_id` on it, and the
- * room shows it — with the game it was said about, and a way back to it.
+ * This was the clubhouse, and it read `league_messages` directly. It is now one
+ * merged stream: what managers said and what the league did, newest first.
  *
- * That direction matters as much as the other one. Moving the argument onto
- * the scoreboard would be no improvement if it then vanished from the room
- * everyone reads; a league of twelve cannot afford a conversation only two
- * people ever see.
+ * The merge is the point. `activity_events` had been written by four migrations
+ * — every signing, every settled waiver, every accepted trade — and rendered
+ * nowhere except a four-item summary on the front page. A trade going through
+ * is the most talked-about thing that happens in a fantasy league, and it was
+ * happening somewhere nobody was looking, while the room where everyone talks
+ * had no idea it had occurred.
+ *
+ * It stays at /chat and keeps its place in the nav rather than becoming a
+ * thirteenth destination. The old file's own comment argued that a league of
+ * twelve cannot afford a conversation only two people ever see; a separate feed
+ * screen would have split the room in exactly that way.
  */
-type Room = { messages: LeagueMessage[]; matchups: Matchup[] };
-
-export default function ChatPage() {
-  const { ready, user, teams } = useSession();
+export default function HousePage() {
+  const { ready } = useSession();
   const [body, setBody] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState<HouseFilter>("all");
 
-  const fetcher = useCallback(async (): Promise<Room> => {
-    const supabase = supabaseBrowser();
-    const [said, games] = await Promise.all([
-      supabase.from("league_messages").select("*")
-        .eq("league_id", LEAGUE_ID).order("created_at").limit(100),
-      // Only to caption a matchup line; the scoreboard owns the real numbers.
-      supabase.from("matchups").select("id,week,home_team_id,away_team_id")
-        .eq("league_id", LEAGUE_ID),
-    ]);
-    if (said.error) throw said.error;
-    return {
-      messages: (said.data ?? []) as LeagueMessage[],
-      matchups: (games.data ?? []) as Matchup[],
-    };
+  // Pages fetched beyond the first. Kept apart from the live head so that a
+  // refetch — a poll, a realtime nudge — refreshes the top of the feed without
+  // throwing away what the manager has already scrolled past.
+  const [older, setOlder] = useState<FeedItem[]>([]);
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  const fetcher = useCallback(async (): Promise<HouseFeed> => {
+    const { data, error: rpcError } = await supabaseBrowser()
+      .rpc("ff_house_feed", { p_league_id: LEAGUE_ID, p_limit: 40 });
+    if (rpcError) throw new Error(rpcError.message);
+    return data as HouseFeed;
   }, []);
 
-  const { data, status, refetch } = useLive<Room>(fetcher, {
-    tables: ["league_messages"], channel: "league-chat", pollMs: 30000, enabled: ready,
+  const { data, status, error: feedError, refetch } = useLive<HouseFeed>(fetcher, {
+    tables: ["league_messages", "activity_events"],
+    channel: "house",
+    pollMs: 30000,
+    enabled: ready,
   });
 
-  const nameOf = (id: string | null) =>
-    teams.find((team) => team.owner_id === id)?.name ?? "League manager";
-  const teamName = (id: string) => teams.find((team) => team.id === id)?.name ?? "—";
-
-  /** "Week 11 · Prime Cut vs Gridiron Butchers", and where to read it. */
-  const gameOf = (matchupId: string | null) => {
-    if (!matchupId) return null;
-    const m = data?.matchups.find((x) => x.id === matchupId);
-    if (!m) return null;
-    return {
-      label: `Week ${m.week} · ${teamName(m.away_team_id)} vs ${teamName(m.home_team_id)}`,
-      href: `/matchups?week=${m.week}`,
-    };
-  };
+  async function loadMore() {
+    const from = cursor ?? data?.next_before ?? null;
+    if (!from || loadingMore) return;
+    setLoadingMore(true);
+    const { data: page } = await supabaseBrowser()
+      .rpc("ff_house_feed", { p_league_id: LEAGUE_ID, p_before: from, p_limit: 40 });
+    setLoadingMore(false);
+    if (!page) return;
+    const next = page as HouseFeed;
+    setOlder((prev) => [...prev, ...next.items]);
+    setCursor(next.next_before);
+  }
 
   async function send(event: FormEvent) {
     event.preventDefault();
@@ -80,76 +84,69 @@ export default function ChatPage() {
     await refetch();
   }
 
+  const items = [...(data?.items ?? []), ...older];
+  const hasMore = (cursor ?? data?.next_before ?? null) !== null;
+
   return (
     <>
       <TopBar status={status} />
       <main className="page">
         <header style={{ marginBottom: "var(--s5)" }}>
-          <div className="eyebrow" data-tone="gold">League clubhouse</div>
+          <div className="eyebrow" data-tone="gold">The House</div>
           <h1 className="display" style={{ fontSize: "var(--t-title)", margin: "var(--s2) 0" }}>
-            Keep the group together.
+            Everything, as it happens.
           </h1>
           <p className="prose">
-            Draft talk, matchup arguments, and the messages worth remembering. Anything
-            said on a matchup card shows up here too, with the game it was said about.
+            Signings, waiver results and trades land here on their own, next to
+            whatever the league has to say about them. Anything said on a matchup
+            card shows up too, with the game it was said about.
           </p>
         </header>
 
-        <section className="card">
-          <div className="card__head">
-            <h2>League chat</h2>
-            <MessageCircle size={16} color="var(--gold)" />
+        {/* The composer sits above the feed because the feed is newest-first:
+            what you write appears where you are already looking. */}
+        <form
+          onSubmit={send}
+          style={{ display: "flex", gap: "var(--s2)", marginBottom: "var(--s4)" }}
+        >
+          <input
+            className="field"
+            maxLength={1000}
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            placeholder="Say something to the league…"
+            aria-label="Say something to the league"
+          />
+          <button
+            className="btn"
+            data-v="primary"
+            data-size="icon"
+            disabled={busy || !body.trim()}
+            aria-label="Send message"
+          >
+            <Send size={16} />
+          </button>
+        </form>
+
+        {error && <div className="note" data-kind="error" style={{ marginBottom: "var(--s4)" }}>{error}</div>}
+
+        {feedError ? (
+          <div className="card">
+            <div className="note" data-kind="error">Couldn&apos;t load the House: {feedError}</div>
           </div>
-
-          {!data ? <SkeletonRows n={6} /> : (
-            <div className="rows" style={{ maxHeight: "58vh", overflowY: "auto" }}>
-              {data.messages.length === 0 && (
-                <div className="empty">No messages yet.<br />Start the season&apos;s first argument.</div>
-              )}
-              {data.messages.map((message) => {
-                const game = gameOf(message.matchup_id);
-                return (
-                  <div className="row" key={message.id} data-mine={message.author_id === user?.id}
-                    data-kind={message.kind} style={{ alignItems: "flex-start" }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div className="eyebrow" style={{ marginBottom: 5 }}>
-                        {message.kind === "house" ? "The House"
-                          : message.author_id === user?.id ? "You"
-                          : nameOf(message.author_id)}
-                      </div>
-                      <div className="chat__body">{message.body}</div>
-                      {game && (
-                        <Link href={game.href} className="chat__on">
-                          <MessageCircle size={11} /> on {game.label}
-                        </Link>
-                      )}
-                    </div>
-                    <time className="num" style={{ color: "var(--dim)", fontSize: "var(--t-micro)" }}>
-                      {stamp(message.created_at)}
-                    </time>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          <form onSubmit={send} style={{ display: "flex", gap: "var(--s2)", padding: "var(--s4)", borderTop: "1px solid var(--rule)" }}>
-            <input className="field" maxLength={1000} value={body} onChange={(e) => setBody(e.target.value)}
-              placeholder="Message the league…" aria-label="Message the league" />
-            <button className="btn" data-v="primary" data-size="icon" disabled={busy || !body.trim()} aria-label="Send message">
-              <Send size={16} />
-            </button>
-          </form>
-
-          {error && <p role="alert" style={{ color: "var(--lose)", padding: "0 var(--s4) var(--s4)", margin: 0 }}>{error}</p>}
-        </section>
+        ) : !data ? (
+          <div className="card"><SkeletonRows n={6} /></div>
+        ) : (
+          <House
+            items={items}
+            filter={filter}
+            onFilter={setFilter}
+            hasMore={hasMore}
+            loadingMore={loadingMore}
+            onMore={() => void loadMore()}
+          />
+        )}
       </main>
     </>
   );
-}
-
-function stamp(value: string) {
-  const d = new Date(value);
-  return `${String(d.getUTCMonth() + 1).padStart(2, "0")}/${String(d.getUTCDate()).padStart(2, "0")} `
-    + `${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}Z`;
 }
