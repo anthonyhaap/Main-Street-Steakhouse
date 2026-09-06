@@ -56,6 +56,22 @@ alter default privileges for role supabase_admin in schema public
 alter default privileges for role postgres in schema public
   grant execute on functions to postgres, authenticated, service_role;
 
+-- The same trap, one object class over. A Supabase project also hands every
+-- NEW TABLE in `public` to the API roles, so `create table` grants INSERT,
+-- UPDATE and DELETE to authenticated before any policy exists — and the house
+-- `revoke all ... from public, anon` leaves all three standing.
+--
+-- Thirty-four tables were in that state on the live project when this was
+-- written. None of them was exploitable, because RLS is on everywhere and none
+-- of them carries a write policy, so the grant sits in front of a closed door.
+-- But the harness said one thing and production said another, which is the
+-- failure this file exists to prevent — the first time it happened it was
+-- functions, and ff_run_waivers was manager-callable for a day.
+alter default privileges for role supabase_admin in schema public
+  grant all on tables to postgres, anon, authenticated, service_role;
+alter default privileges for role postgres in schema public
+  grant all on tables to postgres, anon, authenticated, service_role;
+
 -- -------------------------------------------------------------- extensions --
 -- Supabase puts third-party extensions in `extensions`, not `public`, which is
 -- why the migrations say `extensions.http_get` and set

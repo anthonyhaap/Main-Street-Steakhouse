@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ArrowLeftRight, Gavel, MessageCircle, PenLine, Trophy, Megaphone, Swords } from "lucide-react";
 import type { FeedItem } from "@/lib/types";
+import { Reactions } from "./Reactions";
 
 /**
  * The House: what the league said and what the league did, in one column.
@@ -41,7 +42,9 @@ export function stamp(iso: string, now = new Date()): string {
     : d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-function Said({ item }: { item: FeedItem }) {
+function Said({ item, busy, onReact }: {
+  item: FeedItem; busy: boolean; onReact: (emoji: string) => void;
+}) {
   return (
     <div className="row" data-mine={item.mine} data-kind={item.kind} style={{ alignItems: "flex-start" }}>
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -54,6 +57,7 @@ function Said({ item }: { item: FeedItem }) {
             <MessageCircle size={11} /> on Week {item.matchup.week} · {item.matchup.away} vs {item.matchup.home}
           </Link>
         )}
+        <Reactions reactions={item.reactions ?? []} busy={busy} onPress={onReact} />
       </div>
       <time className="num" style={{ color: "var(--dim)", fontSize: "var(--t-micro)" }}>
         {stamp(item.at)}
@@ -62,7 +66,9 @@ function Said({ item }: { item: FeedItem }) {
   );
 }
 
-function Did({ item }: { item: FeedItem }) {
+function Did({ item, busy, onReact }: {
+  item: FeedItem; busy: boolean; onReact: (emoji: string) => void;
+}) {
   const Icon = ICON[item.kind] ?? Megaphone;
   return (
     <div className="row" data-kind={item.kind} style={{ alignItems: "flex-start" }}>
@@ -72,6 +78,7 @@ function Did({ item }: { item: FeedItem }) {
         {item.detail && (
           <div className="eyebrow" style={{ marginTop: 3, color: "var(--faint)" }}>{item.detail}</div>
         )}
+        <Reactions reactions={item.reactions ?? []} busy={busy} onPress={onReact} />
       </div>
       <time className="num" style={{ color: "var(--dim)", fontSize: "var(--t-micro)" }}>
         {stamp(item.at)}
@@ -83,7 +90,7 @@ function Did({ item }: { item: FeedItem }) {
 export type HouseFilter = "all" | "talk" | "moves";
 
 export function House({
-  items, filter, onFilter, hasMore, loadingMore, onMore,
+  items, filter, onFilter, hasMore, loadingMore, onMore, reacting, onReact,
 }: {
   items: FeedItem[];
   filter: HouseFilter;
@@ -91,6 +98,9 @@ export function House({
   hasMore: boolean;
   loadingMore: boolean;
   onMore: () => void;
+  /** `${source}:${id}` of the item mid-flight, so only its own row goes quiet. */
+  reacting: string | null;
+  onReact: (item: FeedItem, emoji: string) => void;
 }) {
   const shown = items.filter((i) =>
     filter === "all" ? true : filter === "talk" ? i.source === "message" : i.source === "event");
@@ -123,10 +133,13 @@ export function House({
               : "Nothing of that kind yet."}
           </div>
         )}
-        {shown.map((item) =>
-          item.source === "message"
-            ? <Said key={`m-${item.id}`} item={item} />
-            : <Did key={`e-${item.id}`} item={item} />)}
+        {shown.map((item) => {
+          const busy = reacting === `${item.source}:${item.id}`;
+          const react = (emoji: string) => onReact(item, emoji);
+          return item.source === "message"
+            ? <Said key={`m-${item.id}`} item={item} busy={busy} onReact={react} />
+            : <Did key={`e-${item.id}`} item={item} busy={busy} onReact={react} />;
+        })}
       </div>
 
       {hasMore && filter !== "talk" && (
