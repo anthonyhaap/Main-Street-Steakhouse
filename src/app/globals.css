@@ -982,7 +982,11 @@ a.kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); border-c
 }
 .modal__panel {
   width: min(100%, 540px);
-  max-height: 92vh;
+  /* dvh, not vh: the overlay around this is inset:0 on a fixed box, so it is
+     the viewport actually visible. vh is the viewport with the browser's bar
+     hidden, which let the panel outgrow its own overlay on a phone and put the
+     buttons at its foot under the fold. Same unit the shell uses. */
+  max-height: 92dvh;
   overflow: auto;
   background: var(--ink-1);
   border: 1px solid var(--rule-hard);
@@ -1464,7 +1468,8 @@ a.kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); border-c
 }
 .sheet__card {
   width: min(100%, 720px);
-  max-height: min(92vh, 900px);
+  /* Same fixed overlay, same reason as .modal__panel. */
+  max-height: min(92dvh, 900px);
   overflow: auto;
   background: var(--ink-1);
   border: 1px solid var(--rule-hard);
