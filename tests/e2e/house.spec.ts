@@ -80,3 +80,38 @@ test("a line nobody has reacted to offers one quiet button, not six", async ({ p
   await page.getByRole("button", { name: "React with 😂" }).click();
   await expect(page.getByRole("button", { name: /^😂 1, including you$/ })).toBeVisible();
 });
+
+test("a poll withholds its split until you answer", async ({ page }) => {
+  await page.goto("/preview/house");
+
+  // Before answering: the turnout is on screen, the split is not. Showing the
+  // running score first is what turns a poll into a measure of conformity.
+  await expect(page.getByText("Who wins the Chase trade?")).toBeVisible();
+  await expect(page.getByText(/7 votes · answer to see the split/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Vote for Chuck Wagon, easily" })).toBeVisible();
+
+  // Answering reveals it, and marks which one was mine.
+  await page.getByRole("button", { name: "Vote for Chuck Wagon, easily" }).click();
+  await expect(page.getByRole("button", { name: /Chuck Wagon, easily, 1 of 8, your answer/ })).toBeVisible();
+  await expect(page.getByText(/8 votes/)).toBeVisible();
+  await expect(page.getByText(/answer to see the split/)).toHaveCount(0);
+});
+
+test("a poll already answered shows the split straight away", async ({ page }) => {
+  await page.goto("/preview/house");
+  await expect(page.getByText("Move the draft to Thursday?")).toBeVisible();
+  await expect(page.getByRole("button", { name: /^Yes, 6 of 9, your answer$/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /^No, Sunday or nothing, 3 of 9$/ })).toBeVisible();
+});
+
+test("a poll is talk, not a move", async ({ page }) => {
+  await page.goto("/preview/house");
+
+  // It would be quietly wrong for a poll to belong to neither filter and
+  // vanish from both.
+  await page.getByRole("button", { name: "Talk" }).click();
+  await expect(page.getByText("Who wins the Chase trade?")).toBeVisible();
+
+  await page.getByRole("button", { name: "Moves" }).click();
+  await expect(page.getByText("Who wins the Chase trade?")).toHaveCount(0);
+});
