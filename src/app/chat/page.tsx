@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useState } from "react";
-import { Send } from "lucide-react";
+import { BarChart3, Plus, Send, X } from "lucide-react";
 import { TopBar } from "@/components/Shell";
 import { SkeletonRows } from "@/components/ui";
 import { LEAGUE_ID } from "@/lib/config";
@@ -43,6 +43,14 @@ export default function HousePage() {
   const [cursor, setCursor] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [reacting, setReacting] = useState<string | null>(null);
+  const [voting, setVoting] = useState<string | null>(null);
+
+  // The poll composer, closed by default. A question is a deliberate thing to
+  // ask, so it costs one tap to open rather than sitting on screen competing
+  // with the ordinary "say something" box.
+  const [asking, setAsking] = useState(false);
+  const [question, setQuestion] = useState("");
+  const [options, setOptions] = useState<string[]>(["", ""]);
 
   const fetcher = useCallback(async (): Promise<HouseFeed> => {
     const { data, error: rpcError } = await supabaseBrowser()
@@ -52,7 +60,7 @@ export default function HousePage() {
   }, []);
 
   const { data, status, error: feedError, refetch, mutate } = useLive<HouseFeed>(fetcher, {
-    tables: ["league_messages", "activity_events", "reactions"],
+    tables: ["league_messages", "activity_events", "reactions", "polls", "poll_votes"],
     channel: "house",
     pollMs: 30000,
     enabled: ready,
@@ -103,6 +111,36 @@ export default function HousePage() {
     });
     setReacting(null);
     if (rpcError) setError(rpcError.message);
+    await refetch();
+  }
+
+  async function vote(item: FeedItem, optionId: string) {
+    if (!item.poll) return;
+    setVoting(item.poll.poll_id);
+    const { error: rpcError } = await supabaseBrowser().rpc("ff_vote", {
+      p_poll_id: item.poll.poll_id, p_option_id: optionId,
+    });
+    setVoting(null);
+    // Not optimistic, unlike a reaction: voting REVEALS the split, and guessing
+    // at numbers we have never been allowed to see would be inventing them.
+    if (rpcError) setError(rpcError.message);
+    await refetch();
+  }
+
+  async function ask(event: FormEvent) {
+    event.preventDefault();
+    const clean = options.map((o) => o.trim()).filter(Boolean);
+    if (!question.trim() || clean.length < 2 || busy) return;
+    setBusy(true);
+    setError(null);
+    const { error: rpcError } = await supabaseBrowser().rpc("ff_create_poll", {
+      p_league_id: LEAGUE_ID, p_question: question.trim(), p_options: clean, p_closes_at: null,
+    });
+    setBusy(false);
+    if (rpcError) return setError(rpcError.message);
+    setQuestion("");
+    setOptions(["", ""]);
+    setAsking(false);
     await refetch();
   }
 
@@ -164,6 +202,47 @@ export default function HousePage() {
           </button>
         </form>
 
+        {asking ? (
+          <form onSubmit={ask} className="card" style={{ marginBottom: "var(--s4)" }}>
+            <div className="card__head">
+              <h2>Ask the house</h2>
+              <button type="button" className="btn" data-size="icon" aria-label="Cancel"
+                onClick={() => setAsking(false)}>
+                <X size={15} />
+              </button>
+            </div>
+            <div className="card__body" style={{ display: "grid", gap: 8 }}>
+              <input className="field" maxLength={140} value={question} autoFocus
+                placeholder="Who wins the Chase trade?" aria-label="Your question"
+                onChange={(e) => setQuestion(e.target.value)} />
+              {options.map((o, i) => (
+                <input key={i} className="field" maxLength={80} value={o}
+                  placeholder={`Answer ${i + 1}`} aria-label={`Answer ${i + 1}`}
+                  onChange={(e) => setOptions(options.map((x, j) => (j === i ? e.target.value : x)))} />
+              ))}
+              <div style={{ display: "flex", gap: 8 }}>
+                {options.length < 6 && (
+                  <button type="button" className="btn" onClick={() => setOptions([...options, ""])}>
+                    <Plus size={14} /> Another answer
+                  </button>
+                )}
+                <button className="btn" data-v="primary" style={{ marginLeft: "auto" }}
+                  disabled={busy || !question.trim() || options.filter((o) => o.trim()).length < 2}>
+                  {busy ? "…" : "Ask"}
+                </button>
+              </div>
+              <span className="eyebrow" style={{ color: "var(--faint)" }}>
+                Nobody sees the split until they have answered, and no answer is
+                ever shown with a name on it.
+              </span>
+            </div>
+          </form>
+        ) : (
+          <button className="btn" style={{ marginBottom: "var(--s4)" }} onClick={() => setAsking(true)}>
+            <BarChart3 size={14} /> Ask the house a question
+          </button>
+        )}
+
         {error && <div className="note" data-kind="error" style={{ marginBottom: "var(--s4)" }}>{error}</div>}
 
         {feedError ? (
@@ -182,6 +261,8 @@ export default function HousePage() {
             onMore={() => void loadMore()}
             reacting={reacting}
             onReact={(item, emoji) => void react(item, emoji)}
+            voting={voting}
+            onVote={(item, optionId) => void vote(item, optionId)}
           />
         )}
       </main>
