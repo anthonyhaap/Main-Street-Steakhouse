@@ -432,8 +432,10 @@ function PlayerRow({
               </span>
               <span>{p.nfl_team ?? "FA"}</span>
               {p.position_rank ? <span className="pool__posrank">{p.position}{p.position_rank}</span> : null}
-              {p.bye_week ? <span>Bye {p.bye_week}</span> : null}
-              {p.adp ? <span className="num">ADP {Number(p.adp).toFixed(1)}</span> : null}
+              {p.bye_week ? <span className="pool__bye">Bye {p.bye_week}</span> : null}
+              {/* The badges come before ADP because the line truncates from the
+                  right: "Steal" and "Questionable" change what you do, and a
+                  number you can read off the sort order does not. */}
               {value && (
                 <span className="badge" data-tone="ok" style={{ minHeight: 17, fontSize: 9 }}
                   title={`${Math.abs(value.delta)} picks past his ADP`}>
@@ -445,6 +447,7 @@ function PlayerRow({
                   {p.injury_status}
                 </span>
               )}
+              {p.adp ? <span className="num pool__adp">ADP {Number(p.adp).toFixed(1)}</span> : null}
             </>
           }
         />
