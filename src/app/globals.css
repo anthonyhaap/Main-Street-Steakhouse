@@ -108,7 +108,7 @@
   --bottom-nav: 0px;
 }
 
-@media (max-width: 1360px) {
+@media (max-width: 1180px) {
   :root { --bottom-nav: 64px; }
 }
 
@@ -253,14 +253,17 @@ body {
 @media (max-width: 560px) { .mark__words { display: none; } }
 
 .nav { display: flex; gap: 2px; margin-left: auto; min-width: 0; }
-@media (max-width: 1360px) { .nav { display: none; } }
+@media (max-width: 1180px) { .nav { display: none; } }
 
 /* Sentence case, no tracking. "MATCHUPS" at 0.13em is a third wider than
    "Matchups" and harder to scan, which bought the room for an eleventh
-   destination. The twelfth (Ledger) spent it: twelve plus a wordmark and a
-   crest overflow a 1280px laptop by 23px, so the header nav now gives way to
-   the tab bar below 1360 rather than at 1180. The bottom-nav spacing and the
-   tabbar itself move with it — all three are one decision. */
+   destination. The twelfth (Ledger) spent it — twelve plus a wordmark and a
+   crest overflow a 1280px laptop by 23px — and the breakpoint went to 1360 to
+   pay for it. Folding Players, Waivers, Trades and Ledger into Transactions
+   hands that back: eleven destinations fit down to 1150px measured, so the
+   header nav returns to giving way at 1180 and a 1280px laptop gets its bar
+   back. The bottom-nav spacing and the tabbar itself move with it — all three
+   are one decision. */
 .nav__item {
   position: relative;
   padding: var(--s2) 10px;
@@ -303,7 +306,7 @@ body {
   box-shadow: 0 -6px 24px #1b18140f;
   padding-bottom: env(safe-area-inset-bottom);
 }
-@media (max-width: 1360px) { .tabbar { display: flex; } }
+@media (max-width: 1180px) { .tabbar { display: flex; } }
 
 .tabbar__item {
   flex: 1;
@@ -352,6 +355,51 @@ body {
    columns are unaffected. */
 :where(.page, .card, .card__body, .modal__panel, .sheet__panel) {
   grid-auto-columns: minmax(0, 1fr);
+}
+
+/* ============================================================================
+   TRANSACTION CENTRE — one screen, four tabs
+
+   The pool, the wire, the desk and the ledger are four views of one thing: how
+   a roster changes. The strip is the only chrome the consolidation adds, so it
+   sits at the top of the page rather than inside a card, and the panel below it
+   keeps the page grid to itself.
+   ========================================================================== */
+
+.txn-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--s3) var(--s4);
+}
+.txn-title {
+  margin: 0;
+  font: 400 var(--t-title) var(--serif);
+  font-optical-sizing: auto;
+  letter-spacing: -0.022em;
+  line-height: 1.04;
+}
+.txn-tabs { min-width: 0; }
+.txn-tabs .segmented__opt {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding-block: 9px;
+}
+
+/* Below the width where the title and the strip sit side by side, the strip
+   takes the row to itself and the four tabs divide it evenly. Four have to fit
+   a 375px phone — a destination you must swipe sideways to find is one nobody
+   finds — so the icons give way first, the words being the labels, and the
+   letter-spacing after them. */
+@media (max-width: 620px) {
+  .txn-title { font-size: var(--t-head); }
+  .txn-tabs { flex: 1 0 100%; }
+  .txn-tabs .segmented { width: 100%; }
+  .txn-tabs .segmented__opt { flex: 1; padding-inline: 4px; letter-spacing: 0.04em; }
+  .txn-tabs .segmented__opt svg { display: none; }
 }
 
 /* ============================================================================

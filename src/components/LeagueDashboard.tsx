@@ -325,7 +325,7 @@ export function LeagueDashboard({
                 <Link className="qa__btn" href="/admin"><ListOrdered /> Draft order</Link>
                 <Link className="qa__btn" href="/admin"><Timer /> Clock &amp; rounds</Link>
                 <Link className="qa__btn" href="/admin"><BarChart3 /> Scoring rules</Link>
-                <Link className="qa__btn" href="/players"><Users /> Player pool</Link>
+                <Link className="qa__btn" href="/transactions?tab=players"><Users /> Player pool</Link>
                 <Link className="qa__btn" href="/challenges"><CircleDollarSign /> Settle bets</Link>
               </div>
             </article>
