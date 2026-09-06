@@ -95,10 +95,13 @@
 
   --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
 
-  /* The shell spans the device at every width. Line length is held by the
-     component that owns the text (.prose, at 62ch), not by a centred column —
-     so a phone gets the whole screen and a monitor gets no dead margins. */
-  --shell-max: 100%;
+  /* The shell spans the device up to 2000px and stops there. Every phone,
+     tablet and laptop gets its whole screen — the width:100% on .page means
+     the cap is inert below it — while past 2000px the shell stops growing
+     rather than stretching a matchup's two sides to opposite ends of a
+     monitor. Line length inside it is still held by the component that owns
+     the text (.prose, at 62ch), not by this. */
+  --shell-max: 2000px;
   --bottom-nav: 0px;
 }
 
