@@ -11,6 +11,8 @@ import { SkeletonRows } from "@/components/ui";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { Scoreboard } from "@/components/Scoreboard";
 import { MatchupTalk } from "@/components/matchup/Talk";
+import { Rivalry } from "@/components/matchup/Rivalry";
+import type { WeekRivalries } from "@/lib/history";
 
 /**
  * The Sunday board.
@@ -66,6 +68,31 @@ export default function MatchupsPage() {
     pollMs: hot ? 15000 : 60000,
     enabled: ready && week !== null,
   });
+
+  // The week's head-to-head records, fetched once for the whole board rather
+  // than once per card. They are all-time numbers: nothing in them can change
+  // until a game goes final, so they deliberately sit outside `useLive` and
+  // its fifteen-second poll instead of being refetched with the scores.
+  // Carried with the week they were fetched for, rather than cleared on the
+  // way out: two answers can be in flight at once when somebody taps along the
+  // week strip, and the one that lands last is not necessarily the one that
+  // was asked for last.
+  const [rivalries, setRivalries] = useState<{ week: number; cards: WeekRivalries } | null>(null);
+  useEffect(() => {
+    if (!ready || week === null) return;
+    let live = true;
+    const asked = week;
+    void supabaseBrowser()
+      .rpc("ff_rivalries_for_week", { p_league_id: LEAGUE_ID, p_week: asked })
+      // A failure here is silent on purpose. The record is the best line on
+      // the card and the least important thing on it; a scoreboard that
+      // refused to show scores because it could not remember 2023 would have
+      // its priorities backwards.
+      .then(({ data }) => {
+        if (live) setRivalries({ week: asked, cards: (data as WeekRivalries) ?? {} });
+      });
+    return () => { live = false; };
+  }, [ready, week]);
 
   // `useLive` refetches on mount, on a row change, on reconnect and on a
   // timer — none of which is "the reader asked for a different week". Its
@@ -149,6 +176,20 @@ export default function MatchupsPage() {
                 board={shown}
                 now={clock}
                 talk={(c) => <MatchupTalk card={c} now={clock} onPosted={refetch} />}
+                rivalry={(c) => {
+                  // The board on screen and the records must be the same week,
+                  // or a dimmed stale board would carry live records for a
+                  // week it is not showing.
+                  if (!rivalries || rivalries.week !== shown.week) return null;
+                  const card = rivalries.cards[c.id];
+                  if (!card) return null;
+                  // Whose side of the record to write it from — resolved the
+                  // same way the server named the two managers, so a team with
+                  // no manager name set still matches.
+                  const mine = shown.my_team_id === c.home.team_id ? c.home
+                    : shown.my_team_id === c.away.team_id ? c.away : null;
+                  return <Rivalry card={card} me={mine && (mine.manager_name?.trim() || mine.name)} />;
+                }}
               />
             </div>
           )}

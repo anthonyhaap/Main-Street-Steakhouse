@@ -105,6 +105,101 @@ export function cellOf(grid: HistoryCell[], a: string, b: string): HistoryCell |
   return grid.find((c) => c.manager === a && c.opponent === b) ?? null;
 }
 
+/* ------------------------------------------------------------- rivalry -- */
+
+/**
+ * `ff_rivalry(league, a, b)` — one pairing, told properly. Every points figure
+ * is from A's side whichever way round the game was actually played, so
+ * nothing here has to work out which column somebody was in.
+ */
+export type RivalryCard = {
+  a: string;
+  b: string;
+  games: number;
+  a_wins: number;
+  b_wins: number;
+  ties: number;
+  playoff_games: number;
+  first_season: number | null;
+  streak_holder: string | null;
+  streak: number;
+  last: {
+    season: number; week: number; round: string;
+    a_points: number; b_points: number; winner: string | null;
+  } | null;
+  biggest: {
+    season: number; week: number; winner: string;
+    margin: number; a_points: number; b_points: number;
+  } | null;
+};
+
+/** `ff_rivalries_for_week` — a whole board's worth, keyed by matchup id. */
+export type WeekRivalries = Record<string, RivalryCard | null>;
+
+const first = (name: string) => name.trim().split(/\s+/)[0] || name;
+
+/**
+ * The headline. This is the sentence the feature exists for — the one that
+ * makes somebody say "wait, I'm 2-11 against Mike?" — so it leads with the
+ * record and never with a pleasantry.
+ *
+ * `me` is the manager reading it, when he is one of the two. Being told "you
+ * have lost six straight to him" lands; being told "Mike leads Dave 9-2" about
+ * your own game reads like somebody else's fixture.
+ */
+export function rivalryLine(r: RivalryCard, me?: string | null): string {
+  if (r.games === 0) return "They have never played.";
+
+  const mine = me === r.a ? "a" : me === r.b ? "b" : null;
+  const [myWins, theirWins] = mine === "b" ? [r.b_wins, r.a_wins] : [r.a_wins, r.b_wins];
+  const them = first(mine === "b" ? r.a : r.b);
+  const tied = r.a_wins === r.b_wins;
+
+  const record = mine
+    ? tied
+      ? `All square with ${them}, ${myWins}-${theirWins}${r.ties ? `-${r.ties}` : ""}.`
+      : myWins > theirWins
+        ? `You lead ${them} ${myWins}-${theirWins}${r.ties ? `-${r.ties}` : ""}.`
+        : `You are ${myWins}-${theirWins}${r.ties ? `-${r.ties}` : ""} against ${them}.`
+    : tied
+      ? `${first(r.a)} and ${first(r.b)} are level at ${r.a_wins}-${r.b_wins}${r.ties ? `-${r.ties}` : ""}.`
+      : r.a_wins > r.b_wins
+        ? `${first(r.a)} leads ${first(r.b)} ${r.a_wins}-${r.b_wins}${r.ties ? `-${r.ties}` : ""}.`
+        : `${first(r.b)} leads ${first(r.a)} ${r.b_wins}-${r.a_wins}${r.ties ? `-${r.ties}` : ""}.`;
+
+  // A run is the part that stings, so it gets its own clause rather than being
+  // left for the reader to infer from a won-lost record.
+  if (r.streak >= 2 && r.streak_holder) {
+    const held = mine
+      ? r.streak_holder === (mine === "a" ? r.a : r.b)
+        ? `You have won the last ${r.streak}.`
+        : `He has won the last ${r.streak}.`
+      : `${first(r.streak_holder)} has won the last ${r.streak}.`;
+    return `${record} ${held}`;
+  }
+  return record;
+}
+
+/** How a single meeting reads in a list: "2024 · Week 11 · Bo by 80". */
+export function meetingLine(m: NonNullable<RivalryCard["last"]>): string {
+  const margin = Math.abs(Number(m.a_points) - Number(m.b_points));
+  const score = `${fmtPts(m.a_points)}-${fmtPts(m.b_points)}`;
+  if (!m.winner) return `Tied ${score}`;
+  return `${first(m.winner)} by ${fmtPts(margin)}, ${score}`;
+}
+
+const fmtPts = (n: number) => {
+  const v = Number(n);
+  return Number.isInteger(v) ? String(v) : v.toFixed(1);
+};
+
+/** "Week 11" for a regular game, the round's own name for a playoff one. */
+export function roundLabel(round: string, week: number): string {
+  if (!round || round === "regular") return `Week ${week}`;
+  if (round === "final") return "The final";
+  return round.charAt(0).toUpperCase() + round.slice(1);
+}
+
 /* ------------------------------------------------------------- heat map -- */
 
 const hex = (s: string) => [1, 3, 5].map((i) => parseInt(s.slice(i, i + 2), 16));

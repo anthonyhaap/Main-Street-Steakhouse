@@ -2881,6 +2881,48 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
 /* `minmax(0, 1fr)` and not `1fr`: a grid child defaults to min-width auto, so
    the one-line teaser below — which is deliberately nowrap — would otherwise
    size the track to the whole sentence and push the card past the phone. */
+/* ------------------------------------------------------------- rivalry -- */
+/* Sits under the card's headline, and reads as an aside to it rather than as
+   another statistic: no rule above it, no chrome, one italic-free sentence.
+   The detail below is a definition list because that is what it is. */
+
+.riv { margin: calc(var(--s2) * -1) 0 var(--s2); }
+
+.riv__head {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; min-height: 36px; padding: 4px 2px;
+  border: 0; background: none; text-align: left; cursor: pointer;
+  font: 600 var(--t-small) var(--sans); color: var(--muted);
+}
+.riv__head:disabled { cursor: default; }
+.riv__head:not(:disabled):hover { color: var(--wine); }
+.riv__head svg { color: var(--gold); flex-shrink: 0; }
+.riv__head svg:last-child { margin-left: auto; color: var(--faint); }
+.riv__line { min-width: 0; }
+
+.riv__detail {
+  margin: 0 0 var(--s2); padding: var(--s3) 0 0;
+  border-top: 1px dashed var(--rule-soft);
+  display: grid; gap: 6px;
+}
+.riv__detail > div {
+  display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: var(--s2);
+  align-items: baseline;
+}
+.riv__detail dt {
+  margin: 0; font: 700 var(--t-micro) var(--sans);
+  letter-spacing: .06em; text-transform: uppercase; color: var(--faint);
+}
+.riv__detail dd {
+  margin: 0; font-size: var(--t-small); color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.riv__detail dd span { color: var(--ink); font-weight: 600; }
+
+@media (max-width: 420px) {
+  .riv__detail > div { grid-template-columns: minmax(0, 1fr); gap: 0; }
+}
+
 .sb__talk {
   border-top: 1px solid var(--rule-soft);
   padding-top: var(--s3);

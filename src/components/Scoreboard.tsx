@@ -31,7 +31,7 @@ import {
   type WinOdds,
 } from "@/lib/scoreboard";
 
-export function Scoreboard({ board, now, talk }: {
+export function Scoreboard({ board, now, talk, rivalry }: {
   board: Board;
   now: number;
   /**
@@ -40,13 +40,18 @@ export function Scoreboard({ board, now, talk }: {
    * — `/preview/matchups` passes a read-only thread through the same hole.
    */
   talk?: (c: ScoreCard) => React.ReactNode;
+  /** The head-to-head record, same reason: a slot, filled from one call. */
+  rivalry?: (c: ScoreCard) => React.ReactNode;
 }) {
   const mine = board.matchups.find((m) => m.mine) ?? null;
   const rest = board.matchups.filter((m) => m !== mine);
 
   return (
     <>
-      {mine && <Card key={mine.id} c={mine} now={now} myTeamId={board.my_team_id} talk={talk} hero />}
+      {mine && (
+        <Card key={mine.id} c={mine} now={now} myTeamId={board.my_team_id}
+              talk={talk} rivalry={rivalry} hero />
+      )}
       {rest.length > 0 && (
         <section className="sb-rest" aria-label="The rest of the league">
           <div className="room__head">
@@ -55,7 +60,8 @@ export function Scoreboard({ board, now, talk }: {
           </div>
           <div className="sb-list">
             {rest.map((c) => (
-              <Card key={c.id} c={c} now={now} myTeamId={board.my_team_id} talk={talk} />
+              <Card key={c.id} c={c} now={now} myTeamId={board.my_team_id}
+                    talk={talk} rivalry={rivalry} />
             ))}
           </div>
         </section>
@@ -66,11 +72,12 @@ export function Scoreboard({ board, now, talk }: {
 
 /* ------------------------------------------------------------------ card -- */
 
-function Card({ c, now, myTeamId, talk, hero = false }: {
+function Card({ c, now, myTeamId, talk, rivalry, hero = false }: {
   c: ScoreCard;
   now: number;
   myTeamId: string | null;
   talk?: (c: ScoreCard) => React.ReactNode;
+  rivalry?: (c: ScoreCard) => React.ReactNode;
   hero?: boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -102,6 +109,10 @@ function Card({ c, now, myTeamId, talk, hero = false }: {
       {lineups && <Odds c={c} odds={odds} state={state} />}
 
       <p className="sb__line">{cardLine(c, myTeamId)}</p>
+
+      {/* Directly under the sentence about today's game, because it is the
+          same sentence about every other time these two have played. */}
+      {rivalry?.(c)}
 
       {hero && lineups && (
         <div className="sb__strip">

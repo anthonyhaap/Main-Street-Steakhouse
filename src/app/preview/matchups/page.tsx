@@ -20,6 +20,8 @@ import { MessageCircle } from "lucide-react";
 import { TopBar } from "@/components/Shell";
 import { Scoreboard } from "@/components/Scoreboard";
 import { TalkThread } from "@/components/matchup/Talk";
+import { Rivalry } from "@/components/matchup/Rivalry";
+import type { WeekRivalries } from "@/lib/history";
 import { freshness, slateLine, talkTeaser, type ScoreCard, type ScoreSide, type ScoreStarter, type Scoreboard as Board, type Talk, type ThreadMessage } from "@/lib/scoreboard";
 
 /** Sunday of week 11, 1:07pm Eastern, as a fixed clock. */
@@ -184,6 +186,42 @@ const TALK: Talk = {
 
 const QUIET: Talk = { count: 0, last: null };
 
+/**
+ * Three records, one per card, keyed by matchup id the way
+ * `ff_rivalries_for_week` keys them. Points are from the HOME manager's side,
+ * which is what `a` means throughout.
+ *
+ * Deliberately three different shapes: one the reader is losing (the sentence
+ * the whole feature exists for), one between two other people, and one pair
+ * who have never met — which has to render nothing at all rather than a row
+ * saying there is nothing to say.
+ */
+const RIVALRIES: WeekRivalries = {
+  m1: {
+    a: "Ray", b: "Dev",
+    games: 13, a_wins: 4, b_wins: 8, ties: 1,
+    playoff_games: 2, first_season: 2016,
+    streak_holder: "Dev", streak: 3,
+    last: { season: 2025, week: 16, round: "semifinal", a_points: 98.4, b_points: 121.2, winner: "Dev" },
+    biggest: { season: 2019, week: 7, winner: "Dev", margin: 71.5, a_points: 62.1, b_points: 133.6 },
+  },
+  m2: {
+    a: "Anthony", b: "Marcus",
+    games: 9, a_wins: 5, b_wins: 4, ties: 0,
+    playoff_games: 1, first_season: 2018,
+    streak_holder: "Anthony", streak: 1,
+    last: { season: 2025, week: 4, round: "regular", a_points: 110.7, b_points: 104.2, winner: "Anthony" },
+    biggest: { season: 2021, week: 12, winner: "Marcus", margin: 44.0, a_points: 71.0, b_points: 115.0 },
+  },
+  m3: {
+    a: "Nate", b: "Tom",
+    games: 0, a_wins: 0, b_wins: 0, ties: 0,
+    playoff_games: 0, first_season: null,
+    streak_holder: null, streak: 0,
+    last: null, biggest: null,
+  },
+};
+
 function board(stage: Stage): Board {
   // A league that has not drafted is in week one, whatever the rest of the
   // fixture's Sunday says.
@@ -297,6 +335,13 @@ export default function MatchupsPreviewPage() {
           board={b}
           now={NOW}
           talk={(c) => <FixtureTalk card={c} />}
+          rivalry={(c) => {
+            const card = RIVALRIES[c.id];
+            if (!card) return null;
+            const mine = b.my_team_id === c.home.team_id ? c.home
+              : b.my_team_id === c.away.team_id ? c.away : null;
+            return <Rivalry card={card} me={mine && (mine.manager_name?.trim() || mine.name)} />;
+          }}
         />
       </main>
     </>
