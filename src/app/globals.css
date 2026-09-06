@@ -102,6 +102,9 @@
      monitor. Line length inside it is still held by the component that owns
      the text (.prose, at 62ch), not by this. */
   --shell-max: 2000px;
+  /* The page's side inset, named because the topbar has to reproduce it
+     exactly to line its wordmark up with the content below. */
+  --gutter: clamp(var(--s4), 3vw, var(--s6));
   --bottom-nav: 0px;
 }
 
@@ -195,7 +198,12 @@ body {
   top: 0;
   z-index: 50;
   height: 68px;
-  padding: 0 clamp(var(--s4), 3vw, var(--s6));
+  /* The bar's ground spans the window — a sticky header that stopped at the
+     shell's edge would leave the page showing through beside it. Its contents
+     do not: past --shell-max they take the same inset the shell takes, so the
+     crest sits directly above the first card rather than out at the glass.
+     Below that width the max() picks the plain gutter and nothing moves. */
+  padding: 0 max(var(--gutter), calc((100% - var(--shell-max)) / 2 + var(--gutter)));
   display: flex;
   align-items: center;
   gap: var(--s5);
@@ -323,7 +331,7 @@ body {
   width: 100%;
   max-width: var(--shell-max);
   margin: 0 auto;
-  padding: clamp(var(--s4), 3vw, var(--s6));
+  padding: var(--gutter);
   display: grid;
   gap: clamp(var(--s4), 2.2vw, var(--s5));
   align-content: start;
