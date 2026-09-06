@@ -8,6 +8,7 @@ import { LEAGUE_ID } from "@/lib/config";
 import type { Outlook } from "@/lib/types";
 import { TopBar } from "@/components/Shell";
 import { StandingsBoard } from "@/components/StandingsBoard";
+import { PowerRankings } from "@/components/standings/PowerRankings";
 
 export default function StandingsPage() {
   const { ready, team } = useSession();
@@ -30,6 +31,9 @@ export default function StandingsPage() {
       <TopBar status={status} />
       <main className="page">
         <StandingsBoard outlook={data} myTeamId={team?.id} crestOf={crestOf} />
+        {/* Under the table, because the whole point is the gap between the
+            two orders. */}
+        <PowerRankings outlook={data} myTeamId={team?.id} crestOf={crestOf} />
       </main>
     </>
   );

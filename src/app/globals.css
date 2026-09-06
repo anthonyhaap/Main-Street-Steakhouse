@@ -2881,6 +2881,67 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
 /* `minmax(0, 1fr)` and not `1fr`: a grid child defaults to min-width auto, so
    the one-line teaser below — which is deliberately nowrap — would otherwise
    size the track to the whole sentence and push the card past the phone. */
+/* ------------------------------------------------------ power rankings -- */
+/* A list, not a table: every row carries a sentence, and a sentence in a cell
+   wraps into a column two words wide. */
+
+.pwr__headline {
+  margin: var(--s4) var(--s4) 0;
+  font: 600 var(--t-body) var(--serif, var(--sans));
+  color: var(--ink);
+}
+
+.pwr { list-style: none; margin: var(--s3) 0 0; padding: 0; }
+
+.pwr__row {
+  display: grid;
+  grid-template-columns: 24px 34px auto minmax(0, 1fr) auto;
+  align-items: center; gap: var(--s2);
+  padding: var(--s3) var(--s4);
+  border-top: 1px solid var(--rule-soft);
+}
+.pwr__row[data-mine="true"] { background: var(--gold-haze); }
+
+.pwr__rank {
+  font: 700 var(--t-body) var(--sans); color: var(--muted);
+  text-align: right; font-variant-numeric: tabular-nums;
+}
+
+.pwr__move {
+  display: inline-flex; align-items: center; gap: 1px;
+  font: 700 var(--t-micro) var(--sans); font-variant-numeric: tabular-nums;
+}
+.pwr__move[data-dir="up"]   { color: var(--win); }
+.pwr__move[data-dir="down"] { color: var(--lose); }
+.pwr__move[data-dir="flat"],
+.pwr__move[data-dir="none"] { color: var(--faint); }
+
+.pwr__who { min-width: 0; }
+.pwr__name {
+  display: flex; align-items: baseline; gap: var(--s2); flex-wrap: wrap;
+  font-weight: 600; line-height: 1.25;
+}
+.pwr__pos {
+  font: 400 var(--t-micro) var(--sans); color: var(--faint);
+  letter-spacing: .02em; white-space: nowrap;
+}
+.pwr__line {
+  margin: 2px 0 0; font-size: var(--t-small); color: var(--muted);
+}
+
+.pwr__num { text-align: right; display: grid; gap: 1px; }
+.pwr__num b { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pwr__num .eyebrow { color: var(--faint); }
+/* Form is the second half of the sort and reads as the junior number. */
+.pwr__recent { margin-top: 4px; color: var(--muted); font-size: var(--t-small); }
+
+@media (max-width: 460px) {
+  .pwr__row { grid-template-columns: 20px 30px auto minmax(0, 1fr); gap: 6px; padding: var(--s3); }
+  /* The all-play record drops under the sentence rather than squeezing the
+     name into two characters. */
+  .pwr__num { grid-column: 3 / -1; text-align: left; display: flex; gap: 6px; align-items: baseline; }
+}
+
 /* ------------------------------------------------------------- rivalry -- */
 /* Sits under the card's headline, and reads as an aside to it rather than as
    another statistic: no rule above it, no chrome, one italic-free sentence.

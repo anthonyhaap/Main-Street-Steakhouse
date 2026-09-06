@@ -13,6 +13,7 @@
 import { useState } from "react";
 import { TopBar } from "@/components/Shell";
 import { StandingsBoard } from "@/components/StandingsBoard";
+import { PowerRankings } from "@/components/standings/PowerRankings";
 import { mulberry32 } from "@/lib/playoffs";
 import type { Outlook, OutlookMatchup, OutlookTeam } from "@/lib/types";
 
@@ -106,6 +107,7 @@ export default function Preview() {
           </button>
         </div>
         <StandingsBoard outlook={drafted ? outlook : BEFORE} myTeamId="t4" />
+        <PowerRankings outlook={drafted ? outlook : BEFORE} myTeamId="t4" />
       </main>
     </>
   );
