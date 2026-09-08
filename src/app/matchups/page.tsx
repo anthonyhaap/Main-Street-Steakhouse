@@ -12,6 +12,8 @@ import { PullToRefresh } from "@/components/PullToRefresh";
 import { Scoreboard } from "@/components/Scoreboard";
 import { MatchupTalk } from "@/components/matchup/Talk";
 import { Rivalry } from "@/components/matchup/Rivalry";
+import { AroundTheHouse } from "@/components/matchup/AroundTheHouse";
+import { liveCount } from "@/lib/around";
 import type { WeekRivalries } from "@/lib/history";
 
 /**
@@ -50,6 +52,11 @@ export default function MatchupsPage() {
   // the board lands rather than in an effect watching it — one round trip
   // already knows the answer.
   const [hot, setHot] = useState(false);
+
+  // Board or the whole league. A tab rather than a destination: it is the same
+  // Sunday read the other way round, and only ever wanted while the board is
+  // already on screen.
+  const [tab, setTab] = useState<"board" | "house">("board");
 
   const fetcher = useCallback(async (): Promise<Board> => {
     const { data, error } = await supabaseBrowser()
@@ -171,6 +178,24 @@ export default function MatchupsPage() {
           )}
 
           {shown && shown.matchups.length > 0 && (
+            <div className="segmented" style={{ width: "max-content", marginBottom: "var(--s4)" }}>
+              <button className="segmented__opt" data-on={tab === "board"} onClick={() => setTab("board")}>
+                The board
+              </button>
+              <button className="segmented__opt" data-on={tab === "house"} onClick={() => setTab("house")}>
+                Around the house
+                {liveCount(shown) > 0 && <span className="seg__live" aria-label="games on now" />}
+              </button>
+            </div>
+          )}
+
+          {shown && shown.matchups.length > 0 && tab === "house" && (
+            <div style={{ opacity: stale ? 0.55 : 1, transition: "opacity .2s var(--ease)" }}>
+              <AroundTheHouse board={shown} />
+            </div>
+          )}
+
+          {shown && shown.matchups.length > 0 && tab === "board" && (
             <div style={{ opacity: stale ? 0.55 : 1, transition: "opacity .2s var(--ease)" }}>
               <Scoreboard
                 board={shown}

@@ -21,6 +21,7 @@ import { TopBar } from "@/components/Shell";
 import { Scoreboard } from "@/components/Scoreboard";
 import { TalkThread } from "@/components/matchup/Talk";
 import { Rivalry } from "@/components/matchup/Rivalry";
+import { AroundTheHouse } from "@/components/matchup/AroundTheHouse";
 import type { WeekRivalries } from "@/lib/history";
 import { freshness, slateLine, talkTeaser, type ScoreCard, type ScoreSide, type ScoreStarter, type Scoreboard as Board, type Talk, type ThreadMessage } from "@/lib/scoreboard";
 
@@ -296,6 +297,7 @@ function FixtureTalk({ card }: { card: ScoreCard }) {
 
 export default function MatchupsPreviewPage() {
   const [stage, setStage] = useState<Stage>("late");
+  const [tab, setTab] = useState<"board" | "house">("board");
   const b = board(stage);
   const note = STAGES.find((s) => s.key === stage)!.note;
 
@@ -331,7 +333,18 @@ export default function MatchupsPreviewPage() {
           </span>
         </div>
 
-        <Scoreboard
+        <div className="segmented" style={{ width: "max-content", marginBottom: "var(--s4)" }}>
+          <button className="segmented__opt" data-on={tab === "board"} onClick={() => setTab("board")}>
+            The board
+          </button>
+          <button className="segmented__opt" data-on={tab === "house"} onClick={() => setTab("house")}>
+            Around the house
+          </button>
+        </div>
+
+        {tab === "house" && <AroundTheHouse board={b} />}
+
+        {tab === "board" && <Scoreboard
           board={b}
           now={NOW}
           talk={(c) => <FixtureTalk card={c} />}
@@ -342,7 +355,7 @@ export default function MatchupsPreviewPage() {
               : b.my_team_id === c.away.team_id ? c.away : null;
             return <Rivalry card={card} me={mine && (mine.manager_name?.trim() || mine.name)} />;
           }}
-        />
+        />}
       </main>
     </>
   );
