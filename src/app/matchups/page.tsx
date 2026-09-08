@@ -7,13 +7,14 @@ import { useSession } from "@/lib/session";
 import { LEAGUE_ID } from "@/lib/config";
 import { freshness, slateLine, type Scoreboard as Board } from "@/lib/scoreboard";
 import { TopBar } from "@/components/Shell";
-import { SkeletonRows } from "@/components/ui";
+import { SkeletonRows, useToast } from "@/components/ui";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { Scoreboard } from "@/components/Scoreboard";
 import { MatchupTalk } from "@/components/matchup/Talk";
 import { Rivalry } from "@/components/matchup/Rivalry";
 import { AroundTheHouse } from "@/components/matchup/AroundTheHouse";
 import { liveCount } from "@/lib/around";
+import { scoreCardText, shareOrigin } from "@/lib/share";
 import type { WeekRivalries } from "@/lib/history";
 
 /**
@@ -32,6 +33,7 @@ import type { WeekRivalries } from "@/lib/history";
  */
 export default function MatchupsPage() {
   const { ready, league } = useSession();
+  const toast = useToast();
   const [week, setWeek] = useState<number | null>(null);
 
   useEffect(() => {
@@ -126,6 +128,26 @@ export default function MatchupsPage() {
     return () => clearInterval(id);
   }, [synced, serverNow]);
 
+  /**
+   * Send a card to the chat.
+   *
+   * The share sheet where there is one, the clipboard where there is not —
+   * a desktop browser has no sheet, and silently doing nothing is worse than
+   * either. The link carries the opengraph image, so the chat renders the card
+   * rather than a bare URL.
+   */
+  const share = useCallback(async (card: Parameters<typeof scoreCardText>[0]) => {
+    if (!shown) return;
+    const text = scoreCardText(card, league?.name ?? "Main Street Steakhouse", shown.week, shareOrigin());
+    try {
+      if (navigator.share) { await navigator.share({ text }); return; }
+      await navigator.clipboard.writeText(text);
+      toast("ok", "Copied. Paste it in the chat.");
+    } catch (e) {
+      if ((e as Error)?.name !== "AbortError") toast("error", "Couldn't open the share sheet.");
+    }
+  }, [shown, league?.name, toast]);
+
   const clock = now || (shown ? new Date(shown.now).getTime() : 0);
   const weeks = Number((league?.settings as { regular_season_weeks?: number })?.regular_season_weeks ?? 14) + 3;
 
@@ -201,6 +223,7 @@ export default function MatchupsPage() {
                 board={shown}
                 now={clock}
                 talk={(c) => <MatchupTalk card={c} now={clock} onPosted={refetch} />}
+                onShare={(c) => void share(c)}
                 rivalry={(c) => {
                   // The board on screen and the records must be the same week,
                   // or a dimmed stale board would carry live records for a

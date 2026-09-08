@@ -22,6 +22,7 @@ import { Scoreboard } from "@/components/Scoreboard";
 import { TalkThread } from "@/components/matchup/Talk";
 import { Rivalry } from "@/components/matchup/Rivalry";
 import { AroundTheHouse } from "@/components/matchup/AroundTheHouse";
+import { scoreCardText } from "@/lib/share";
 import type { WeekRivalries } from "@/lib/history";
 import { freshness, slateLine, talkTeaser, type ScoreCard, type ScoreSide, type ScoreStarter, type Scoreboard as Board, type Talk, type ThreadMessage } from "@/lib/scoreboard";
 
@@ -298,6 +299,9 @@ function FixtureTalk({ card }: { card: ScoreCard }) {
 export default function MatchupsPreviewPage() {
   const [stage, setStage] = useState<Stage>("late");
   const [tab, setTab] = useState<"board" | "house">("board");
+  // The fixture must not open a share sheet or touch the clipboard, so it
+  // shows what would have been sent instead.
+  const [sent, setSent] = useState<string | null>(null);
   const b = board(stage);
   const note = STAGES.find((s) => s.key === stage)!.note;
 
@@ -344,8 +348,15 @@ export default function MatchupsPreviewPage() {
 
         {tab === "house" && <AroundTheHouse board={b} />}
 
+        {sent && (
+          <pre className="note" data-kind="info" style={{ whiteSpace: "pre-wrap", marginBottom: "var(--s4)" }}>
+            {sent}
+          </pre>
+        )}
+
         {tab === "board" && <Scoreboard
           board={b}
+          onShare={(c) => setSent(scoreCardText(c, "Main Street Steakhouse", b.week, "https://steakhouse.football"))}
           now={NOW}
           talk={(c) => <FixtureTalk card={c} />}
           rivalry={(c) => {

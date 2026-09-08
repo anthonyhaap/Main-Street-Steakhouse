@@ -20,7 +20,7 @@
  */
 
 import { useState } from "react";
-import { ChevronDown, ChevronRight, Flame, TriangleAlert } from "lucide-react";
+import { ChevronDown, ChevronRight, Flame, Share2, TriangleAlert } from "lucide-react";
 import { PlayerBadge } from "@/components/PlayerBadge";
 import { crestUrl } from "@/lib/crest";
 import { Seal, useCountUp } from "@/components/ui";
@@ -31,7 +31,7 @@ import {
   type WinOdds,
 } from "@/lib/scoreboard";
 
-export function Scoreboard({ board, now, talk, rivalry }: {
+export function Scoreboard({ board, now, talk, rivalry, onShare }: {
   board: Board;
   now: number;
   /**
@@ -42,6 +42,11 @@ export function Scoreboard({ board, now, talk, rivalry }: {
   talk?: (c: ScoreCard) => React.ReactNode;
   /** The head-to-head record, same reason: a slot, filled from one call. */
   rivalry?: (c: ScoreCard) => React.ReactNode;
+  /**
+   * Send this card to the group chat. A slot again, because the share sheet
+   * and the clipboard are browser APIs a fixture must not call.
+   */
+  onShare?: (c: ScoreCard) => void;
 }) {
   const mine = board.matchups.find((m) => m.mine) ?? null;
   const rest = board.matchups.filter((m) => m !== mine);
@@ -50,7 +55,7 @@ export function Scoreboard({ board, now, talk, rivalry }: {
     <>
       {mine && (
         <Card key={mine.id} c={mine} now={now} myTeamId={board.my_team_id}
-              talk={talk} rivalry={rivalry} hero />
+              talk={talk} rivalry={rivalry} onShare={onShare} hero />
       )}
       {rest.length > 0 && (
         <section className="sb-rest" aria-label="The rest of the league">
@@ -61,7 +66,7 @@ export function Scoreboard({ board, now, talk, rivalry }: {
           <div className="sb-list">
             {rest.map((c) => (
               <Card key={c.id} c={c} now={now} myTeamId={board.my_team_id}
-                    talk={talk} rivalry={rivalry} />
+                    talk={talk} rivalry={rivalry} onShare={onShare} />
             ))}
           </div>
         </section>
@@ -72,12 +77,13 @@ export function Scoreboard({ board, now, talk, rivalry }: {
 
 /* ------------------------------------------------------------------ card -- */
 
-function Card({ c, now, myTeamId, talk, rivalry, hero = false }: {
+function Card({ c, now, myTeamId, talk, rivalry, onShare, hero = false }: {
   c: ScoreCard;
   now: number;
   myTeamId: string | null;
   talk?: (c: ScoreCard) => React.ReactNode;
   rivalry?: (c: ScoreCard) => React.ReactNode;
+  onShare?: (c: ScoreCard) => void;
   hero?: boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -98,6 +104,20 @@ function Card({ c, now, myTeamId, talk, rivalry, hero = false }: {
       <header className="sb__top">
         <StateChip state={state} c={c} now={now} />
         {hero && c.mine && <span className="eyebrow" data-tone="gold">Your table</span>}
+        {/* The card already has a public page with an opengraph image behind
+            it; until now the only way to reach it was the Tuesday recap on the
+            front page, which is not where anybody is sitting when the thing
+            worth sending happens. */}
+        {onShare && (
+          <button
+            className="sb__share"
+            onClick={() => onShare(c)}
+            aria-label="Send this game to the chat"
+            title="Send this game to the chat"
+          >
+            <Share2 size={14} />
+          </button>
+        )}
       </header>
 
       <div className="sb__sides">

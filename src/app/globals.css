@@ -3290,6 +3290,16 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
   .riv__detail > div { grid-template-columns: minmax(0, 1fr); gap: 0; }
 }
 
+/* Sending the card. Quiet in the header until it is wanted. */
+.sb__share {
+  margin-left: auto; display: inline-grid; place-items: center;
+  width: 30px; height: 30px; padding: 0; flex-shrink: 0;
+  border: 0; border-radius: 999px; background: none;
+  color: var(--faint); cursor: pointer;
+  transition: color .16s var(--ease), background .16s var(--ease);
+}
+.sb__share:hover, .sb__share:focus-visible { color: var(--gold); background: var(--gold-haze); }
+
 .sb__talk {
   border-top: 1px solid var(--rule-soft);
   padding-top: var(--s3);

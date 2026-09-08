@@ -114,3 +114,30 @@ test("playoff odds are withheld until the draft", async ({ page }) => {
   await expect(page.getByRole("columnheader", { name: "Playoffs" })).toBeVisible();
   await expect(page.getByText(/simulated seasons/)).toBeVisible();
 });
+
+test("a card can be sent to the chat from the board it is on", async ({ page }) => {
+  await page.goto("/preview/matchups");
+
+  // The share page and its opengraph image have existed since the card was
+  // built; the only way to reach them was the Tuesday recap on the front page,
+  // which is not where anybody is sitting when the thing worth sending
+  // happens.
+  const send = page.getByRole("button", { name: "Send this game to the chat" });
+  await expect(send.first()).toBeVisible();
+  await send.first().click();
+
+  // League and week, the two sides, and the link that unfurls — the same three
+  // lines the Tuesday recap sends, so the chat hears one voice.
+  const sent = page.locator("pre.note");
+  await expect(sent).toContainText("Main Street Steakhouse · Week 11");
+  await expect(sent).toContainText(/https:\/\/steakhouse\.football\/share\/matchup\/m1$/);
+  await expect(sent).toContainText(/Ray [\d.]+ — Dev [\d.]+/);
+});
+
+test("before kickoff it sends the projections, not a nil-nil", async ({ page }) => {
+  await page.goto("/preview/matchups");
+  await page.getByRole("button", { name: "Nothing kicked", exact: true }).click();
+  await page.getByRole("button", { name: "Send this game to the chat" }).first().click();
+
+  await expect(page.locator("pre.note")).toContainText(/Ray \(proj\. [\d.]+\) vs\. Dev \(proj\. [\d.]+\)/);
+});
