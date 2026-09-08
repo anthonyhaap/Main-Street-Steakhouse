@@ -84,7 +84,7 @@ const PICKS: BoardPick[] = Array.from({ length: CURRENT_PICK - 1 }, (_, i) => {
   // Not strictly in rank order — a couple of reaches so the grade dots show.
   const player = POOL[(i * 7 + 3) % 44];
   return {
-    draft_id: "D", pick_number: pickNumber, round: Math.floor(i / TEAM_COUNT) + 1,
+    pick_id: `dp${pickNumber}`, draft_id: "D", pick_number: pickNumber, round: Math.floor(i / TEAM_COUNT) + 1,
     is_autopick: pickNumber % 9 === 0, made_at: new Date().toISOString(),
     team_id: team.id, team_name: team.name, draft_slot: slot,
     player_id: player.id, player_name: player.full_name, position: player.position,

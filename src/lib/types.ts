@@ -64,6 +64,8 @@ export type Draft = {
 };
 
 export type BoardPick = {
+  /** The pick's own row. What a reaction is keyed on. */
+  pick_id: string;
   draft_id: string;
   pick_number: number;
   round: number;

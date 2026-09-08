@@ -98,7 +98,7 @@ const hub: Hub = {
   pulse,
   teams,
   recent: PLAYERS.map((player_name, i) => ({
-    draft_id: "D", pick_number: 26 - i, round: Math.floor((25 - i) / 12) + 1,
+    pick_id: `dp${26 - i}`, draft_id: "D", pick_number: 26 - i, round: Math.floor((25 - i) / 12) + 1,
     is_autopick: i === 3, made_at: new Date(Date.now() - i * 9e4).toISOString(),
     team_id: teams[i % 12].id, team_name: teams[i % 12].name,
     draft_slot: teams[i % 12].draft_slot, player_id: `p${i}`,

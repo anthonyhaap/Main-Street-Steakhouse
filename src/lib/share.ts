@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "@/lib/config";
+import { SITE_URL, SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "@/lib/config";
 
 /** Shape of ff_share_card(matchup_id). */
 export type ShareCard = {
@@ -40,4 +40,53 @@ export function shareTitle(c: ShareCard): string {
   const [w, l] = c.home.points >= c.away.points ? [c.home, c.away] : [c.away, c.home];
   if (!started) return `${shareName(c.home)} vs. ${shareName(c.away)} · Week ${c.week}`;
   return `${shareName(w)} ${Number(w.points).toFixed(1)} — ${shareName(l)} ${Number(l.points).toFixed(1)} · Week ${c.week}`;
+}
+
+/* --------------------------------------------------- sharing a live card -- */
+
+/**
+ * Where a link should point when the page is asked to build one.
+ *
+ * `location.origin` on a real page, and the canonical site otherwise — a
+ * fixture, a test runner or a server render all produce something that is not
+ * a URL anybody can paste into a chat.
+ */
+export function shareOrigin(): string {
+  return typeof location !== "undefined" && location.origin.startsWith("http")
+    ? location.origin
+    : SITE_URL;
+}
+
+/**
+ * One scoreboard card, written for a group chat.
+ *
+ * The same three lines the briefing's `matchupText` sends on a Tuesday —
+ * league and week, the two sides, the link — so the chat hears one voice
+ * whichever screen the message was sent from. The link is what does the
+ * visual work: /share/matchup/[id] carries an opengraph image, and every
+ * messaging app in the league unfurls it.
+ */
+export function scoreCardText(
+  c: {
+    id: string;
+    home: { name: string; manager_name: string | null; points: number; proj: number };
+    away: { name: string; manager_name: string | null; points: number; proj: number };
+  },
+  league: string,
+  week: number,
+  origin: string,
+): string {
+  const name = (s: { name: string; manager_name: string | null }) =>
+    s.manager_name?.trim().split(/\s+/)[0] || s.name;
+  const n1 = Number(c.home.points), n2 = Number(c.away.points);
+  const started = n1 + n2 > 0;
+  const one = (x: number) => x.toFixed(1);
+
+  // Before kickoff there is no score to send, and sending "0.0 — 0.0" is worse
+  // than sending what the two lineups are projected to do.
+  const line = started
+    ? `${name(c.home)} ${one(n1)} — ${name(c.away)} ${one(n2)}`
+    : `${name(c.home)} (proj. ${one(Number(c.home.proj))}) vs. ${name(c.away)} (proj. ${one(Number(c.away.proj))})`;
+
+  return `${league} · Week ${week}\n${line}\n${origin}/share/matchup/${c.id}`;
 }

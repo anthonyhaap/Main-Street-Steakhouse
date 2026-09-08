@@ -31,13 +31,13 @@ const POOL: PoolPlayer[] = [
 
 const MY_PICKS: BoardPick[] = [
   {
-    draft_id: "D", pick_number: 3, round: 1, is_autopick: false,
+    pick_id: "dp3", draft_id: "D", pick_number: 3, round: 1, is_autopick: false,
     made_at: new Date().toISOString(), team_id: "t1", team_name: "Gridiron Butchers",
     draft_slot: 3, player_id: "b5b41230-f52a-448d-ac21-42a11bbe358f",
     player_name: "Puka Nacua", position: "WR", nfl_team: "LAR", espn_id: "4426515",
   },
   {
-    draft_id: "D", pick_number: 22, round: 2, is_autopick: true,
+    pick_id: "dp22", draft_id: "D", pick_number: 22, round: 2, is_autopick: true,
     made_at: new Date().toISOString(), team_id: "t1", team_name: "Gridiron Butchers",
     draft_slot: 3, player_id: "0fffd218-f09d-425a-bab8-3dd1b241b741",
     player_name: "Jonathan Taylor", position: "RB", nfl_team: "IND", espn_id: "4242335",

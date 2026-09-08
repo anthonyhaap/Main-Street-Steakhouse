@@ -27,6 +27,18 @@ const PUBLIC = ["/login", "/auth", "/join", "/share", "/splash", "/preview",
                 "/manifest.webmanifest", "/sw.js", "/api/push/drain"];
 
 export async function proxy(request: NextRequest) {
+  const path = request.nextUrl.pathname;
+  const isPublic = PUBLIC.some((p) => path === p || path.startsWith(p + "/"));
+  // `/login` is on the list but still has to know who is asking, because a
+  // signed-in manager who lands on it is sent back to the table.
+  const isLogin = path === "/login" || path.startsWith("/login/");
+
+  // Everything else on the list needs no session at all — and `getUser()` is a
+  // network round trip to the auth server, not a cookie read. Paying it here
+  // was paying it on every service-worker fetch, every preview screen, every
+  // splash image and every cron POST, to learn something none of them use.
+  if (isPublic && !isLogin) return NextResponse.next({ request });
+
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
@@ -43,9 +55,6 @@ export async function proxy(request: NextRequest) {
   // Refreshes the auth token on every request so a manager who leaves the draft
   // room open for four hours is still signed in when they come back to it.
   const { data: { user } } = await supabase.auth.getUser();
-
-  const path = request.nextUrl.pathname;
-  const isPublic = PUBLIC.some((p) => path === p || path.startsWith(p + "/"));
 
   if (!user && !isPublic) {
     const url = request.nextUrl.clone();

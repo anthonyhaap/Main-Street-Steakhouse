@@ -2881,6 +2881,425 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
 /* `minmax(0, 1fr)` and not `1fr`: a grid child defaults to min-width auto, so
    the one-line teaser below — which is deliberately nowrap — would otherwise
    size the track to the whole sentence and push the card past the phone. */
+/* ------------------------------------------------- around the house -- */
+/* The whole league at four o'clock: a list of who is on the field, ranked, and
+   the games close enough to be worth leaving your own card for. */
+
+.house-live__line {
+  margin: 0 0 var(--s4);
+  font: 600 var(--t-body) var(--sans); color: var(--ink);
+}
+
+.hl { list-style: none; margin: 0; padding: 0; }
+.hl__row {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center; gap: var(--s3);
+  padding: var(--s3) var(--s4);
+  border-top: 1px solid var(--rule-soft);
+}
+.hl__row[data-mine="true"] { background: var(--gold-haze); }
+
+.hl__who { min-width: 0; }
+.hl__name {
+  display: flex; align-items: baseline; gap: 7px;
+  font-weight: 600; line-height: 1.25;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.hl__name i { font-style: normal; font-weight: 700; font-size: var(--t-micro); color: var(--muted); }
+.hl__name i[data-pos="qb"]  { color: var(--qb); }
+.hl__name i[data-pos="rb"]  { color: var(--rb); }
+.hl__name i[data-pos="wr"]  { color: var(--wr); }
+.hl__name i[data-pos="te"]  { color: var(--te); }
+.hl__name i[data-pos="k"]   { color: var(--k); }
+.hl__name i[data-pos="dst"] { color: var(--dst); }
+
+.hl__sub {
+  display: flex; gap: var(--s2); align-items: baseline; flex-wrap: wrap;
+  margin-top: 2px; font-size: var(--t-micro); color: var(--dim);
+}
+.hl__game { color: var(--faint); }
+
+.hl__num { text-align: right; display: grid; gap: 1px; }
+.hl__num b { font-variant-numeric: tabular-nums; font-size: var(--t-body); }
+.hl__margin, .hl__delta {
+  font: 600 var(--t-micro) var(--sans); font-variant-numeric: tabular-nums;
+  display: inline-flex; align-items: center; gap: 2px; justify-content: flex-end;
+}
+.hl__margin[data-up="true"], .hl__delta[data-up="true"] { color: var(--win); }
+.hl__margin[data-up="false"], .hl__delta[data-up="false"] { color: var(--lose); }
+
+.hl-close { list-style: none; margin: 0; padding: 0; }
+.hl-close li {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px var(--s3); align-items: baseline;
+  padding: var(--s3) var(--s4); border-top: 1px solid var(--rule-soft);
+}
+.hl-close li[data-mine="true"] { background: var(--gold-haze); }
+.hl-close__names {
+  display: flex; gap: 7px; align-items: baseline; min-width: 0;
+  color: inherit; text-decoration: none; font-size: var(--t-small);
+}
+.hl-close__names b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hl-close__names i { font-style: normal; color: var(--faint); }
+.hl-close__names .num { font-variant-numeric: tabular-nums; color: var(--muted); }
+.hl-close__names:hover b { color: var(--wine); }
+.hl-close__gap { font: 700 var(--t-small) var(--sans); color: var(--gold); white-space: nowrap; }
+.hl-close__left { grid-column: 1 / -1; font-size: var(--t-micro); color: var(--faint); }
+
+/* A quiet dot on the tab while football is actually on. */
+.seg__live {
+  display: inline-block; width: 6px; height: 6px; margin-left: 6px;
+  border-radius: 50%; background: var(--lose); vertical-align: middle;
+  animation: seg-live 1.6s ease-in-out infinite;
+}
+@keyframes seg-live { 50% { opacity: .3; } }
+@media (prefers-reduced-motion: reduce) { .seg__live { animation: none; } }
+
+/* --------------------------------------------------------- the television -- */
+/* Sized in vw/vh rather than px throughout: the target is a screen whose size
+   is unknown and whose viewer is on a sofa, so everything scales with the
+   viewport and nothing here is ever allowed to scroll. */
+
+.tv-page {
+  position: fixed; inset: 0;
+  background: var(--ink); color: var(--cream);
+  overflow: hidden;
+  padding: clamp(12px, 1.6vw, 28px);
+  display: flex; flex-direction: column;
+}
+
+.tv-full {
+  position: absolute; top: 10px; right: 12px; z-index: 2;
+  border: 0; background: none; color: var(--faint); cursor: pointer;
+  padding: 8px; border-radius: var(--r1);
+  opacity: .25; transition: opacity .2s var(--ease);
+}
+.tv-full:hover, .tv-full:focus-visible { opacity: 1; color: var(--gold); }
+
+.tv { display: flex; flex-direction: column; height: 100%; min-height: 0; gap: clamp(8px, 1.2vh, 20px); }
+
+.tv__head {
+  display: flex; align-items: baseline; justify-content: space-between; gap: var(--s4);
+  border-bottom: 1px solid var(--gold-dim); padding-bottom: clamp(6px, 0.8vh, 14px);
+  flex-shrink: 0;
+}
+.tv__league {
+  font: 600 clamp(13px, 1.5vw, 26px)/1 var(--display, var(--sans));
+  letter-spacing: .1em; text-transform: uppercase; color: var(--gold);
+}
+.tv__where { font: 500 clamp(12px, 1.3vw, 22px)/1 var(--sans); color: var(--dim); }
+
+.tv__grid {
+  flex: 1; min-height: 0;
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  grid-template-rows: 1.35fr 1fr;
+  gap: clamp(8px, 1.2vw, 22px);
+}
+.tv__grid > section {
+  min-width: 0; min-height: 0;
+  display: flex; flex-direction: column; justify-content: center;
+  padding: clamp(10px, 1.4vw, 26px);
+  border: 1px solid var(--rule); border-radius: var(--r2);
+  background: var(--ink-2, rgba(255,255,255,.02));
+  overflow: hidden;
+}
+
+.tv__label {
+  font: 700 clamp(10px, 0.95vw, 16px)/1 var(--sans);
+  letter-spacing: .14em; text-transform: uppercase; color: var(--faint);
+  margin-bottom: clamp(4px, 0.7vh, 12px);
+}
+
+/* --- on the clock: the biggest thing in the room --- */
+.tv__clock { justify-content: center; }
+.tv__team {
+  font: 600 clamp(24px, 4.4vw, 84px)/1.02 var(--display, var(--serif, var(--sans)));
+  color: var(--cream);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.tv__mgr { font: 400 clamp(13px, 1.5vw, 26px)/1.2 var(--sans); color: var(--dim); margin-top: 4px; }
+.tv__time {
+  font: 700 clamp(40px, 8.5vw, 168px)/1 var(--sans);
+  font-variant-numeric: tabular-nums; letter-spacing: -.02em;
+  color: var(--gold); margin-top: clamp(2px, 0.6vh, 10px);
+}
+.tv[data-urgent="true"] .tv__time { color: var(--lose); animation: tv-pulse 1s steps(2, start) infinite; }
+.tv__time[data-expired="true"] { color: var(--lose); }
+@keyframes tv-pulse { 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) {
+  .tv[data-urgent="true"] .tv__time { animation: none; }
+}
+
+/* --- what just went --- */
+.tv__player {
+  font: 600 clamp(20px, 3.2vw, 60px)/1.05 var(--display, var(--serif, var(--sans)));
+  color: var(--cream);
+  overflow: hidden; text-overflow: ellipsis;
+}
+.tv__player--quiet { color: var(--faint); }
+.tv__meta {
+  display: flex; align-items: baseline; gap: clamp(6px, 0.9vw, 16px); flex-wrap: wrap;
+  margin-top: clamp(3px, 0.6vh, 10px);
+  font: 500 clamp(12px, 1.4vw, 24px)/1.2 var(--sans); color: var(--dim);
+}
+.tv__meta i { font-style: normal; font-weight: 700; }
+.tv__to { color: var(--muted); }
+
+.tv__grade {
+  display: flex; flex-direction: column; gap: 2px;
+  margin-top: clamp(6px, 1vh, 16px);
+  font: 700 clamp(14px, 1.9vw, 34px)/1 var(--sans);
+  letter-spacing: .04em; text-transform: uppercase;
+}
+.tv__grade[data-tone="ok"]      { color: var(--win); }
+.tv__grade[data-tone="danger"]  { color: var(--lose); }
+.tv__grade[data-tone="warn"]    { color: var(--gold); }
+.tv__grade em {
+  font: 400 clamp(10px, 1.05vw, 18px)/1.2 var(--sans);
+  letter-spacing: .02em; text-transform: none; color: var(--dim);
+}
+
+/* --- what the room said, from eleven phones --- */
+.tv__reacts { display: flex; gap: clamp(6px, 0.8vw, 14px); margin-top: clamp(6px, 1vh, 16px); flex-wrap: wrap; }
+.tv__react {
+  display: inline-flex; align-items: center; gap: 4px;
+  font: 700 clamp(14px, 1.8vw, 32px)/1 var(--sans); color: var(--cream);
+}
+.tv__react b { color: var(--dim); font-variant-numeric: tabular-nums; }
+
+/* --- the two lists --- */
+.tv__next ol, .tv__recent ol {
+  list-style: none; margin: 0; padding: 0;
+  display: flex; flex-direction: column; gap: clamp(2px, 0.5vh, 8px);
+  min-height: 0; overflow: hidden;
+}
+.tv__next li, .tv__recent li {
+  display: flex; align-items: baseline; gap: clamp(6px, 0.8vw, 14px);
+  font: 500 clamp(12px, 1.45vw, 26px)/1.35 var(--sans);
+  white-space: nowrap; overflow: hidden;
+}
+.tv__next li .num, .tv__recent li .num {
+  color: var(--faint); font-variant-numeric: tabular-nums; flex-shrink: 0;
+  min-width: 4.5ch;
+}
+.tv__next li b, .tv__recent li b {
+  color: var(--cream); font-weight: 600; overflow: hidden; text-overflow: ellipsis;
+}
+.tv__recent li i { font-style: normal; font-weight: 700; flex-shrink: 0; }
+.tv__none { color: var(--faint); font: 400 clamp(12px, 1.3vw, 22px)/1.4 var(--sans); }
+.tv__boot { display: grid; place-items: center; height: 100%; }
+
+/* Position colours, shared with the rest of the draft room. */
+.tv__meta i[data-pos], .tv__recent li i[data-pos] { color: var(--muted); }
+.tv__meta i[data-pos="qb"],  .tv__recent li i[data-pos="qb"]  { color: var(--qb); }
+.tv__meta i[data-pos="rb"],  .tv__recent li i[data-pos="rb"]  { color: var(--rb); }
+.tv__meta i[data-pos="wr"],  .tv__recent li i[data-pos="wr"]  { color: var(--wr); }
+.tv__meta i[data-pos="te"],  .tv__recent li i[data-pos="te"]  { color: var(--te); }
+.tv__meta i[data-pos="k"],   .tv__recent li i[data-pos="k"]   { color: var(--k); }
+.tv__meta i[data-pos="dst"], .tv__recent li i[data-pos="dst"] { color: var(--dst); }
+
+/* A phone held up in the room still has to read: one column, clock first. */
+@media (max-aspect-ratio: 1/1) {
+  .tv__grid { grid-template-columns: 1fr; grid-template-rows: auto auto 1fr 1fr; }
+}
+
+/* ----------------------------------------------------- manager profile -- */
+/* Opened from a card, and rendered under the row of them rather than over the
+   top: a career is something two people read together, and a dialog that dims
+   the league behind it is the wrong shape for that. */
+
+.mgrcard[role="button"] { cursor: pointer; }
+.mgrcard[role="button"]:hover { border-color: var(--gold-dim); }
+.mgrcard[role="button"]:focus-visible {
+  outline: 2px solid var(--gold); outline-offset: 2px;
+}
+.mgrcard[data-open="true"] {
+  border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold-dim) inset;
+}
+
+.prof {
+  margin-top: var(--s4);
+  border: 1px solid var(--gold-dim); border-radius: var(--r2);
+  background: var(--surface); overflow: hidden;
+}
+
+.prof__head {
+  display: flex; align-items: center; gap: var(--s3);
+  padding: var(--s4); border-bottom: 1px solid var(--rule-soft);
+}
+.prof__head h2 { margin: 0; font-size: var(--t-h2); line-height: 1.15; }
+.prof__head .btn { margin-left: auto; flex-shrink: 0; }
+.prof__sub { margin: 3px 0 0; font-size: var(--t-small); color: var(--muted); }
+
+.prof__title {
+  margin: 0; padding: var(--s3) var(--s4);
+  font-style: italic; color: var(--gold); font-size: var(--t-small);
+  border-bottom: 1px solid var(--rule-soft);
+}
+
+.prof__block { padding: var(--s4); border-bottom: 1px solid var(--rule-soft); }
+.prof__block:last-child { border-bottom: 0; }
+.prof__block > .eyebrow { display: block; margin-bottom: var(--s3); }
+.prof__empty { margin: 0; color: var(--dim); font-size: var(--t-small); }
+
+.prof__cab { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.prof__trophy {
+  display: flex; align-items: baseline; gap: var(--s2);
+  padding: 7px var(--s3); border-radius: var(--r1);
+  background: var(--gold-haze); border-left: 3px solid var(--gold);
+}
+.prof__trophy[data-good="false"] {
+  background: transparent; border-left-color: var(--rule);
+}
+.prof__trophy b { font-size: var(--t-small); }
+.prof__trophy span { margin-left: auto; color: var(--muted); font-size: var(--t-micro); }
+
+.prof__tbl { width: 100%; border-collapse: collapse; min-width: 420px; }
+.prof__tbl th, .prof__tbl td {
+  padding: 7px var(--s3); text-align: right; white-space: nowrap;
+  border-bottom: 1px solid var(--rule-soft);
+}
+.prof__tbl th:nth-child(2), .prof__tbl td:nth-child(2) { text-align: left; }
+.prof__tbl tbody tr:last-child td { border-bottom: 0; }
+.prof__won { color: var(--gold); }
+.prof__lost { color: var(--muted); }
+
+.prof__owns { margin: 0 0 var(--s3); font-size: var(--t-small); color: var(--muted); }
+.prof__owns b { color: var(--ink); }
+
+.prof__h2h {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); gap: 2px var(--s4);
+}
+.prof__h2h li {
+  display: flex; align-items: baseline; gap: var(--s2);
+  padding: 4px 0; font-size: var(--t-small); border-bottom: 1px solid var(--rule-soft);
+}
+.prof__h2h li span { color: var(--muted); min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.prof__h2h li b { margin-left: auto; font-variant-numeric: tabular-nums; }
+.prof__h2h li b[data-tone="up"]   { color: var(--win); }
+.prof__h2h li b[data-tone="down"] { color: var(--lose); }
+
+.prof__notes {
+  display: flex; flex-wrap: wrap; gap: var(--s2) var(--s5);
+  font-size: var(--t-small); color: var(--muted);
+}
+.prof__notes b { color: var(--ink); }
+
+/* ------------------------------------------------------ power rankings -- */
+/* A list, not a table: every row carries a sentence, and a sentence in a cell
+   wraps into a column two words wide. */
+
+.pwr__headline {
+  margin: var(--s4) var(--s4) 0;
+  font: 600 var(--t-body) var(--serif, var(--sans));
+  color: var(--ink);
+}
+
+.pwr { list-style: none; margin: var(--s3) 0 0; padding: 0; }
+
+.pwr__row {
+  display: grid;
+  grid-template-columns: 24px 34px auto minmax(0, 1fr) auto;
+  align-items: center; gap: var(--s2);
+  padding: var(--s3) var(--s4);
+  border-top: 1px solid var(--rule-soft);
+}
+.pwr__row[data-mine="true"] { background: var(--gold-haze); }
+
+.pwr__rank {
+  font: 700 var(--t-body) var(--sans); color: var(--muted);
+  text-align: right; font-variant-numeric: tabular-nums;
+}
+
+.pwr__move {
+  display: inline-flex; align-items: center; gap: 1px;
+  font: 700 var(--t-micro) var(--sans); font-variant-numeric: tabular-nums;
+}
+.pwr__move[data-dir="up"]   { color: var(--win); }
+.pwr__move[data-dir="down"] { color: var(--lose); }
+.pwr__move[data-dir="flat"],
+.pwr__move[data-dir="none"] { color: var(--faint); }
+
+.pwr__who { min-width: 0; }
+.pwr__name {
+  display: flex; align-items: baseline; gap: var(--s2); flex-wrap: wrap;
+  font-weight: 600; line-height: 1.25;
+}
+.pwr__pos {
+  font: 400 var(--t-micro) var(--sans); color: var(--faint);
+  letter-spacing: .02em; white-space: nowrap;
+}
+.pwr__line {
+  margin: 2px 0 0; font-size: var(--t-small); color: var(--muted);
+}
+
+.pwr__num { text-align: right; display: grid; gap: 1px; }
+.pwr__num b { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pwr__num .eyebrow { color: var(--faint); }
+/* Form is the second half of the sort and reads as the junior number. */
+.pwr__recent { margin-top: 4px; color: var(--muted); font-size: var(--t-small); }
+
+@media (max-width: 460px) {
+  .pwr__row { grid-template-columns: 20px 30px auto minmax(0, 1fr); gap: 6px; padding: var(--s3); }
+  /* The all-play record drops under the sentence rather than squeezing the
+     name into two characters. */
+  .pwr__num { grid-column: 3 / -1; text-align: left; display: flex; gap: 6px; align-items: baseline; }
+}
+
+/* ------------------------------------------------------------- rivalry -- */
+/* Sits under the card's headline, and reads as an aside to it rather than as
+   another statistic: no rule above it, no chrome, one italic-free sentence.
+   The detail below is a definition list because that is what it is. */
+
+.riv { margin: calc(var(--s2) * -1) 0 var(--s2); }
+
+.riv__head {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; min-height: 36px; padding: 4px 2px;
+  border: 0; background: none; text-align: left; cursor: pointer;
+  font: 600 var(--t-small) var(--sans); color: var(--muted);
+}
+.riv__head:disabled { cursor: default; }
+.riv__head:not(:disabled):hover { color: var(--wine); }
+.riv__head svg { color: var(--gold); flex-shrink: 0; }
+.riv__head svg:last-child { margin-left: auto; color: var(--faint); }
+.riv__line { min-width: 0; }
+
+.riv__detail {
+  margin: 0 0 var(--s2); padding: var(--s3) 0 0;
+  border-top: 1px dashed var(--rule-soft);
+  display: grid; gap: 6px;
+}
+.riv__detail > div {
+  display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: var(--s2);
+  align-items: baseline;
+}
+.riv__detail dt {
+  margin: 0; font: 700 var(--t-micro) var(--sans);
+  letter-spacing: .06em; text-transform: uppercase; color: var(--faint);
+}
+.riv__detail dd {
+  margin: 0; font-size: var(--t-small); color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.riv__detail dd span { color: var(--ink); font-weight: 600; }
+
+@media (max-width: 420px) {
+  .riv__detail > div { grid-template-columns: minmax(0, 1fr); gap: 0; }
+}
+
+/* Sending the card. Quiet in the header until it is wanted. */
+.sb__share {
+  margin-left: auto; display: inline-grid; place-items: center;
+  width: 30px; height: 30px; padding: 0; flex-shrink: 0;
+  border: 0; border-radius: 999px; background: none;
+  color: var(--faint); cursor: pointer;
+  transition: color .16s var(--ease), background .16s var(--ease);
+}
+.sb__share:hover, .sb__share:focus-visible { color: var(--gold); background: var(--gold-haze); }
+
 .sb__talk {
   border-top: 1px solid var(--rule-soft);
   padding-top: var(--s3);
@@ -3350,6 +3769,8 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
 }
 .tick::-webkit-scrollbar { display: none; }
 
+/* The pill is a wrapper now: the tap-through to the card and the reactions are
+   separate controls, and one button cannot contain another. */
 .tick__item {
   flex: 0 0 auto;
   display: flex;
@@ -3359,14 +3780,45 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
   border: 1px solid var(--rule);
   border-radius: 999px;
   background: var(--ink-1);
-  cursor: pointer;
   scroll-snap-align: start;
-  text-align: left;
-  font: inherit;
-  color: inherit;
   transition: border-color 0.16s var(--ease), background 0.16s var(--ease);
 }
+.tick__open {
+  display: flex; align-items: center; gap: 7px;
+  border: 0; background: none; padding: 0; margin: 0;
+  cursor: pointer; text-align: left; font: inherit; color: inherit;
+}
 .tick__item:hover { border-color: var(--rule-hard); background: var(--ink-2); }
+
+/* --- reactions, sized for a pill --- */
+.tickr { display: inline-flex; align-items: center; gap: 3px; flex-shrink: 0; }
+.tickr__chip {
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 1px 6px 1px 5px; min-height: 22px;
+  border: 1px solid var(--rule); border-radius: 999px;
+  background: var(--ink-2); color: var(--muted);
+  font: 600 var(--t-micro) var(--sans); cursor: pointer;
+  transition: border-color .16s var(--ease), background .16s var(--ease);
+}
+.tickr__chip[data-on="true"] { border-color: var(--gold); background: var(--gold-haze); color: var(--ink); }
+.tickr__chip:disabled { opacity: .55; cursor: default; }
+.tickr__chip b { font-variant-numeric: tabular-nums; }
+
+.tickr__add {
+  display: inline-grid; place-items: center;
+  width: 22px; height: 22px; padding: 0;
+  border: 1px dashed var(--rule); border-radius: 999px;
+  background: none; color: var(--faint); cursor: pointer;
+}
+.tickr__add:hover { color: var(--gold); border-color: var(--gold-dim); }
+
+.tickr__palette { display: inline-flex; gap: 1px; }
+.tickr__pick {
+  border: 0; background: none; cursor: pointer;
+  font-size: 15px; line-height: 1; padding: 3px 2px;
+}
+.tickr__pick:hover { transform: scale(1.25); }
+@media (prefers-reduced-motion: reduce) { .tickr__pick:hover { transform: none; } }
 .tick__item[data-mine="true"] { border-color: #c99c3f66; background: var(--gold-haze); }
 .tick__text { display: grid; gap: 2px; min-width: 0; }
 .tick__name {

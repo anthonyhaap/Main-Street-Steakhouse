@@ -1,9 +1,12 @@
 "use client";
 
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Flame, Landmark, Swords, Trophy, Zap } from "lucide-react";
 import { Seal, SkeletonRows } from "@/components/ui";
 import { crestUrl } from "@/lib/crest";
 import { cellOf, heat, titleOf, type HistoricalStanding, type History } from "@/lib/history";
+import { buildProfile } from "@/lib/profile";
+import { ManagerProfileCard } from "@/components/history/ManagerProfile";
 
 /**
  * The room with "Est. 2016" on the door.
@@ -22,6 +25,33 @@ export function HistoryWall({ history, historicalStandings = [], myManager = nul
   /** Show the commissioner where the old seasons go. */
   importable?: boolean;
 }) {
+  // Which career is open. The URL is the source of truth so that "look at his
+  // record" can be said with a link, and so the back button closes the profile
+  // rather than leaving the wall.
+  const [open, setOpen] = useState<string | null>(null);
+
+  useEffect(() => {
+    const read = () => setOpen(new URLSearchParams(window.location.search).get("manager"));
+    read();
+    window.addEventListener("popstate", read);
+    return () => window.removeEventListener("popstate", read);
+  }, []);
+
+  const select = useCallback((manager: string | null) => {
+    const url = new URL(window.location.href);
+    if (manager) url.searchParams.set("manager", manager);
+    else url.searchParams.delete("manager");
+    // pushState, not replaceState: opening a career is a place you can come
+    // back from.
+    window.history.pushState(null, "", url);
+    setOpen(manager);
+  }, []);
+
+  const profile = useMemo(
+    () => (history && open ? buildProfile(history, historicalStandings ?? [], open) : null),
+    [history, historicalStandings, open],
+  );
+
   if (!history) {
     return (
       <main className="page wall">
@@ -213,7 +243,19 @@ export function HistoryWall({ history, historicalStandings = [], myManager = nul
           </div>
           <div className="mgrs">
             {managers.map((m) => (
-              <article className="mgrcard" key={m.manager} data-mine={m.manager === myManager}>
+              // A button, not a card with a click on it: this opens something,
+              // and the keyboard and a screen reader have to be told so.
+              <article className="mgrcard" key={m.manager} data-mine={m.manager === myManager}
+                       data-open={m.manager === open} role="button" tabIndex={0}
+                       aria-expanded={m.manager === open}
+                       aria-label={`${m.manager}'s career`}
+                       onClick={() => select(m.manager === open ? null : m.manager)}
+                       onKeyDown={(e) => {
+                         if (e.key === "Enter" || e.key === " ") {
+                           e.preventDefault();
+                           select(m.manager === open ? null : m.manager);
+                         }
+                       }}>
                 <div className="mgrcard__head">
                   <Seal name={m.current_team ?? m.manager} src={crestUrl(m.logo_path)} mine={m.manager === myManager} size={36} />
                   <div style={{ minWidth: 0 }}>
@@ -236,6 +278,16 @@ export function HistoryWall({ history, historicalStandings = [], myManager = nul
               </article>
             ))}
           </div>
+
+          {/* Under the cards, where the one that was tapped still is. */}
+          {profile && (
+            <ManagerProfileCard
+              profile={profile}
+              history={h}
+              mine={profile.manager.manager === myManager}
+              onClose={() => select(null)}
+            />
+          )}
         </section>
       )}
 

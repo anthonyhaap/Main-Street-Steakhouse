@@ -34,8 +34,22 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const load = useMemo(
     () => async () => {
       const supabase = supabaseBrowser();
-      const { data: { user: u } } = await supabase.auth.getUser();
-      setUser(u ?? null);
+      // `getSession()`, not `getUser()`. Every screen in the app waits on
+      // `ready`, and `ready` waits on this — so this call sits in front of
+      // ff_link_me, the league and team reads, and then the page's own data.
+      // `getUser()` is a network round trip to the auth server on every load;
+      // `getSession()` reads the token already in storage and only goes to the
+      // network when it has actually expired, in which case it refreshes.
+      //
+      // Safe here and nowhere else: this is the browser, and nothing is
+      // trusted on the strength of it. `user.id` picks a highlight and decides
+      // which buttons to draw; every read and every write behind those buttons
+      // is checked again by RLS against the token the database verifies for
+      // itself. On the server, where a decision is being made rather than a
+      // screen drawn, `getUser()` is still the only correct call.
+      const { data: { session } } = await supabase.auth.getSession();
+      const u = session?.user ?? null;
+      setUser(u);
 
       if (!u) {
         setTeam(null); setLeague(null); setTeams([]); setReady(true);
