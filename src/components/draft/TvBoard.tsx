@@ -20,20 +20,28 @@
  */
 
 import { fmtClock, gradePick, marketRankOf, pickLabel, teamAtPick } from "@/lib/draft";
-import type { BoardPick, Draft, PoolPlayer, Team } from "@/lib/types";
+import type { BoardPick, Draft, PoolPlayer, Reaction, Team } from "@/lib/types";
 
 export type TvState = {
   draft: Draft;
   picks: BoardPick[];
   teams: Team[];
+  /** Optional so a fixture can leave it out entirely. */
+  reactions?: Record<string, Reaction[]>;
 };
 
-export function TvBoard({ state, msLeft, poolById }: {
+export function TvBoard({ state, msLeft, poolById, reactions }: {
   state: TvState;
   /** Server-clock milliseconds left on the current pick; null when stopped. */
   msLeft: number | null;
   /** For grades. Absent simply means no grade is claimed. */
   poolById?: Map<string, PoolPlayer>;
+  /**
+   * What the room has said about each pick, keyed by pick id. Read-only here:
+   * you press it on the phone in your hand and it appears on the wall, which
+   * is the entire point of putting it on the wall.
+   */
+  reactions?: Record<string, Reaction[]>;
 }) {
   const { draft, picks, teams } = state;
   const teamCount = teams.length || 12;
@@ -44,6 +52,7 @@ export function TvBoard({ state, msLeft, poolById }: {
   const onClock = teamAtPick(draft.current_pick, teams, teamCount);
   const last = picks[picks.length - 1] ?? null;
   const lastGrade = last ? gradePick(last.pick_number, marketRankOf(poolById?.get(last.player_id))) : null;
+  const lastReactions = (last && reactions?.[last.pick_id]) || [];
 
   // Four names is what fits without shrinking the type to phone size.
   const upNext = [1, 2, 3, 4]
@@ -114,6 +123,18 @@ export function TvBoard({ state, msLeft, poolById }: {
                       ? `${lastGrade.delta} picks later than the market`
                       : `${Math.abs(lastGrade.delta)} picks earlier than the market`}
                   </em>
+                </span>
+              )}
+
+              {/* What the room said about it, from eleven phones. */}
+              {lastReactions.length > 0 && (
+                <span className="tv__reacts" aria-label="What the room said">
+                  {lastReactions.map((r) => (
+                    <span key={r.emoji} className="tv__react">
+                      <span aria-hidden>{r.emoji}</span>
+                      <b className="num">{r.count}</b>
+                    </span>
+                  ))}
                 </span>
               )}
             </>

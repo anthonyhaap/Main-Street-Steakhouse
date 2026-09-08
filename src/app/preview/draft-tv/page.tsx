@@ -52,7 +52,7 @@ function picks(n: number): BoardPick[] {
     const pick = i + 1;
     const team = TEAMS[snakeSlot(pick, TEAMS.length) - 1];
     return {
-      draft_id: "d1", pick_number: pick, round: Math.ceil(pick / TEAMS.length),
+      pick_id: `dp${pick}`, draft_id: "d1", pick_number: pick, round: Math.ceil(pick / TEAMS.length),
       is_autopick: false, made_at: new Date().toISOString(),
       team_id: team.id, team_name: team.name, draft_slot: team.draft_slot,
       player_id: `p${pick}`, player_name, position, nfl_team, espn_id: null,
@@ -81,6 +81,12 @@ const draft = (over: Partial<Draft>): Draft => ({
   ...over,
 });
 
+/** What eleven phones said about the steal. */
+const REACTS = { "dp30": [
+  { emoji: "🔥", count: 7, mine: true },
+  { emoji: "💀", count: 3, mine: false },
+] };
+
 type Stage = { key: string; label: string; state: TvState; msLeft: number | null };
 
 const STAGES: Stage[] = [
@@ -91,7 +97,7 @@ const STAGES: Stage[] = [
   },
   {
     key: "steal", label: "A steal on the board",
-    state: { draft: draft({ current_pick: 31 }), picks: picks(30), teams: TEAMS },
+    state: { draft: draft({ current_pick: 31 }), picks: picks(30), teams: TEAMS, reactions: REACTS },
     msLeft: 63_000,
   },
   {
@@ -141,7 +147,8 @@ export default function DraftTvPreview() {
           so both are usable. */}
       <div style={{ position: "relative", height: "calc(100vh - 56px)" }}>
         <div className="tv-page" style={{ position: "absolute" }}>
-          <TvBoard state={stage.state} msLeft={stage.msLeft} poolById={POOL} />
+          <TvBoard state={stage.state} msLeft={stage.msLeft} poolById={POOL}
+                   reactions={stage.state.reactions} />
         </div>
       </div>
     </>

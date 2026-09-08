@@ -5,7 +5,7 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 import { useLive, useServerClock, useTicker } from "@/lib/live";
 import { useSession } from "@/lib/session";
 import { DRAFT_ID, LEAGUE_ID } from "@/lib/config";
-import type { BoardPick, Draft, PoolPlayer, Team } from "@/lib/types";
+import type { BoardPick, Draft, PoolPlayer, Reaction, Team } from "@/lib/types";
 import { gradePick, marketRankOf, rosterNeeds, teamAtPick, upcomingPicksFor } from "@/lib/draft";
 import { playPickMade, playQueueSniped, playYourTurn, useSoundMuted } from "@/lib/sound";
 import { TopBar } from "@/components/Shell";
@@ -18,7 +18,11 @@ import { PlayerSheet } from "@/components/player/PlayerSheet";
 import { SkeletonRows, useToast } from "@/components/ui";
 import { Star } from "lucide-react";
 
-type State = { draft: Draft; picks: BoardPick[]; teams: Team[]; queueIds: string[] };
+type State = {
+  draft: Draft; picks: BoardPick[]; teams: Team[]; queueIds: string[];
+  /** Reactions on the picks, keyed by pick id. */
+  reactions: Record<string, Reaction[]>;
+};
 
 /**
  * One bar for everything a phone can show, in the order you reach for it.
@@ -56,25 +60,30 @@ export default function DraftPage() {
 
   const fetcher = useCallback(async (): Promise<State> => {
     const supabase = supabaseBrowser();
-    const [d, p, t, q] = await Promise.all([
+    const [d, p, t, q, r] = await Promise.all([
       supabase.from("drafts").select("*").eq("id", DRAFT_ID).single(),
       supabase.from("draft_board").select("*").eq("draft_id", DRAFT_ID).order("pick_number"),
       supabase.from("teams").select("*").eq("league_id", LEAGUE_ID).order("draft_slot"),
       team
         ? supabase.from("draft_queue").select("player_id,rank").eq("team_id", team.id).order("rank")
         : Promise.resolve({ data: [] as { player_id: string }[] }),
+      supabase.rpc("ff_draft_reactions", { p_draft_id: DRAFT_ID }),
     ]);
     if (d.error) throw d.error;
     return {
       draft: d.data as Draft,
       picks: (p.data ?? []) as BoardPick[],
       teams: (t.data ?? []) as Team[],
-      queueIds: ((q.data ?? []) as { player_id: string }[]).map((r) => r.player_id),
+      queueIds: ((q.data ?? []) as { player_id: string }[]).map((r2) => r2.player_id),
+      reactions: (r.data as Record<string, Reaction[]>) ?? {},
     };
   }, [team]);
 
-  const { data, status, refetch } = useLive<State>(fetcher, {
-    tables: ["draft_picks", "drafts", "teams", "draft_queue"],
+  const { data, status, refetch, mutate } = useLive<State>(fetcher, {
+    // `reactions` is on the list so somebody else's 🔥 lands on your ticker
+    // without waiting for the poll — on draft night the whole league is
+    // watching the same strip at the same moment.
+    tables: ["draft_picks", "drafts", "teams", "draft_queue", "reactions"],
     channel: "draft-room",
     pollMs: 15000,
     enabled: ready,
@@ -150,6 +159,41 @@ export default function DraftPage() {
     return upcomingPicksFor(mySlot, data.draft.current_pick, data.draft.rounds, teamCount);
   }, [data, mySlot, teamCount]);
   const picksUntilMine = data && myUpcoming[0] != null ? myUpcoming[0] - data.draft.current_pick : null;
+
+  /**
+   * Pressing a reaction on a pick.
+   *
+   * Optimistic, like the House's: the whole value of a reaction is that it
+   * costs nothing, and a tally that waits for a round trip before it moves
+   * reads as broken. The refetch afterwards reconciles, and a failure puts it
+   * back where it was.
+   */
+  const [reacting, setReacting] = useState<string | null>(null);
+
+  const react = useCallback(async (pickId: string, emoji: string) => {
+    setReacting(pickId);
+
+    const bump = (prev: Record<string, Reaction[]>): Record<string, Reaction[]> => {
+      const list = prev[pickId] ?? [];
+      const existing = list.find((r) => r.emoji === emoji);
+      const next = existing
+        ? list
+            .map((r) => (r.emoji === emoji
+              ? { ...r, count: r.count + (r.mine ? -1 : 1), mine: !r.mine }
+              : r))
+            .filter((r) => r.count > 0)
+        : [...list, { emoji, count: 1, mine: true }];
+      return { ...prev, [pickId]: next };
+    };
+    if (data) mutate({ ...data, reactions: bump(data.reactions) });
+
+    const { error } = await supabaseBrowser().rpc("ff_react", {
+      p_league_id: LEAGUE_ID, p_source: "pick", p_target_id: pickId, p_emoji: emoji,
+    });
+    setReacting(null);
+    if (error) toast("error", error.message);
+    await refetch();
+  }, [data, mutate, refetch, toast]);
 
   const msLeft =
     data?.draft.status === "active" && data.draft.pick_deadline && synced
@@ -256,6 +300,9 @@ export default function DraftPage() {
               myTeamId={team?.id ?? null}
               teamCount={teamCount}
               onOpen={setOpenId}
+              reactionsFor={(pickId) => data.reactions[pickId] ?? []}
+              onReact={(pickId, emoji) => void react(pickId, emoji)}
+              reacting={reacting}
             />
           )}
 

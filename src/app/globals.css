@@ -2986,6 +2986,14 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
   letter-spacing: .02em; text-transform: none; color: var(--dim);
 }
 
+/* --- what the room said, from eleven phones --- */
+.tv__reacts { display: flex; gap: clamp(6px, 0.8vw, 14px); margin-top: clamp(6px, 1vh, 16px); flex-wrap: wrap; }
+.tv__react {
+  display: inline-flex; align-items: center; gap: 4px;
+  font: 700 clamp(14px, 1.8vw, 32px)/1 var(--sans); color: var(--cream);
+}
+.tv__react b { color: var(--dim); font-variant-numeric: tabular-nums; }
+
 /* --- the two lists --- */
 .tv__next ol, .tv__recent ol {
   list-style: none; margin: 0; padding: 0;
@@ -3669,6 +3677,8 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
 }
 .tick::-webkit-scrollbar { display: none; }
 
+/* The pill is a wrapper now: the tap-through to the card and the reactions are
+   separate controls, and one button cannot contain another. */
 .tick__item {
   flex: 0 0 auto;
   display: flex;
@@ -3678,14 +3688,45 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
   border: 1px solid var(--rule);
   border-radius: 999px;
   background: var(--ink-1);
-  cursor: pointer;
   scroll-snap-align: start;
-  text-align: left;
-  font: inherit;
-  color: inherit;
   transition: border-color 0.16s var(--ease), background 0.16s var(--ease);
 }
+.tick__open {
+  display: flex; align-items: center; gap: 7px;
+  border: 0; background: none; padding: 0; margin: 0;
+  cursor: pointer; text-align: left; font: inherit; color: inherit;
+}
 .tick__item:hover { border-color: var(--rule-hard); background: var(--ink-2); }
+
+/* --- reactions, sized for a pill --- */
+.tickr { display: inline-flex; align-items: center; gap: 3px; flex-shrink: 0; }
+.tickr__chip {
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 1px 6px 1px 5px; min-height: 22px;
+  border: 1px solid var(--rule); border-radius: 999px;
+  background: var(--ink-2); color: var(--muted);
+  font: 600 var(--t-micro) var(--sans); cursor: pointer;
+  transition: border-color .16s var(--ease), background .16s var(--ease);
+}
+.tickr__chip[data-on="true"] { border-color: var(--gold); background: var(--gold-haze); color: var(--ink); }
+.tickr__chip:disabled { opacity: .55; cursor: default; }
+.tickr__chip b { font-variant-numeric: tabular-nums; }
+
+.tickr__add {
+  display: inline-grid; place-items: center;
+  width: 22px; height: 22px; padding: 0;
+  border: 1px dashed var(--rule); border-radius: 999px;
+  background: none; color: var(--faint); cursor: pointer;
+}
+.tickr__add:hover { color: var(--gold); border-color: var(--gold-dim); }
+
+.tickr__palette { display: inline-flex; gap: 1px; }
+.tickr__pick {
+  border: 0; background: none; cursor: pointer;
+  font-size: 15px; line-height: 1; padding: 3px 2px;
+}
+.tickr__pick:hover { transform: scale(1.25); }
+@media (prefers-reduced-motion: reduce) { .tickr__pick:hover { transform: none; } }
 .tick__item[data-mine="true"] { border-color: #c99c3f66; background: var(--gold-haze); }
 .tick__text { display: grid; gap: 2px; min-width: 0; }
 .tick__name {

@@ -29,7 +29,7 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 import { useLive, useServerClock, useTicker } from "@/lib/live";
 import { useSession } from "@/lib/session";
 import { DRAFT_ID, LEAGUE_ID } from "@/lib/config";
-import type { BoardPick, Draft, PoolPlayer, Team } from "@/lib/types";
+import type { BoardPick, Draft, PoolPlayer, Reaction, Team } from "@/lib/types";
 import { TvBoard, type TvState } from "@/components/draft/TvBoard";
 
 export default function DraftTvPage() {
@@ -39,21 +39,24 @@ export default function DraftTvPage() {
 
   const fetcher = useCallback(async (): Promise<TvState> => {
     const supabase = supabaseBrowser();
-    const [d, p, t] = await Promise.all([
+    const [d, p, t, r] = await Promise.all([
       supabase.from("drafts").select("*").eq("id", DRAFT_ID).single(),
       supabase.from("draft_board").select("*").eq("draft_id", DRAFT_ID).order("pick_number"),
       supabase.from("teams").select("*").eq("league_id", LEAGUE_ID).order("draft_slot"),
+      supabase.rpc("ff_draft_reactions", { p_draft_id: DRAFT_ID }),
     ]);
     if (d.error) throw d.error;
     return {
       draft: d.data as Draft,
       picks: (p.data ?? []) as BoardPick[],
       teams: (t.data ?? []) as Team[],
+      reactions: (r.data as Record<string, Reaction[]>) ?? {},
     };
   }, []);
 
   const { data, error } = useLive<TvState>(fetcher, {
-    tables: ["draft_picks", "drafts", "teams"],
+    // `reactions` too: a 🔥 pressed on a phone has to reach the wall.
+    tables: ["draft_picks", "drafts", "teams", "reactions"],
     channel: "draft-tv",
     pollMs: 15000,
     enabled: ready,
@@ -139,7 +142,7 @@ export default function DraftTvPage() {
 
       {!data && error && <div className="tv__none tv__boot">The draft didn&apos;t load: {error}</div>}
       {!data && !error && <div className="tv__none tv__boot">Opening the room…</div>}
-      {data && <TvBoard state={data} msLeft={msLeft} poolById={poolById} />}
+      {data && <TvBoard state={data} msLeft={msLeft} poolById={poolById} reactions={data.reactions} />}
     </main>
   );
 }

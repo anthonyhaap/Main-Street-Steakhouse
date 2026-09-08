@@ -99,3 +99,24 @@ test("there is nothing on it to press", async ({ page }) => {
   const inside = page.locator(".tv button");
   await expect(inside).toHaveCount(0);
 });
+
+test("what the room said reaches the wall", async ({ page }) => {
+  await page.goto("/preview/draft-tv");
+
+  // Pressed on eleven phones, displayed on the television — which is the only
+  // reason to put a reaction on a screen nobody can touch.
+  const reacts = page.locator(".tv__reacts");
+  await expect(reacts).toBeVisible();
+  await expect(reacts.locator(".tv__react")).toHaveCount(2);
+  await expect(reacts).toContainText("🔥");
+  await expect(reacts).toContainText("7");
+
+  // And still nothing to press.
+  await expect(page.locator(".tv button")).toHaveCount(0);
+});
+
+test("a pick nobody reacted to shows no empty tray", async ({ page }) => {
+  await page.goto("/preview/draft-tv");
+  await page.getByRole("button", { name: "Paused" }).click();
+  await expect(page.locator(".tv__reacts")).toHaveCount(0);
+});

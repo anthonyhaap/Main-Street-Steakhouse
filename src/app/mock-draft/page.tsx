@@ -37,6 +37,7 @@ function boardPick(player: PoolPlayer, pickNumber: number, teams: Team[], teamCo
   const slot = snakeSlot(pickNumber, teamCount);
   const team = teams[slot - 1];
   return {
+    pick_id: `mock-${pickNumber}`,
     draft_id: "mock",
     pick_number: pickNumber,
     round: Math.floor((pickNumber - 1) / teamCount) + 1,

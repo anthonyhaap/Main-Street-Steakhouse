@@ -92,3 +92,4 @@
 20260906141722 polls
 20260906153449 rivalry_card
 20260908134237 league_scoped_membership
+20260908151909 draft_reactions

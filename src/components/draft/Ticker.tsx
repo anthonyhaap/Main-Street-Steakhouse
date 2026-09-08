@@ -4,7 +4,8 @@ import { useEffect, useRef } from "react";
 import { NflImage } from "@/components/nfl";
 import { headshot, teamColor } from "@/lib/nfl/assets";
 import { gradePick, marketRankOf, pickLabel } from "@/lib/draft";
-import type { BoardPick, PoolPlayer } from "@/lib/types";
+import type { BoardPick, PoolPlayer, Reaction } from "@/lib/types";
+import { PickReactions } from "@/components/draft/PickReactions";
 
 const GRADE_COLOR: Record<string, string> = {
   ok: "var(--win)", warn: "var(--warn)", danger: "var(--lose)", neutral: "var(--dim)",
@@ -21,12 +22,18 @@ const GRADE_COLOR: Record<string, string> = {
  */
 export function Ticker({
   picks, poolById, myTeamId, teamCount, onOpen,
+  reactionsFor, onReact, reacting = null,
 }: {
   picks: BoardPick[];
   poolById?: Map<string, PoolPlayer>;
   myTeamId: string | null;
   teamCount: number;
   onOpen?: (playerId: string) => void;
+  /** Tallies for one pick. Absent means no reactions are drawn at all. */
+  reactionsFor?: (pickId: string) => Reaction[];
+  onReact?: (pickId: string, emoji: string) => void;
+  /** The pick whose write is in flight, so its row stops taking presses. */
+  reacting?: string | null;
 }) {
   const strip = useRef<HTMLDivElement>(null);
   const last = picks[picks.length - 1]?.pick_number ?? 0;
@@ -50,7 +57,11 @@ export function Ticker({
             const notable = grade && grade.label !== "On plan" ? grade : null;
             const color = teamColor(pick.nfl_team);
             return (
-              <button key={pick.pick_number} className="tick__item" data-mine={pick.team_id === myTeamId}
+              // A wrapper rather than one button: the reactions are buttons of
+              // their own, and a button inside a button is markup no browser
+              // agrees about.
+              <div key={pick.pick_number} className="tick__item" data-mine={pick.team_id === myTeamId}>
+              <button className="tick__open"
                 onClick={onOpen ? () => onOpen(pick.player_id) : undefined}
                 title={`${pick.player_name} — ${pick.team_name}${notable ? ` · ${notable.label}` : ""}`}>
                 <NflImage
@@ -74,6 +85,17 @@ export function Ticker({
                   </span>
                 </span>
               </button>
+
+              {/* Only when the page has wired the RPC; the fixture and any
+                  read-only render simply do not pass it. */}
+              {onReact && (
+                <PickReactions
+                  reactions={reactionsFor?.(pick.pick_id) ?? []}
+                  busy={reacting === pick.pick_id}
+                  onPress={(emoji) => onReact(pick.pick_id, emoji)}
+                />
+              )}
+              </div>
             );
           })
         )}
