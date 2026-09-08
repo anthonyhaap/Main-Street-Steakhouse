@@ -2,11 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, Pause, Play, RefreshCw, RotateCcw, SlidersHorizontal, Volume2, VolumeX, X, Zap } from "lucide-react";
+import { AlertTriangle, Bot, Pause, Play, RefreshCw, RotateCcw, SlidersHorizontal, Volume2, VolumeX, X, Zap } from "lucide-react";
 import { Wire } from "@/components/Shell";
 import type { WireStatus } from "@/lib/live";
 import type { Draft, Team } from "@/lib/types";
-import { fmtClock, pickLabel, roundForPick } from "@/lib/draft";
+import { fmtClock, fmtCountdown, pickLabel, roundForPick } from "@/lib/draft";
 import { crestUrl } from "@/lib/crest";
 import { Seal } from "@/components/ui";
 
@@ -41,6 +41,15 @@ type Props = {
   /** Where the door is. The room is a full-screen takeover with no nav of its
       own, so it needs one. */
   exitHref?: string;
+  /** This manager has auto draft on. The switch itself lives on the queue —
+      this is the reminder, because the whole point of the setting is that you
+      are not watching the screen when it fires. */
+  autoDraft?: boolean;
+  /** Milliseconds until the draft is due to start, in server time. Null when
+      no start has been set — the room then says what it always said. */
+  msToStart?: number | null;
+  /** The start as the league was told it: "7:30 PM CT". */
+  startLabel?: string;
 };
 
 /**
@@ -123,7 +132,21 @@ export function Clock(p: Props) {
               </Link>
             )}
           </div>
-          {draft.status === "setup" && <div className="eyebrow">Not started</div>}
+          {draft.status === "setup" && (p.msToStart == null ? (
+            <div className="eyebrow">Not started</div>
+          ) : (
+            <>
+              {/* The room could always say it had not started and never when it
+                  would, so the answer lived in a group chat. It reads in the
+                  same face the pick clock will use an hour later. */}
+              <div className="eyebrow" data-tone="gold">
+                {p.msToStart > 0 ? (p.startLabel ? `Doors ${p.startLabel}` : "Doors") : "Any minute"}
+              </div>
+              <div className="score clock__time" data-state={p.msToStart <= 300000 ? "urgent" : undefined}>
+                {fmtCountdown(p.msToStart)}
+              </div>
+            </>
+          ))}
           {draft.status === "paused" && <div className="eyebrow" data-tone="gold">Paused</div>}
           {draft.status === "active" && msLeft !== null && (
             <div className="score clock__time" data-state={state}>{fmtClock(msLeft)}</div>
@@ -157,6 +180,12 @@ export function Clock(p: Props) {
               {picksUntilMine === 1
                 ? "you're up next"
                 : <>you in <b className="num">{picksUntilMine}</b></>}
+            </span>
+          )}
+          {p.autoDraft && (
+            <span className="clock__chip" data-tone="gold"
+              title="Auto draft is on: we pick for you the moment you're up, off your queue first. Turn it off on the Queue tab.">
+              <Bot size={11} /> <b>auto draft</b>
             </span>
           )}
           {laterPicks.length > 0 && (

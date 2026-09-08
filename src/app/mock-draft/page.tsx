@@ -29,6 +29,7 @@ function mockTeams(count: number, real: Team[]): Team[] {
       manager_name: found?.manager_name ?? null,
       logo_path: found?.logo_path ?? null,
       draft_slot: index + 1,
+      auto_draft: false,
     };
   });
 }

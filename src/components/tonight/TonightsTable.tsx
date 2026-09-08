@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowRight, Share2 } from "lucide-react";
 import { Seal, fmtPts, useCountUp } from "@/components/ui";
 import { crestUrl } from "@/lib/crest";
+import { DRAFT_STARTS_AT } from "@/lib/config";
 import {
   action, fmtKick, headline, narrative, ordinal, phaseOf, until, weekdayIn, who,
   type Briefing, type BriefStarter, type Phase,
@@ -73,11 +74,21 @@ function Numbers({ b, phase, flash, now }: { b: Briefing; phase: Phase; flash: F
   if (phase === "draft" && b.draft) {
     const d = b.draft;
     const left = d.pick_deadline ? Math.max(0, Math.round((new Date(d.pick_deadline).getTime() - now) / 1000)) : null;
+    // Before the first pick there is no pick clock, and the card was reporting
+    // the one it did not have: "Clock · paused · 0". The number that exists in
+    // that state is how long until the doors.
+    const toDoors = d.status === "setup" && DRAFT_STARTS_AT
+      ? Math.max(0, Math.ceil((new Date(DRAFT_STARTS_AT).getTime() - now) / 60000))
+      : null;
     return (
       <div className="tt__nums" data-i="3">
         <Side name="Pick" sub={`of ${d.picks_total}`} value={d.current_pick} decimals={0} lead plain />
         <span className="tt__vs eyebrow">{d.status}</span>
-        <Side name="Clock" sub={d.status === "active" ? "seconds" : "paused"} value={left ?? 0} decimals={0} align="end" plain />
+        {toDoors !== null ? (
+          <Side name="Doors" sub={toDoors === 1 ? "minute" : "minutes"} value={toDoors} decimals={0} align="end" plain />
+        ) : (
+          <Side name="Clock" sub={d.status === "active" ? "seconds" : "paused"} value={left ?? 0} decimals={0} align="end" plain />
+        )}
       </div>
     );
   }

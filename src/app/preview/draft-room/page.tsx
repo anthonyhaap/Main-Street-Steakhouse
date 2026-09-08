@@ -33,7 +33,7 @@ const NAMES = [
 
 const TEAMS: Team[] = NAMES.map((name, i) => ({
   id: `t${i + 1}`, league_id: "L", name, owner_id: `u${i}`, owner_email: null,
-  manager_name: null, logo_path: null, draft_slot: i + 1,
+  manager_name: null, logo_path: null, draft_slot: i + 1, auto_draft: false,
 }));
 
 /** Ten verbatim `draft_pool` rows, then enough filler to fill a board. */
@@ -137,6 +137,7 @@ function DraftRoomPreview() {
   const [poolTab, setPoolTab] = useState<PoolTab>("available");
   const [queueIds, setQueueIds] = useState<string[]>(["p1", "p5", "f14"]);
   const [muted, setMuted] = useState(false);
+  const [autoDraft, setAutoDraft] = useState(false);
 
   const byId = useMemo(() => new Map(POOL.map((p) => [p.id, p])), []);
   const draftedIds = useMemo(() => new Set(picks.map((p) => p.player_id)), [picks]);
@@ -159,6 +160,9 @@ function DraftRoomPreview() {
             picksUntilMine={setup ? 2 : 4}
             myUpcoming={setup ? [3, 22, 27] : [31, 42, 55]}
             mockHref="/mock-draft"
+            autoDraft={autoDraft}
+            msToStart={setup ? 43 * 60000 + 12000 : null}
+            startLabel="7:30 PM CT"
             status="live"
             exitHref="/"
             isCommissioner
@@ -228,6 +232,8 @@ function DraftRoomPreview() {
                 busy={false}
                 onDraft={() => {}}
                 onQueueChange={setQueueIds}
+                autoDraft={autoDraft}
+                onAutoDraftChange={setAutoDraft}
               />
             </div>
           </div>

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { useLive, useServerClock, useTicker } from "@/lib/live";
 import { useSession } from "@/lib/session";
-import { DRAFT_ID, LEAGUE_ID } from "@/lib/config";
+import { DRAFT_ID, DRAFT_START_LABEL, DRAFT_STARTS_AT, LEAGUE_ID } from "@/lib/config";
 import type { BoardPick, Draft, PoolPlayer, Reaction, Team } from "@/lib/types";
 import { gradePick, marketRankOf, rosterNeeds, teamAtPick, upcomingPicksFor } from "@/lib/draft";
 import { playPickMade, playQueueSniped, playYourTurn, useSoundMuted } from "@/lib/sound";
@@ -222,6 +222,18 @@ export default function DraftPage() {
 
   const canPick = myTurn || (isCommissioner && data?.draft.status === "active");
 
+  // Read off the live teams row rather than the session's copy: the switch has
+  // to show what the tick will actually do, and the tick reads this column.
+  const myAuto = !!data?.teams.find((t) => t.id === team?.id)?.auto_draft;
+
+  // Counted in server time, like every other clock in the room — but unlike the
+  // pick clock it does not wait for the sync. `serverNow()` is `Date.now()`
+  // until the offset lands, and a countdown a second out is worth more than a
+  // countdown that is not there yet.
+  const msToStart = DRAFT_STARTS_AT && data?.draft.status === "setup"
+    ? new Date(DRAFT_STARTS_AT).getTime() - serverNow()
+    : null;
+
   function toggleQueue(id: string) {
     if (!team || !data) return;
     const ids = data.queueIds;
@@ -286,6 +298,9 @@ export default function DraftPage() {
             soundMuted={soundMuted}
             onToggleSound={() => setSoundMuted(!soundMuted)}
             mockHref="/mock-draft"
+            autoDraft={myAuto}
+            msToStart={msToStart}
+            startLabel={DRAFT_START_LABEL}
             status={status}
             exitHref="/"
           />
@@ -377,6 +392,11 @@ export default function DraftPage() {
                 onOpen={setOpenId}
                 onDraft={(p) => call("ff_pick_for_my_team", { p_draft_id: DRAFT_ID, p_player_id: p.id }, `Drafted ${p.full_name}.`)}
                 onQueueChange={(ids) => team ? call("ff_set_queue", { p_team_id: team.id, p_player_ids: ids }) : undefined}
+                autoDraft={myAuto}
+                onAutoDraftChange={team
+                  ? (on) => call("ff_set_auto_draft", { p_team_id: team.id, p_on: on },
+                      on ? "Auto draft on — we'll pick for you." : "Auto draft off.")
+                  : undefined}
               />
             </div>
           </div>

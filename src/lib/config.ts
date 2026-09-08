@@ -38,3 +38,28 @@ export const LEAGUE_TZ = "America/New_York";
 
 /** Where share links point. Set once; the group chat unfurls against it. */
 export const SITE_URL = "https://steakhouse.football";
+
+/**
+ * When the draft starts, as an instant.
+ *
+ * The `drafts` row has `started_at` — when the commissioner actually pressed
+ * the button — and nothing for when she said she would. So the room could tell
+ * you it had not started and could not tell you when it would, which is the one
+ * question anybody has on the afternoon of draft day. It lived in a group chat.
+ *
+ * Stored in UTC on purpose. The league was told "7:30 Central", and on
+ * September 8th Central is CDT (UTC-5), so that instant is 00:30Z the next day
+ * — an hour off if you take "CST" at its word in September. Writing the moment
+ * rather than the wall clock is what makes the countdown agree with every
+ * phone in the league, wherever it is.
+ *
+ * A constant rather than a column because it is one evening, once, and a
+ * schema change here cannot be applied until it has been reviewed and merged —
+ * which is longer than the draft is away. To move it: change the value and
+ * redeploy. To retire it after the draft: set it to null and the countdown
+ * disappears everywhere it appears.
+ */
+export const DRAFT_STARTS_AT: string | null = "2026-09-09T00:30:00Z";
+
+/** The time as the league was told it, for the label under the count. */
+export const DRAFT_START_LABEL = "7:30 PM CT";

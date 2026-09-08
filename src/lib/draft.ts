@@ -86,6 +86,21 @@ export function fmtClock(ms: number): string {
   return `${m}:${String(s).padStart(2, "0")}`;
 }
 
+/**
+ * How long until the draft, at the precision the distance deserves.
+ *
+ * Hours and minutes while it is still an appointment ("2h 41m"), and the pick
+ * clock's own mm:ss once it is close enough to watch — the same face the room
+ * will be showing an hour later, so the countdown hands straight over to it
+ * rather than changing shape at the moment anybody is looking.
+ */
+export function fmtCountdown(ms: number): string {
+  if (ms <= 0) return "0:00";
+  const h = Math.floor(ms / 3600000);
+  if (h > 0) return `${h}h ${String(Math.floor((ms % 3600000) / 60000)).padStart(2, "0")}m`;
+  return fmtClock(ms);
+}
+
 /* ------------------------------------------------------------ pick grades -- */
 
 export type PickGrade = {

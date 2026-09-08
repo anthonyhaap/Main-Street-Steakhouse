@@ -25,7 +25,7 @@ Scheduled `pg_cron` jobs do the work nobody is watching:
 
 | job            | schedule    | does                                                    |
 |----------------|-------------|---------------------------------------------------------|
-| `draft-tick`   | every 5s    | `ff_tick_drafts()` — autopicks when a clock expires      |
+| `draft-tick`   | every 5s    | `ff_tick_drafts()` — autopicks when a clock expires, or for a team on auto draft |
 | `live-stats`   | every 2 min | `ff_poll_live()` — pulls Sleeper stats during game windows |
 | `wire-refresh` | every 15 min| `ff_refresh_wire()` — ESPN news and the league injury report |
 | `projections`  | every 6 h   | `ff_refresh_projections()` — this week and next, then rebuild season totals |
@@ -655,6 +655,50 @@ Result: 180 picks, 180 distinct players, 180 distinct pick numbers, 15 per team.
 Post-draft seeding produced a complete legal lineup for all 12 teams with zero
 illegal slot assignments, and the schedule generated 84 matchups over 14 weeks
 with no duplicate pairings.
+
+## When the draft starts
+
+`drafts` records `started_at` — when the commissioner actually pressed the
+button — and nothing for when she said she would, so the room could tell you it
+had not started and could not tell you when it would. That answer lived in a
+group chat.
+
+`DRAFT_STARTS_AT` in `src/lib/config.ts` is the instant, in UTC, and
+`DRAFT_START_LABEL` is the time as the league was told it. The draft room counts
+down to it in the clock card's own face, and Tonight's Table carries the same
+count on the front page — both in server time, like every other clock here, so a
+phone that is forty seconds fast does not get its own answer.
+
+It is a constant rather than a column on purpose: it is one evening, once, and a
+schema change cannot be applied until it has been reviewed and merged, which is
+longer than a draft is usually away. Note that the value is an instant, not a
+wall clock — the league was told "7:30 Central", and in September Central is
+CDT, so the stored value is `00:30Z` the following day. Set it to `null` after
+the draft and the countdown disappears everywhere it appears.
+
+## Auto draft
+
+A manager who cannot be at their phone can hand the whole draft to autopick
+rather than burning ninety seconds on each of fifteen picks while eleven other
+people wait. The switch is at the head of the **Queue** tab in the draft room —
+on the queue, because the queue is the list it drafts from — and the clock
+carries an `auto draft` chip while it is on, since the point of the setting is
+that you are not watching the screen when it fires.
+
+It sets `teams.auto_draft`, through `ff_set_auto_draft(team, on)` — owner or
+commissioner only, the same guard as `ff_set_queue`. `ff_tick_drafts` then
+treats that team as due the moment it is on the clock instead of waiting for
+`pick_deadline`, and picks through exactly the path a timeout takes: the queue
+first, then ADP under the position caps, then the endgame need rules. A row of
+managers all on auto resolves inside one 5-second tick, and the run stops at the
+first manager who is playing.
+
+The same migration also pins `cron.schedule('draft-tick', ...)`. The job had
+existed since the first draft but only in this project's dashboard — no
+migration created it, so a database rebuilt from these files came back with
+every draft function present and nothing calling them. Clocks would have
+expired and simply sat there, which is the one failure that looks like nothing
+being wrong.
 
 ## Auth: no email, on purpose
 
