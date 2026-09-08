@@ -3084,6 +3084,14 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
   position: fixed;
   inset: 0;
   z-index: 70;
+  /* The room is exempt from the shell but not from its width. inset:0 with a
+     max-width leaves the horizontal equation over-constrained, which is what
+     the auto margins are for: they take the slack and centre the frame. The
+     draw is unaffected — this box paints nothing, so past 2000px the body's
+     paper simply carries on either side of it, as it does behind everything
+     else at that width. */
+  max-width: var(--shell-max);
+  margin-inline: auto;
   display: flex;
   flex-direction: column;
   overflow: hidden;
