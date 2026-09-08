@@ -21,25 +21,31 @@ function JoinForm() {
   // The token in the link is the whole credential. The screen used to take an
   // address instead and ask the database whether it was on the list, which
   // answered that question for any address to anyone who opened the page.
-  const [token, setToken] = useState<string | null>(null);
+  //
+  // Read during render rather than copied into state by an effect. It is the
+  // URL — a value this component is handed, not one it discovers — and holding
+  // a second copy of it in state only creates a first render where the link
+  // has a token and the screen does not.
+  const token = params.get("t");
   const [invite, setInvite] = useState<{ team: string; league: string; manager: string | null } | null>(null);
-  const [checking, setChecking] = useState(true);
+  const [looked, setLooked] = useState(false);
+
+  // Likewise derived: we are checking exactly while there is a token whose
+  // answer has not come back yet.
+  const checking = !!token && !looked;
 
   useEffect(() => {
-    const t = params.get("t");
-    setToken(t);
-    if (!t) { setChecking(false); return; }
-
+    if (!token) return;
     let alive = true;
     void supabaseBrowser()
-      .rpc("ff_invite_preview", { p_token: t })
+      .rpc("ff_invite_preview", { p_token: token })
       .then(({ data }) => {
         if (!alive) return;
         setInvite((data as { team: string; league: string; manager: string | null } | null) ?? null);
-        setChecking(false);
+        setLooked(true);
       });
     return () => { alive = false; };
-  }, [params]);
+  }, [token]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();

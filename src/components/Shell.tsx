@@ -141,6 +141,13 @@ export function TopBar({ status }: { status?: WireStatus }) {
             aria-label="Sign out"
             onClick={async () => {
               await supabaseBrowser().auth.signOut();
+              // A full document load, deliberately, and not router.push(). This
+              // is the one navigation in the app whose job is to destroy state:
+              // the session context, every cached league read, and whatever the
+              // last screen still holds about eleven other managers. A client
+              // navigation keeps all of it alive in memory on a shared laptop,
+              // which is the exact thing signing out is for.
+              // eslint-disable-next-line @next/next/no-location-assign-relative-destination
               window.location.href = "/login";
             }}
           >
