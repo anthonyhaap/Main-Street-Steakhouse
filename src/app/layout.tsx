@@ -4,6 +4,7 @@ import { SessionProvider } from "@/lib/session";
 import { ToastHost } from "@/components/ui";
 import { CURTAIN_SCRIPT } from "@/components/Curtain";
 import { DoorsHost } from "@/components/Doors";
+import { NativeBridge } from "@/components/NativeBridge";
 import "./globals.css";
 
 /**
@@ -85,6 +86,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <ToastHost>
             <div className="shell">{children}</div>
           </ToastHost>
+          {/* Listeners the iPhone app needs; nothing at all in a browser. */}
+          <NativeBridge />
         </SessionProvider>
         {/* The way in from /login and /join. Mounted here, above the router,
             because it has to outlive the screen that opens it. */}

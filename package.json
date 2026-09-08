@@ -13,6 +13,9 @@
     "vapid": "node scripts/vapid.mjs"
   },
   "dependencies": {
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/core": "^8.5.1",
+    "@capacitor/push-notifications": "^8.1.2",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.112.4",
     "@types/nodemailer": "^8.0.1",

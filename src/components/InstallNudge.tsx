@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Share, SquarePlus, X } from "lucide-react";
+import { isNativeApp } from "@/lib/native";
 
 const KEY = "mss-install-nudge";
 
@@ -18,8 +19,8 @@ type BeforeInstallPromptEvent = Event & {
  * has no install prompt, so the nudge shows the two taps. Android does have
  * one, and the button calls it.
  *
- * Shows on the first mobile visit only, never in the installed app, and a
- * dismissal sticks.
+ * Shows on the first mobile visit only, never in the installed app or the
+ * store app, and a dismissal sticks.
  */
 export function InstallNudge() {
   const [show, setShow] = useState(false);
@@ -33,7 +34,7 @@ export function InstallNudge() {
     const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
     let dismissed = false;
     try { dismissed = !!localStorage.getItem(KEY); } catch { /* ignore */ }
-    if (standalone || !mobile || dismissed) return;
+    if (standalone || isNativeApp() || !mobile || dismissed) return;
 
     const onPrompt = (e: Event) => { e.preventDefault(); setPrompt(e as BeforeInstallPromptEvent); };
     window.addEventListener("beforeinstallprompt", onPrompt);

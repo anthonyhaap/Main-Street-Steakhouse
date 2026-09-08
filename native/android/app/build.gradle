@@ -1,0 +1,60 @@
+plugins {
+    id "com.android.application"
+}
+
+// Signing is read from the environment so the keystore never sits in the
+// repository. All four set: the release bundle is signed and uploadable.
+// Any missing: the build still succeeds, unsigned, which is enough to prove
+// the project compiles and useless for anything else.
+def keystoreFile     = System.getenv("ANDROID_KEYSTORE_FILE")
+def keystorePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
+def keyAlias         = System.getenv("ANDROID_KEY_ALIAS")
+def keyPassword      = System.getenv("ANDROID_KEY_PASSWORD")
+def canSign = [keystoreFile, keystorePassword, keyAlias, keyPassword].every { it }
+
+android {
+    namespace "football.steakhouse.app"
+    compileSdk 35
+
+    defaultConfig {
+        applicationId "football.steakhouse.app"
+        minSdk 24
+        targetSdk 35
+        // Play refuses a bundle whose versionCode it has already seen, so CI
+        // stamps its run number here and the default only serves a laptop.
+        versionCode (System.getenv("ANDROID_VERSION_CODE") ?: "1").toInteger()
+        versionName (System.getenv("ANDROID_VERSION_NAME") ?: "0.2.0")
+    }
+
+    signingConfigs {
+        if (canSign) {
+            release {
+                storeFile file(keystoreFile)
+                storePassword keystorePassword
+                keyAlias keyAlias
+                keyPassword keyPassword
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
+            if (canSign) signingConfig signingConfigs.release
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    bundle {
+        language { enableSplit = false }
+    }
+}
+
+dependencies {
+    implementation "com.google.androidbrowserhelper:androidbrowserhelper:2.6.2"
+}

@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import webpush from "web-push";
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL } from "@/lib/config";
+import { ApnsSession, apnsConfig } from "@/lib/apns";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,6 +24,11 @@ export const dynamic = "force-dynamic";
  * Authorised by CRON_SECRET, which Vercel Cron sends as a bearer token. Without
  * that env var set the route refuses everything rather than defaulting open —
  * an unauthenticated drain is a way to make the league's phones buzz.
+ *
+ * Two kinds of device. A browser is a Web Push endpoint, signed with the VAPID
+ * key. The iPhone app is an Apple device token, posted to Apple with the key
+ * from src/lib/apns.ts. A message goes to every device its manager has, and
+ * counts as delivered when one of them takes it.
  */
 
 const PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
@@ -31,7 +37,9 @@ const SUBJECT = process.env.VAPID_SUBJECT ?? "mailto:commissioner@steakhouse.foo
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const CRON_SECRET = process.env.CRON_SECRET;
 
-type Device = { endpoint: string; p256dh: string; auth: string };
+type Device =
+  | { platform: "web"; endpoint: string; p256dh: string; auth: string }
+  | { platform: "ios"; endpoint: string; p256dh: null; auth: null };
 type Message = { id: string; title: string; body: string; url: string; kind: string; devices: Device[] };
 
 export async function GET(request: NextRequest) {
@@ -72,10 +80,26 @@ export async function GET(request: NextRequest) {
   const failed: { id: string; error: string }[] = [];
   const gone: string[] = [];
 
+  // Opened only if an iPhone is owed something, and once for the whole batch.
+  // Missing APNs keys are not fatal: the browsers still get theirs, and the
+  // iPhone's failure is written on the outbox row where it can be read.
+  const apnsCfg = apnsConfig();
+  const wantsApns = messages.some((m) => m.devices.some((d) => d.platform === "ios"));
+  const apns = wantsApns && apnsCfg ? new ApnsSession(apnsCfg) : null;
+
   await Promise.all(messages.map(async (m) => {
     const payload = JSON.stringify({ title: m.title, body: m.body, url: m.url, kind: m.kind });
 
     const results = await Promise.all(m.devices.map(async (d) => {
+      if (d.platform === "ios") {
+        if (!apns) return { ok: false as const, why: "APNS_TEAM_ID, APNS_KEY_ID and APNS_PRIVATE_KEY are not all set" };
+        const verdict = await apns.send(d.endpoint, m);
+        if (verdict.ok) return { ok: true as const };
+        // Apple saying the app is gone from that phone is as final as a 410
+        // from a push service: forget the token rather than retry it for ever.
+        if (verdict.gone) { gone.push(d.endpoint); return { ok: true as const }; }
+        return { ok: false as const, why: verdict.why };
+      }
       try {
         await webpush.sendNotification(
           { endpoint: d.endpoint, keys: { p256dh: d.p256dh, auth: d.auth } },
@@ -101,6 +125,8 @@ export async function GET(request: NextRequest) {
     if (bad.length < results.length || results.length === 0) sent.push(m.id);
     else failed.push({ id: m.id, error: bad[0].why });
   }));
+
+  apns?.close();
 
   const { error: settleError } = await supabase.rpc("ff_push_settle", {
     p_sent: sent,

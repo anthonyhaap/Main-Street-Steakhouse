@@ -15,6 +15,12 @@ test("each dead end says what the manager can actually do about it", async ({ pa
   await expect(page.getByText(/Add to Home Screen/)).toBeVisible();
   await expect(page.getByRole("button", { name: /Turn on for this device/ })).toHaveCount(0);
 
+  // The App Store build has no site settings to send them to; the phone's own
+  // Settings app is the only way back, so the card names the path.
+  await page.getByRole("button", { name: "ios-app-denied" }).click();
+  await expect(page.getByText(/Settings, then Notifications, then Steakhouse/)).toBeVisible();
+  await expect(page.getByRole("button", { name: /Turn on for this device/ })).toHaveCount(0);
+
   await page.getByRole("button", { name: "unsupported" }).click();
   await expect(page.getByText(/can't do notifications/)).toBeVisible();
 });

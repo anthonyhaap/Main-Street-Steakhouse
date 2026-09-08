@@ -26,6 +26,7 @@ export type Prefs = { trades: boolean; waivers: boolean; devices: number };
 const SAYS: Record<PushState, string> = {
   unsupported: "This browser can't do notifications. Safari on a Mac and Chrome on anything will.",
   "ios-needs-install": "On an iPhone, notifications only work once the app is on your home screen: tap Share, then Add to Home Screen, and come back here.",
+  "ios-app-denied": "Notifications are off for the Steakhouse app. Settings, then Notifications, then Steakhouse is the only place that can turn them back on.",
   denied: "You've blocked notifications for this site. Your browser's own site settings are the only place that can undo it.",
   off: "Off on this device.",
   on: "On for this device.",

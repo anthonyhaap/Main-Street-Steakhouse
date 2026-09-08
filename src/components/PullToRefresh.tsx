@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Crest } from "@/components/Shell";
+import { isNativeApp } from "@/lib/native";
 
 const THRESHOLD = 72;
 const MAX = 110;
@@ -11,8 +12,9 @@ const MAX = 110;
  *
  * Only in the installed app. A browser tab already has its own pull to
  * refresh, and two of them fighting over the same gesture is worse than none.
- * In standalone mode iOS has nothing, so this is the only way a manager at a
- * tailgate gets a fresh score without finding the wire dot.
+ * In standalone mode iOS has nothing, and neither does the App Store build's
+ * web view, so this is the only way a manager at a tailgate gets a fresh
+ * score without finding the wire dot.
  */
 export function PullToRefresh({ onRefresh, children }: {
   onRefresh: () => Promise<unknown>;
@@ -27,7 +29,7 @@ export function PullToRefresh({ onRefresh, children }: {
     const standalone =
       matchMedia("(display-mode: standalone)").matches
       || (navigator as Navigator & { standalone?: boolean }).standalone === true;
-    if (!standalone) return;
+    if (!standalone && !isNativeApp()) return;
 
     const onStart = (e: TouchEvent) => {
       if (window.scrollY > 0 || busy) return;
