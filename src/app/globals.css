@@ -2881,6 +2881,147 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
 /* `minmax(0, 1fr)` and not `1fr`: a grid child defaults to min-width auto, so
    the one-line teaser below — which is deliberately nowrap — would otherwise
    size the track to the whole sentence and push the card past the phone. */
+/* --------------------------------------------------------- the television -- */
+/* Sized in vw/vh rather than px throughout: the target is a screen whose size
+   is unknown and whose viewer is on a sofa, so everything scales with the
+   viewport and nothing here is ever allowed to scroll. */
+
+.tv-page {
+  position: fixed; inset: 0;
+  background: var(--ink); color: var(--cream);
+  overflow: hidden;
+  padding: clamp(12px, 1.6vw, 28px);
+  display: flex; flex-direction: column;
+}
+
+.tv-full {
+  position: absolute; top: 10px; right: 12px; z-index: 2;
+  border: 0; background: none; color: var(--faint); cursor: pointer;
+  padding: 8px; border-radius: var(--r1);
+  opacity: .25; transition: opacity .2s var(--ease);
+}
+.tv-full:hover, .tv-full:focus-visible { opacity: 1; color: var(--gold); }
+
+.tv { display: flex; flex-direction: column; height: 100%; min-height: 0; gap: clamp(8px, 1.2vh, 20px); }
+
+.tv__head {
+  display: flex; align-items: baseline; justify-content: space-between; gap: var(--s4);
+  border-bottom: 1px solid var(--gold-dim); padding-bottom: clamp(6px, 0.8vh, 14px);
+  flex-shrink: 0;
+}
+.tv__league {
+  font: 600 clamp(13px, 1.5vw, 26px)/1 var(--display, var(--sans));
+  letter-spacing: .1em; text-transform: uppercase; color: var(--gold);
+}
+.tv__where { font: 500 clamp(12px, 1.3vw, 22px)/1 var(--sans); color: var(--dim); }
+
+.tv__grid {
+  flex: 1; min-height: 0;
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  grid-template-rows: 1.35fr 1fr;
+  gap: clamp(8px, 1.2vw, 22px);
+}
+.tv__grid > section {
+  min-width: 0; min-height: 0;
+  display: flex; flex-direction: column; justify-content: center;
+  padding: clamp(10px, 1.4vw, 26px);
+  border: 1px solid var(--rule); border-radius: var(--r2);
+  background: var(--ink-2, rgba(255,255,255,.02));
+  overflow: hidden;
+}
+
+.tv__label {
+  font: 700 clamp(10px, 0.95vw, 16px)/1 var(--sans);
+  letter-spacing: .14em; text-transform: uppercase; color: var(--faint);
+  margin-bottom: clamp(4px, 0.7vh, 12px);
+}
+
+/* --- on the clock: the biggest thing in the room --- */
+.tv__clock { justify-content: center; }
+.tv__team {
+  font: 600 clamp(24px, 4.4vw, 84px)/1.02 var(--display, var(--serif, var(--sans)));
+  color: var(--cream);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.tv__mgr { font: 400 clamp(13px, 1.5vw, 26px)/1.2 var(--sans); color: var(--dim); margin-top: 4px; }
+.tv__time {
+  font: 700 clamp(40px, 8.5vw, 168px)/1 var(--sans);
+  font-variant-numeric: tabular-nums; letter-spacing: -.02em;
+  color: var(--gold); margin-top: clamp(2px, 0.6vh, 10px);
+}
+.tv[data-urgent="true"] .tv__time { color: var(--lose); animation: tv-pulse 1s steps(2, start) infinite; }
+.tv__time[data-expired="true"] { color: var(--lose); }
+@keyframes tv-pulse { 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) {
+  .tv[data-urgent="true"] .tv__time { animation: none; }
+}
+
+/* --- what just went --- */
+.tv__player {
+  font: 600 clamp(20px, 3.2vw, 60px)/1.05 var(--display, var(--serif, var(--sans)));
+  color: var(--cream);
+  overflow: hidden; text-overflow: ellipsis;
+}
+.tv__player--quiet { color: var(--faint); }
+.tv__meta {
+  display: flex; align-items: baseline; gap: clamp(6px, 0.9vw, 16px); flex-wrap: wrap;
+  margin-top: clamp(3px, 0.6vh, 10px);
+  font: 500 clamp(12px, 1.4vw, 24px)/1.2 var(--sans); color: var(--dim);
+}
+.tv__meta i { font-style: normal; font-weight: 700; }
+.tv__to { color: var(--muted); }
+
+.tv__grade {
+  display: flex; flex-direction: column; gap: 2px;
+  margin-top: clamp(6px, 1vh, 16px);
+  font: 700 clamp(14px, 1.9vw, 34px)/1 var(--sans);
+  letter-spacing: .04em; text-transform: uppercase;
+}
+.tv__grade[data-tone="ok"]      { color: var(--win); }
+.tv__grade[data-tone="danger"]  { color: var(--lose); }
+.tv__grade[data-tone="warn"]    { color: var(--gold); }
+.tv__grade em {
+  font: 400 clamp(10px, 1.05vw, 18px)/1.2 var(--sans);
+  letter-spacing: .02em; text-transform: none; color: var(--dim);
+}
+
+/* --- the two lists --- */
+.tv__next ol, .tv__recent ol {
+  list-style: none; margin: 0; padding: 0;
+  display: flex; flex-direction: column; gap: clamp(2px, 0.5vh, 8px);
+  min-height: 0; overflow: hidden;
+}
+.tv__next li, .tv__recent li {
+  display: flex; align-items: baseline; gap: clamp(6px, 0.8vw, 14px);
+  font: 500 clamp(12px, 1.45vw, 26px)/1.35 var(--sans);
+  white-space: nowrap; overflow: hidden;
+}
+.tv__next li .num, .tv__recent li .num {
+  color: var(--faint); font-variant-numeric: tabular-nums; flex-shrink: 0;
+  min-width: 4.5ch;
+}
+.tv__next li b, .tv__recent li b {
+  color: var(--cream); font-weight: 600; overflow: hidden; text-overflow: ellipsis;
+}
+.tv__recent li i { font-style: normal; font-weight: 700; flex-shrink: 0; }
+.tv__none { color: var(--faint); font: 400 clamp(12px, 1.3vw, 22px)/1.4 var(--sans); }
+.tv__boot { display: grid; place-items: center; height: 100%; }
+
+/* Position colours, shared with the rest of the draft room. */
+.tv__meta i[data-pos], .tv__recent li i[data-pos] { color: var(--muted); }
+.tv__meta i[data-pos="qb"],  .tv__recent li i[data-pos="qb"]  { color: var(--qb); }
+.tv__meta i[data-pos="rb"],  .tv__recent li i[data-pos="rb"]  { color: var(--rb); }
+.tv__meta i[data-pos="wr"],  .tv__recent li i[data-pos="wr"]  { color: var(--wr); }
+.tv__meta i[data-pos="te"],  .tv__recent li i[data-pos="te"]  { color: var(--te); }
+.tv__meta i[data-pos="k"],   .tv__recent li i[data-pos="k"]   { color: var(--k); }
+.tv__meta i[data-pos="dst"], .tv__recent li i[data-pos="dst"] { color: var(--dst); }
+
+/* A phone held up in the room still has to read: one column, clock first. */
+@media (max-aspect-ratio: 1/1) {
+  .tv__grid { grid-template-columns: 1fr; grid-template-rows: auto auto 1fr 1fr; }
+}
+
 /* ----------------------------------------------------- manager profile -- */
 /* Opened from a card, and rendered under the row of them rather than over the
    top: a career is something two people read together, and a dialog that dims
