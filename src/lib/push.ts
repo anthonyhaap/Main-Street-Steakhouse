@@ -2,6 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { supabaseBrowser } from "./supabase/client";
+import {
+  NATIVE_PUSH_OFF, NATIVE_PUSH_TOKEN, nativePlatform, nativePushPermission,
+  registerNativePush, requestNativePushPermission, unregisterNativePush,
+} from "./native";
 
 /**
  * Web Push, from the browser's side.
@@ -12,11 +16,16 @@ import { supabaseBrowser } from "./supabase/client";
  * granted, or it may be permanently denied — and a denied permission cannot be
  * asked for again from script. Each one needs a different sentence on screen,
  * so the hook reports which it is rather than a boolean.
+ *
+ * Inside the App Store build there is no service worker and no push service:
+ * Apple hands the app a device token, and the same hook saves that instead.
+ * The card above it cannot tell the difference, which is the point.
  */
 
 export type PushState =
   | "unsupported"   // no service worker or no PushManager
   | "ios-needs-install" // Safari on iOS only allows this from the home screen
+  | "ios-app-denied" // the App Store build, refused once; only Settings can undo it
   | "denied"        // the browser will not ask again
   | "off"           // can ask, not subscribed
   | "on";           // subscribed on this device
@@ -42,6 +51,15 @@ export function usePush() {
   const read = useCallback(async () => {
     if (typeof window === "undefined") return;
 
+    if (nativePlatform() === "ios") {
+      const permission = await nativePushPermission();
+      if (permission === "denied") { setState("ios-app-denied"); return; }
+      let off = false;
+      try { off = !!localStorage.getItem(NATIVE_PUSH_OFF); } catch { /* ignore */ }
+      setState(permission === "granted" && !off ? "on" : "off");
+      return;
+    }
+
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
       // iOS supports push, but only once the app is on the home screen — worth
       // saying, because it is a step the manager can actually take.
@@ -60,8 +78,36 @@ export function usePush() {
 
   useEffect(() => { void read(); }, [read]);
 
+  const enableNative = useCallback(async () => {
+    const permission = await requestNativePushPermission();
+    if (permission !== "granted") {
+      setState(permission === "denied" ? "ios-app-denied" : "off");
+      return;
+    }
+    const token = await registerNativePush();
+    const { error: rpcError } = await supabaseBrowser().rpc("ff_save_native_push_token", {
+      p_platform: "ios", p_token: token, p_user_agent: navigator.userAgent,
+    });
+    if (rpcError) {
+      await unregisterNativePush().catch(() => {});
+      throw new Error(rpcError.message);
+    }
+    try {
+      localStorage.setItem(NATIVE_PUSH_TOKEN, token);
+      localStorage.removeItem(NATIVE_PUSH_OFF);
+    } catch { /* ignore */ }
+    setState("on");
+  }, []);
+
   const enable = useCallback(async () => {
     setError(null);
+    if (nativePlatform() === "ios") {
+      setBusy(true);
+      try { await enableNative(); }
+      catch (e) { setError(e instanceof Error ? e.message : "Couldn't turn notifications on."); await read(); }
+      finally { setBusy(false); }
+      return;
+    }
     if (!KEY) {
       setError("Notifications aren't configured for this league yet — no VAPID key is set.");
       return;
@@ -102,12 +148,24 @@ export function usePush() {
     } finally {
       setBusy(false);
     }
-  }, [read]);
+  }, [enableNative, read]);
 
   const disable = useCallback(async () => {
     setError(null);
     setBusy(true);
     try {
+      if (nativePlatform() === "ios") {
+        // Ours first, by the token we saved; then Apple's. The permission
+        // itself stays granted — iOS has no API to give it back — so a flag
+        // stops the next launch from quietly registering again.
+        let token: string | null = null;
+        try { token = localStorage.getItem(NATIVE_PUSH_TOKEN); } catch { /* ignore */ }
+        if (token) await supabaseBrowser().rpc("ff_forget_push_subscription", { p_endpoint: token });
+        await unregisterNativePush().catch(() => {});
+        try { localStorage.setItem(NATIVE_PUSH_OFF, "1"); localStorage.removeItem(NATIVE_PUSH_TOKEN); } catch { /* ignore */ }
+        setState("off");
+        return;
+      }
       const reg = await navigator.serviceWorker.getRegistration();
       const sub = reg ? await reg.pushManager.getSubscription() : null;
       if (sub) {

@@ -17,7 +17,7 @@ import { TopBar } from "@/components/Shell";
 import { NotificationsCard, type Prefs } from "@/components/team/Notifications";
 import type { PushState } from "@/lib/push";
 
-const STATES: PushState[] = ["off", "on", "denied", "ios-needs-install", "unsupported"];
+const STATES: PushState[] = ["off", "on", "denied", "ios-needs-install", "ios-app-denied", "unsupported"];
 
 export default function PreviewNotifications() {
   const [state, setState] = useState<PushState>("off");

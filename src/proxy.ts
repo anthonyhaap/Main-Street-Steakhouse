@@ -22,9 +22,12 @@ import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "@/lib/config";
  *
  * `/sw.js` must be served at the root for a service worker to claim the whole
  * scope, and the browser fetches it without credentials.
+ *
+ * `/.well-known` is read by Google and Apple, not by a manager: it is where
+ * the site vouches for the two store apps, and neither company signs in.
  */
 const PUBLIC = ["/login", "/auth", "/join", "/share", "/splash", "/preview",
-                "/manifest.webmanifest", "/sw.js", "/api/push/drain"];
+                "/manifest.webmanifest", "/sw.js", "/api/push/drain", "/.well-known"];
 
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });

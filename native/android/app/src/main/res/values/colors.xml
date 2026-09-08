@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The site's ink, so the bars around the web view disappear into it. -->
+    <color name="ink">#191614</color>
+    <!-- The icon plate: the same claret as icon.png on the site. -->
+    <color name="claret">#6B0F1F</color>
+</resources>

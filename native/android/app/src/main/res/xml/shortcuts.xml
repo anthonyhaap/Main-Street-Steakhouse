@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Long-press the icon: the same two the web manifest offers. -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="scores"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_scores_short"
+        android:shortcutLongLabel="@string/shortcut_scores_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="football.steakhouse.app"
+            android:targetClass="com.google.androidbrowserhelper.trusted.LauncherActivity"
+            android:data="https://steakhouse.football/matchups" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="team"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_team_short"
+        android:shortcutLongLabel="@string/shortcut_team_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="football.steakhouse.app"
+            android:targetClass="com.google.androidbrowserhelper.trusted.LauncherActivity"
+            android:data="https://steakhouse.football/team" />
+    </shortcut>
+</shortcuts>

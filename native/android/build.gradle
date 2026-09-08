@@ -1,0 +1,8 @@
+// The Android app is a Trusted Web Activity: Chrome, full screen, pointed at
+// steakhouse.football, with the address bar hidden once the site's
+// /.well-known/assetlinks.json names this app's signing key. There is no
+// Java in this project on purpose — the launcher and the notification
+// delegate both come from android-browser-helper as they are.
+plugins {
+    id "com.android.application" version "8.7.3" apply false
+}

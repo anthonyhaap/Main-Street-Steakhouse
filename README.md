@@ -210,6 +210,12 @@ else behind More; pull to refresh works in the installed app only, where the
 browser's own is absent. Fraunces and Inter arrive through `next/font`, so the
 headline has an optical-size axis and every score sits in tabular figures.
 
+**And it is in the stores.** `native/` holds two shells around the same live
+site — a Trusted Web Activity for Google Play and a Capacitor app for
+TestFlight — with the site vouching for each under `/.well-known/` and, on the
+iPhone, notifications through Apple's push service rather than a service
+worker. `native/README.md` is the setup guide.
+
 ### The wall
 
 "Est. 2016" is on the crest, and `/history` is the room that proves it: a

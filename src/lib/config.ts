@@ -38,3 +38,11 @@ export const LEAGUE_TZ = "America/New_York";
 
 /** Where share links point. Set once; the group chat unfurls against it. */
 export const SITE_URL = "https://steakhouse.football";
+
+/**
+ * The store apps. One identifier serves as the Android application id and the
+ * iOS bundle id, because the two well-known files below the site root name it
+ * and a manager tapping a league link should land in whichever app he has.
+ * Reversed from the domain, the way both stores expect.
+ */
+export const APP_ID = "football.steakhouse.app";

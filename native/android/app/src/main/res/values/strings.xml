@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Steakhouse</string>
+    <string name="launcher_name">Steakhouse</string>
+    <string name="host_name">steakhouse.football</string>
+    <string name="launch_url">https://steakhouse.football/</string>
+    <string name="web_manifest_url">https://steakhouse.football/manifest.webmanifest</string>
+    <string name="provider_authority">football.steakhouse.app.fileprovider</string>
+    <!-- Mirrors what /.well-known/assetlinks.json says from the other side. -->
+    <string name="asset_statements">[{ \"relation\": [\"delegate_permission/common.handle_all_urls\"], \"target\": { \"namespace\": \"web\", \"site\": \"https://steakhouse.football\" } }]</string>
+    <string name="shortcut_scores_short">Live scores</string>
+    <string name="shortcut_scores_long">This week\'s tables</string>
+    <string name="shortcut_team_short">My team</string>
+    <string name="shortcut_team_long">Set the lineup</string>
+</resources>
