@@ -74,6 +74,10 @@ type Props = {
       this is set the card draws no header of its own. */
   tab?: Tab;
   onTabChange?: (tab: Tab) => void;
+  /** Auto draft, for this manager's own team. Absent means the room has no
+      say over it — the mock room and the fixtures don't. */
+  autoDraft?: boolean;
+  onAutoDraftChange?: (on: boolean) => void;
 };
 
 export type PoolTab = Tab;
@@ -256,6 +260,24 @@ export function Pool(props: Props) {
       )}
 
       {tab === "queue" && (
+        <>
+          {/* The queue is the list autopick works from, so the switch that
+              says "use it now, don't wait for my clock" belongs on it rather
+              than buried in a settings screen. */}
+          {props.onAutoDraftChange && (
+            <label className="auto" data-on={props.autoDraft || undefined}>
+              <input type="checkbox" role="switch" checked={!!props.autoDraft} disabled={busy}
+                onChange={(e) => props.onAutoDraftChange?.(e.target.checked)} />
+              <span className="auto__text">
+                <b>Auto draft</b>
+                <span>
+                  {props.autoDraft
+                    ? "Picking for you the moment you're up — off the queue first."
+                    : "Draft for me: take my turn as soon as it comes round."}
+                </span>
+              </span>
+            </label>
+          )}
         <div className="scroll rows" style={{ flex: 1, minHeight: 0 }}>
           {queue.length === 0 && (
             <div className="empty">
@@ -304,6 +326,7 @@ export function Pool(props: Props) {
             );
           })}
         </div>
+        </>
       )}
 
       {tab === "roster" && (

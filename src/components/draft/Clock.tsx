@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, Pause, Play, RefreshCw, RotateCcw, SlidersHorizontal, Volume2, VolumeX, X, Zap } from "lucide-react";
+import { AlertTriangle, Bot, Pause, Play, RefreshCw, RotateCcw, SlidersHorizontal, Volume2, VolumeX, X, Zap } from "lucide-react";
 import { Wire } from "@/components/Shell";
 import type { WireStatus } from "@/lib/live";
 import type { Draft, Team } from "@/lib/types";
@@ -41,6 +41,10 @@ type Props = {
   /** Where the door is. The room is a full-screen takeover with no nav of its
       own, so it needs one. */
   exitHref?: string;
+  /** This manager has auto draft on. The switch itself lives on the queue —
+      this is the reminder, because the whole point of the setting is that you
+      are not watching the screen when it fires. */
+  autoDraft?: boolean;
 };
 
 /**
@@ -157,6 +161,12 @@ export function Clock(p: Props) {
               {picksUntilMine === 1
                 ? "you're up next"
                 : <>you in <b className="num">{picksUntilMine}</b></>}
+            </span>
+          )}
+          {p.autoDraft && (
+            <span className="clock__chip" data-tone="gold"
+              title="Auto draft is on: we pick for you the moment you're up, off your queue first. Turn it off on the Queue tab.">
+              <Bot size={11} /> <b>auto draft</b>
             </span>
           )}
           {laterPicks.length > 0 && (

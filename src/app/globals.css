@@ -4149,3 +4149,69 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
 }
 .poll__label { position: relative; display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; }
 .poll__count { position: relative; color: var(--dim); font-size: var(--t-micro); }
+
+/* --- auto draft ---------------------------------------------------------- */
+/* Sits at the head of the queue, because the queue is the list this setting
+   drafts from — "use it now, don't wait out my clock" belongs on the thing it
+   uses, not in a settings screen nobody opens on draft night. The whole row is
+   the target: on a phone, aiming for a 22px track is a mis-tap. */
+.auto {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  min-height: 48px;
+  flex-shrink: 0;
+  margin: 0 0 var(--s2);
+  padding: var(--s3) var(--s4);
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  background: var(--ink-2);
+  cursor: pointer;
+  transition: border-color .14s ease, background .14s ease;
+}
+.auto:hover { border-color: var(--gold-dim); }
+.auto[data-on] { border-color: #c99c3f59; background: var(--gold-haze); }
+.auto:has(input:disabled) { opacity: .55; cursor: default; }
+
+/* The switch itself: a checkbox wearing a track, so it keeps every keyboard
+   and screen-reader behaviour a checkbox already has. */
+.auto input {
+  appearance: none;
+  -webkit-appearance: none;
+  flex-shrink: 0;
+  width: 40px;
+  height: 23px;
+  margin: 0;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: var(--ink-3);
+  cursor: inherit;
+  transition: background .16s ease, border-color .16s ease;
+}
+.auto input::before {
+  content: "";
+  display: block;
+  width: 17px;
+  height: 17px;
+  margin: 2px;
+  border-radius: 50%;
+  background: var(--dim);
+  transition: transform .16s ease, background .16s ease;
+}
+.auto input:checked { border-color: var(--gold); background: color-mix(in oklab, var(--gold) 26%, transparent); }
+.auto input:checked::before { transform: translateX(17px); background: var(--gold); }
+.auto input:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+.auto__text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.auto__text b {
+  font: 700 var(--t-micro)/1.3 var(--sans);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.auto[data-on] .auto__text b { color: var(--gold); }
+.auto__text > span {
+  font-size: var(--t-small);
+  line-height: 1.35;
+  color: var(--dim);
+}

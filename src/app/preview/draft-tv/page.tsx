@@ -24,7 +24,7 @@ const TEAMS: Team[] = [
   owner_id: null, owner_email: null,
   manager_name: ["Anthony", "Marcus", "Dev", "Ray", "Tom", "Nate",
                  "Jules", "Sam", "Kai", "Priya", "Owen", "Mike"][i],
-  logo_path: null, draft_slot: i + 1,
+  logo_path: null, draft_slot: i + 1, auto_draft: false,
 }));
 
 /** Names invented; the point is the shape of a pick, not who was in it. */

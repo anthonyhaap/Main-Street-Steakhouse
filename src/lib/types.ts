@@ -27,6 +27,9 @@ export type Team = {
    */
   logo_path: string | null;
   draft_slot: number | null;
+  /** Manager asked to be drafted for: the tick picks for this team the moment
+      it is on the clock, instead of waiting out the pick clock. */
+  auto_draft: boolean;
 };
 
 /** The keys the app reads out of leagues.settings. Anything else rides along. */

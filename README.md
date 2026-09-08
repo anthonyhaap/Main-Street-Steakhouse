@@ -25,7 +25,7 @@ Scheduled `pg_cron` jobs do the work nobody is watching:
 
 | job            | schedule    | does                                                    |
 |----------------|-------------|---------------------------------------------------------|
-| `draft-tick`   | every 5s    | `ff_tick_drafts()` — autopicks when a clock expires      |
+| `draft-tick`   | every 5s    | `ff_tick_drafts()` — autopicks when a clock expires, or for a team on auto draft |
 | `live-stats`   | every 2 min | `ff_poll_live()` — pulls Sleeper stats during game windows |
 | `wire-refresh` | every 15 min| `ff_refresh_wire()` — ESPN news and the league injury report |
 | `projections`  | every 6 h   | `ff_refresh_projections()` — this week and next, then rebuild season totals |
@@ -655,6 +655,30 @@ Result: 180 picks, 180 distinct players, 180 distinct pick numbers, 15 per team.
 Post-draft seeding produced a complete legal lineup for all 12 teams with zero
 illegal slot assignments, and the schedule generated 84 matchups over 14 weeks
 with no duplicate pairings.
+
+## Auto draft
+
+A manager who cannot be at their phone can hand the whole draft to autopick
+rather than burning ninety seconds on each of fifteen picks while eleven other
+people wait. The switch is at the head of the **Queue** tab in the draft room —
+on the queue, because the queue is the list it drafts from — and the clock
+carries an `auto draft` chip while it is on, since the point of the setting is
+that you are not watching the screen when it fires.
+
+It sets `teams.auto_draft`, through `ff_set_auto_draft(team, on)` — owner or
+commissioner only, the same guard as `ff_set_queue`. `ff_tick_drafts` then
+treats that team as due the moment it is on the clock instead of waiting for
+`pick_deadline`, and picks through exactly the path a timeout takes: the queue
+first, then ADP under the position caps, then the endgame need rules. A row of
+managers all on auto resolves inside one 5-second tick, and the run stops at the
+first manager who is playing.
+
+The same migration also pins `cron.schedule('draft-tick', ...)`. The job had
+existed since the first draft but only in this project's dashboard — no
+migration created it, so a database rebuilt from these files came back with
+every draft function present and nothing calling them. Clocks would have
+expired and simply sat there, which is the one failure that looks like nothing
+being wrong.
 
 ## Auth: no email, on purpose
 

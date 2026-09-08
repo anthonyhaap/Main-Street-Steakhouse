@@ -222,6 +222,10 @@ export default function DraftPage() {
 
   const canPick = myTurn || (isCommissioner && data?.draft.status === "active");
 
+  // Read off the live teams row rather than the session's copy: the switch has
+  // to show what the tick will actually do, and the tick reads this column.
+  const myAuto = !!data?.teams.find((t) => t.id === team?.id)?.auto_draft;
+
   function toggleQueue(id: string) {
     if (!team || !data) return;
     const ids = data.queueIds;
@@ -286,6 +290,7 @@ export default function DraftPage() {
             soundMuted={soundMuted}
             onToggleSound={() => setSoundMuted(!soundMuted)}
             mockHref="/mock-draft"
+            autoDraft={myAuto}
             status={status}
             exitHref="/"
           />
@@ -377,6 +382,11 @@ export default function DraftPage() {
                 onOpen={setOpenId}
                 onDraft={(p) => call("ff_pick_for_my_team", { p_draft_id: DRAFT_ID, p_player_id: p.id }, `Drafted ${p.full_name}.`)}
                 onQueueChange={(ids) => team ? call("ff_set_queue", { p_team_id: team.id, p_player_ids: ids }) : undefined}
+                autoDraft={myAuto}
+                onAutoDraftChange={team
+                  ? (on) => call("ff_set_auto_draft", { p_team_id: team.id, p_on: on },
+                      on ? "Auto draft on — we'll pick for you." : "Auto draft off.")
+                  : undefined}
               />
             </div>
           </div>

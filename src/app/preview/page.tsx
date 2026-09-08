@@ -21,7 +21,7 @@ const MANAGERS = ["Anthony", "Marcus", "Dev", "Ray", "Tom", "Nate", "Jules", "Sa
 const teams = NAMES.map((name, i) => ({
   id: `t${i + 1}`, league_id: "L", name, owner_id: i < 9 ? `u${i}` : null,
   owner_email: i < 11 ? `m${i}@example.com` : null, manager_name: MANAGERS[i],
-  logo_path: null, draft_slot: i + 1,
+  logo_path: null, draft_slot: i + 1, auto_draft: false,
 }));
 
 const pulse: Pulse = {
