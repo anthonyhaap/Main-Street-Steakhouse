@@ -656,6 +656,26 @@ Post-draft seeding produced a complete legal lineup for all 12 teams with zero
 illegal slot assignments, and the schedule generated 84 matchups over 14 weeks
 with no duplicate pairings.
 
+## When the draft starts
+
+`drafts` records `started_at` — when the commissioner actually pressed the
+button — and nothing for when she said she would, so the room could tell you it
+had not started and could not tell you when it would. That answer lived in a
+group chat.
+
+`DRAFT_STARTS_AT` in `src/lib/config.ts` is the instant, in UTC, and
+`DRAFT_START_LABEL` is the time as the league was told it. The draft room counts
+down to it in the clock card's own face, and Tonight's Table carries the same
+count on the front page — both in server time, like every other clock here, so a
+phone that is forty seconds fast does not get its own answer.
+
+It is a constant rather than a column on purpose: it is one evening, once, and a
+schema change cannot be applied until it has been reviewed and merged, which is
+longer than a draft is usually away. Note that the value is an instant, not a
+wall clock — the league was told "7:30 Central", and in September Central is
+CDT, so the stored value is `00:30Z` the following day. Set it to `null` after
+the draft and the countdown disappears everywhere it appears.
+
 ## Auto draft
 
 A manager who cannot be at their phone can hand the whole draft to autopick

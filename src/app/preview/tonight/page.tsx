@@ -15,6 +15,7 @@ import { TonightsTable } from "@/components/tonight/TonightsTable";
 import { Carousel } from "@/components/tonight/Carousel";
 import { RoomBoard } from "@/components/tonight/Room";
 import { phaseOf, type Briefing, type BriefStarter, type RoomFeed } from "@/lib/briefing";
+import { DRAFT_STARTS_AT } from "@/lib/config";
 
 const T = (id: string, name: string, manager: string | null) => ({ id, name, manager_name: manager, logo_path: null });
 const TEAMS = [
@@ -156,6 +157,17 @@ const SCENES: Scene[] = [
     const now = at("2026-09-28T19:05-04:00"); const b = base(now, now);
     b.games.final = 15; b.games.in_progress = 0; b.games.next_kickoff = "2026-09-29T00:15:00Z";
     b.matchup!.my_points = 118.7; b.matchup!.opp_points = 130.0;
+    return { b, now };
+  } },
+  // The hour before the first pick — the state the league is actually in on
+  // draft day, and the one the card had nothing to say about until the
+  // countdown existed. `now` is set back from DRAFT_STARTS_AT so the line reads
+  // the same however long after the draft this fixture is opened.
+  { key: "doors", label: "Before the doors", make: () => {
+    const now = (DRAFT_STARTS_AT ? new Date(DRAFT_STARTS_AT).getTime() : at("2026-09-09T00:30:00Z")) - 43 * 60000;
+    const b = base(now);
+    b.week = 1; b.last = null; b.matchup = null;
+    b.draft = { id: "D", status: "setup", current_pick: 1, pick_deadline: null, picks_total: 180, on_clock_team_id: "t1", started_at: null, completed_at: null };
     return { b, now };
   } },
   { key: "draft", label: "Draft night", make: () => {

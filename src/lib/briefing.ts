@@ -13,7 +13,8 @@
  * from one fixture and lets a test assert the sentence.
  */
 
-import { LEAGUE_TZ } from "@/lib/config";
+import { DRAFT_START_LABEL, DRAFT_STARTS_AT, LEAGUE_TZ } from "@/lib/config";
+import { fmtCountdown } from "@/lib/draft";
 
 /* ----------------------------------------------------------------- types -- */
 /** Shape of ff_briefing(league_id). */
@@ -489,6 +490,16 @@ function draftLine(b: Briefing, now: number): string {
       : `Pick ${d.current_pick} of ${d.picks_total}. ${d.picks_total - d.current_pick + 1} to go.`;
   }
   if (d.status === "paused") return "Nobody can pick until the commissioner resumes. Queue up while it's quiet.";
+  // Before the first pick the card knew everything about the draft except the
+  // one thing anybody wanted from it that afternoon: when. `now` already ticks
+  // every second here, so the count is live without anything else changing.
+  if (DRAFT_STARTS_AT) {
+    const ms = new Date(DRAFT_STARTS_AT).getTime() - now;
+    if (ms > 0) {
+      return `Doors ${DRAFT_START_LABEL} — ${fmtCountdown(ms)} out. ${b.league.team_count} managers, ${d.picks_total} picks, one board.`;
+    }
+    return `Doors were ${DRAFT_START_LABEL}. The room opens when the commissioner starts it — be in it.`;
+  }
   return `${b.league.team_count} managers, ${d.picks_total} picks, one board. Your queue is the plan when the clock runs out.`;
 }
 

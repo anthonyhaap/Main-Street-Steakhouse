@@ -161,6 +161,8 @@ function DraftRoomPreview() {
             myUpcoming={setup ? [3, 22, 27] : [31, 42, 55]}
             mockHref="/mock-draft"
             autoDraft={autoDraft}
+            msToStart={setup ? 43 * 60000 + 12000 : null}
+            startLabel="7:30 PM CT"
             status="live"
             exitHref="/"
             isCommissioner
