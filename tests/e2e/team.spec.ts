@@ -15,6 +15,16 @@ test("the team desk requires a session", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible();
 });
 
+/**
+ * A link to somebody else's desk survives the sign-in. `/team?id=x` is a
+ * different page from `/team`, so the query has to ride inside `next` — and
+ * only there, not also beside it on the login URL.
+ */
+test("another manager's desk survives the sign-in", async ({ page }) => {
+  await page.goto("/team?id=abc");
+  await expect(page).toHaveURL(/\/login\?next=%2Fteam%3Fid%3Dabc$/);
+});
+
 test("a player page requires a session", async ({ page }) => {
   await page.goto("/player/00000000-0000-0000-0000-000000000000");
   await expect(page).toHaveURL(/\/login\?next=/);
