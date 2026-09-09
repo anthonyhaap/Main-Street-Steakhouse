@@ -15,9 +15,14 @@
  * injured names below are made up; they exist to prove the opportunity engine
  * fires — a back ahead of yours going down, a quarterback out, your own starter
  * hurt — and the banner at the top says so.
+ *
+ * `?as=visitor` draws the same desk the way another manager in the league
+ * sees it: read-only, with nothing to move, edit or set. That mode has no
+ * moving parts to click through, which is exactly what the test asserts.
  */
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { TopBar } from "@/components/Shell";
 import { TeamDesk, slotOk, type MoveTarget } from "@/components/team/TeamDesk";
 import { venue, type GameWeather } from "@/lib/nfl/venues";
@@ -276,7 +281,8 @@ const WEATHER = new Map<string, GameWeather>(
   }),
 );
 
-export default function TeamPreviewPage() {
+function TeamPreview() {
+  const visitor = useSearchParams().get("as") === "visitor";
   const [hub, setHub] = useState<TeamHub>(HUB);
   const [moving, setMoving] = useState<HubPlayer | null>(null);
 
@@ -310,16 +316,28 @@ export default function TeamPreviewPage() {
         wire={WIRE}
         moving={moving}
         busy={false}
+        readOnly={visitor}
         weather={WEATHER}
         onPickUp={setMoving}
         onCancelMove={() => setMoving(null)}
         onDrop={drop}
         onWeek={() => {}}
-        onSetLineup={(assignments) => setHub((h) => ({
+        onEdit={visitor ? undefined : () => {}}
+        onSetLineup={visitor ? undefined : (assignments) => setHub((h) => ({
           ...h,
           roster: h.roster.map((p) => (assignments[p.player_id] ? { ...p, slot: assignments[p.player_id] } : p)),
         }))}
       />
     </>
+  );
+}
+
+export default function TeamPreviewPage() {
+  // `useSearchParams` client-renders the tree it sits in; the fixture has
+  // nothing worth prerendering, so the fallback is just the bar.
+  return (
+    <Suspense fallback={<TopBar status="live" />}>
+      <TeamPreview />
+    </Suspense>
   );
 }

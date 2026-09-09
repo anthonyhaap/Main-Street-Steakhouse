@@ -13,6 +13,7 @@
  */
 
 import { useMemo } from "react";
+import Link from "next/link";
 import { ArrowDown, ArrowUp, Minus, TrendingUp } from "lucide-react";
 import type { Outlook } from "@/lib/types";
 import {
@@ -94,7 +95,7 @@ export function PowerRankings({ outlook, myTeamId, crestOf }: {
               <Seal name={r.name} src={crestOf?.(r.team_id) ?? null} mine={mine} size={30} />
               <div className="pwr__who">
                 <div className="pwr__name">
-                  {r.name}
+                  <Link className="tlink" href={mine ? "/team" : `/team?id=${r.team_id}`}>{r.name}</Link>
                   {pos && (
                     <span className="pwr__pos">
                       {ordinal(pos)} in the table

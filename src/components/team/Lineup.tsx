@@ -18,9 +18,14 @@ import type { HubPlayer, WireInjury } from "@/lib/nfl/types";
  * Once a move is in flight that stops being true — every legal row becomes one
  * drop target laid over the whole line, because at that moment there is only
  * one thing a click can sensibly mean.
+ *
+ * On somebody else's desk there is no second intent: the arrows are not drawn
+ * at all, rather than drawn disabled, because a greyed button on every row of
+ * a roster you cannot touch reads as a bug rather than a rule.
  */
 export function PlayerRow({
-  slot, player, week, injury, projection, moving, target, selected, busy, onPickUp, onDrop,
+  slot, player, week, injury, projection, moving, target, selected, busy, canMove = true,
+  onPickUp, onDrop,
 }: {
   slot: string;
   player: HubPlayer | null;
@@ -31,6 +36,8 @@ export function PlayerRow({
   target: boolean;
   selected: boolean;
   busy: boolean;
+  /** False on a roster the viewer does not own — the move button is not drawn. */
+  canMove?: boolean;
   onPickUp: () => void;
   onDrop: () => void;
 }) {
@@ -106,16 +113,20 @@ export function PlayerRow({
         )}
       </span>
 
-      <button
-        type="button"
-        className="plr__act"
-        onClick={onPickUp}
-        disabled={!player || locked || busy || moving}
-        title={locked ? "Locked — his game has started" : "Move to another slot"}
-        aria-label={player ? `Move ${player.full_name}` : "Empty slot"}
-      >
-        <ArrowLeftRight size={13} />
-      </button>
+      {canMove ? (
+        <button
+          type="button"
+          className="plr__act"
+          onClick={onPickUp}
+          disabled={!player || locked || busy || moving}
+          title={locked ? "Locked — his game has started" : "Move to another slot"}
+          aria-label={player ? `Move ${player.full_name}` : "Empty slot"}
+        >
+          <ArrowLeftRight size={13} />
+        </button>
+      ) : (
+        <span aria-hidden />
+      )}
 
       {moving && target && (
         <button type="button" className="plr__drop" onClick={onDrop} disabled={busy}>

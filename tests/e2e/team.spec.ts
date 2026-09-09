@@ -65,3 +65,61 @@ test("the coach proposes a lineup, explains it, and applies it", async ({ page }
 
   expect(errors).toEqual([]);
 });
+
+/**
+ * Another manager's desk, against the same fixture.
+ *
+ * Every manager can open every other manager's team. What they get is the
+ * whole desk — the lineup, the form, the wire read against that roster, the
+ * coach's opinion — and no way to change any of it. The test is the absence:
+ * no move buttons, no edit, no "set this lineup", no notification settings,
+ * with the reads still on the page around the gaps.
+ */
+test("another manager's desk can be read and not touched", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+
+  // The owner's desk, for the contrast: the arrows are there.
+  await page.goto("/preview/team");
+  await expect(page.getByRole("button", { name: /^Move / }).first()).toBeVisible();
+  await expect(page.getByRole("button", { name: "Edit team" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "What changed for you" })).toBeVisible();
+
+  await page.goto("/preview/team?as=visitor");
+  await expect(page.getByText("Viewing")).toBeVisible();
+
+  // The roster is all there to read, and none of it can be picked up.
+  await expect(page.locator(".lineup").first()).toContainText("Patrick Mahomes");
+  await expect(page.getByRole("button", { name: /^Move / })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Edit team" })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Notifications" })).toHaveCount(0);
+
+  // The wire is read against *their* roster, and says so.
+  await expect(page.getByRole("heading", { name: /^What changed for / })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "What changed for you" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Their players" })).toBeVisible();
+
+  // The coach still has an opinion; it just cannot act on it.
+  await page.getByRole("button", { name: /Best lineup/ }).click();
+  const coach = page.getByRole("dialog", { name: "Best lineup" });
+  await expect(coach.getByText("Ja'Marr Chase")).toBeVisible();
+  await expect(coach.getByText("Their lineup now")).toBeVisible();
+  await expect(coach.getByRole("button", { name: "Set this lineup" })).toHaveCount(0);
+  await coach.getByRole("button", { name: "Leave it alone" }).click();
+  await expect(coach).toBeHidden();
+
+  expect(errors).toEqual([]);
+});
+
+/**
+ * The standings are the front door to the other desks: every team's name is a
+ * link to `/team?id=`, and your own is plain `/team`.
+ */
+test("the standings link every team to its desk", async ({ page }) => {
+  await page.goto("/preview/standings");
+  const links = page.locator("table a.tlink");
+  await expect(links).toHaveCount(12);
+  // The fixture signs in as t4: that row goes home, the other eleven go visiting.
+  await expect(page.locator('table a.tlink[href="/team"]')).toHaveCount(1);
+  await expect(page.locator('table a.tlink[href^="/team?id=t"]')).toHaveCount(11);
+});

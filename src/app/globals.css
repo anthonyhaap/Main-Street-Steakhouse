@@ -1684,6 +1684,12 @@ a.kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); border-c
 .ins__link { text-decoration: none; color: inherit; }
 .ins__link:hover { color: var(--wine); text-decoration: underline; text-underline-offset: 2px; }
 
+/* A team's name as a door to its desk: the standings, the power rankings and
+   the opponent in the hero all wear it. Inherits the weight and colour of
+   wherever it sits, and only says it is a link on hover. */
+.tlink { text-decoration: none; color: inherit; }
+.tlink:hover { color: var(--wine); text-decoration: underline; text-underline-offset: 2px; }
+
 /* --- draft: the projection column ---------------------------------------- */
 
 .pool__proj {
