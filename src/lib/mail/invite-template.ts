@@ -11,21 +11,38 @@
  */
 export function inviteEmail(opts: {
   teamName: string;
-  /** Greets the manager by name when the commissioner has entered one. */
+  /** Greets the manager by name when the commissioner has entered one. For a
+      co-owner's invite this is the manager they are joining, not the reader. */
   managerName?: string;
   leagueName: string;
   email: string;
   joinUrl: string;
   draftNote?: string;
   logoUrl?: string;
+  /** A manager's invite hands over a team; a co-owner's shares one. Same
+      link, same screen, a different sentence about what is on offer. */
+  role?: "manager" | "co_owner";
 }) {
   const { teamName, managerName, leagueName, email, joinUrl, draftNote } = opts;
   const logoUrl = opts.logoUrl ?? "https://steakhouse.football/logo-full.png";
+  const coOwner = opts.role === "co_owner";
   const first = managerName?.trim().split(/\s+/)[0];
 
+  // The three sentences that differ. Everything around them is the same mail.
+  const eyebrow = coOwner
+    ? "A seat beside " + (first ?? "the manager")
+    : first ? `${first}, a seat is yours` : "A seat is yours";
+  const lead = coOwner
+    ? `${first ?? "The manager"} has asked you to run ${teamName} with them in ${leagueName}.`
+    : `You've been given ${teamName} in ${leagueName}.`;
+  const leadHtml = coOwner
+    ? `${esc(first ?? "The manager")} has asked you to run this team with them in <strong style="color:#191614;font-weight:600;">${esc(leagueName)}</strong>. Same lineup, same draft, same roster — two sets of hands on it.`
+    : `You've been given a team in <strong style="color:#191614;font-weight:600;">${esc(leagueName)}</strong>.`;
+  const button = coOwner ? "Take your seat" : "Join the league";
+
   const text = [
-    ...(first ? [`${first},`, ""] : []),
-    `You've been given ${teamName} in ${leagueName}.`,
+    ...(!coOwner && first ? [`${first},`, ""] : []),
+    lead,
     "",
     "Set up your account:",
     joinUrl,
@@ -62,7 +79,7 @@ export function inviteEmail(opts: {
 
     <tr><td align="center" style="padding:22px 34px 0 34px;">
       <div style="font:700 10px ${SANS};letter-spacing:3px;text-transform:uppercase;color:#a6791a;">
-        ${first ? `${esc(first)}, a seat is yours` : "A seat is yours"}
+        ${esc(eyebrow)}
       </div>
       <h1 style="margin:12px 0 0 0;font:400 32px/1.1 ${SERIF};color:#6a0b20;letter-spacing:-0.5px;">
         ${esc(teamName)}
@@ -71,7 +88,7 @@ export function inviteEmail(opts: {
 
     <tr><td style="padding:16px 34px 0 34px;">
       <p style="margin:0;font:400 15px/1.65 ${SANS};color:#5c554b;text-align:center;">
-        You've been given a team in <strong style="color:#191614;font-weight:600;">${esc(leagueName)}</strong>.
+        ${leadHtml}
         Set your password once and you're in — the draft room, your roster, live scoring, all of it.
       </p>
     </td></tr>
@@ -82,7 +99,7 @@ export function inviteEmail(opts: {
           <a href="${esc(joinUrl)}" target="_blank" rel="noopener noreferrer"
              style="display:block;padding:15px 30px;color:#fdf7ee;text-decoration:none;
                     font:700 11px ${SANS};letter-spacing:2px;text-transform:uppercase;">
-            Join the league
+            ${esc(button)}
           </a>
         </td>
       </tr></table>

@@ -32,6 +32,30 @@ export type Team = {
   auto_draft: boolean;
 };
 
+/** One person at a seat, as ff_team_seats describes them. */
+export type TeamSeat = {
+  user_id: string;
+  /** The manager's name as the commissioner typed it, or a profile's display
+      name; the seats RPC falls back to "A co-owner" rather than an address. */
+  name: string | null;
+  me: boolean;
+  joined_at?: string;
+};
+
+/** Everything the seats panel renders, from one ff_team_seats call. The
+ *  addresses on outstanding invites come back only to the people who may
+ *  issue one — the manager and the commissioner — and `invites` is empty for
+ *  everybody else. */
+export type TeamSeats = {
+  team_id: string;
+  team: string;
+  can_manage: boolean;
+  mine: boolean;
+  owner: TeamSeat | null;
+  co_owners: TeamSeat[];
+  invites: { id: string; email: string; created_at: string }[];
+};
+
 /** The keys the app reads out of leagues.settings. Anything else rides along. */
 export type LeagueSettings = {
   regular_season_weeks?: number;

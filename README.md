@@ -80,6 +80,27 @@ draft slots, manager names and any team in the league. Uploads are downscaled
 to 512px in the browser before they are sent; an animated GIF is left alone,
 because a canvas would keep only its first frame.
 
+#### Co-owners
+
+A team keeps its manager and may seat up to three **co-owners** beside him —
+brothers on one team, a father drafting with his son, a friend holding the
+queue while the manager is on a plane. A co-owner has his own login and the
+seat's full standing: he drafts, sets the lineup, works the wire, trades,
+talks in the house and edits the crest as the team. The only thing he cannot
+do is seat further co-owners; the seat is the manager's to share, not to
+sublet. The commissioner can seat one on any team from the Managers list.
+
+The invite is the same secret link a manager gets (`ff_invite_co_owner`
+mints it, `/api/invite/co-owner` mails it, `/join` claims it through the same
+`ff_claim_invite`), and a person holds one seat per league — the unique index
+on `team_co_owners` says so, and the claim refuses in English first.
+
+Underneath, "is this my team" is answered in one place, `ff_seat_team`, and
+every function that used to ask `owner_id = auth.uid()` inline was rewritten
+to ask it there. `supabase/tests/co_owners.sql` scans the catalogue on every
+replay for a function that has gone back to the old spelling, because that is
+the failure nobody would see: a co-owner refused by one screen, silently.
+
 The two are joined by `src/lib/nfl/insights.ts`, which is the point of the page:
 a national injury report is noise until it is read against your roster. The back
 ahead of yours is out, so his carries are yours; the quarterback throwing to your

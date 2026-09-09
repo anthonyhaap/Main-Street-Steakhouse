@@ -7,18 +7,27 @@ import { LEAGUE_ID } from "@/lib/config";
 import { crestUrl } from "@/lib/crest";
 import type { League, Team } from "@/lib/types";
 
+/**
+ * How the caller holds `team`. The owner is the manager — the name on the
+ * standings, the one who hands seats out. A co-owner holds the same seat with
+ * the same rights everywhere else in the app; the only screens that ask which
+ * of the two you are are the ones about the seat itself.
+ */
+export type Seat = "owner" | "co_owner";
+
 type SessionValue = {
   user: User | null;
   team: Team | null;
   league: League | null;
   teams: Team[];
+  seat: Seat | null;
   isCommissioner: boolean;
   ready: boolean;
   reload: () => Promise<void>;
 };
 
 const Ctx = createContext<SessionValue>({
-  user: null, team: null, league: null, teams: [],
+  user: null, team: null, league: null, teams: [], seat: null,
   isCommissioner: false, ready: false, reload: async () => {},
 });
 
@@ -56,12 +65,12 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      // ff_link_me claims the team whose owner_email matches this account.
-      // Idempotent: returns the already-linked team on every later call.
+      // ff_link_me returns the team this account holds a seat at — owned, or
+      // co-owned. Idempotent: the same team on every later call.
       //
       // This MUST run before the table reads, not alongside them: league tables
-      // are now readable only by members, and a brand-new account does not
-      // become a member until this call binds it to its team.
+      // are readable only by members, and the answer here is what says whether
+      // this account is one.
       const { data: linked } = await supabase.rpc("ff_link_me");
 
       const [{ data: lg }, { data: ts }] = await Promise.all([
@@ -91,6 +100,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   const value: SessionValue = {
     user, team, league, teams, ready,
+    seat: !user || !team ? null : team.owner_id === user.id ? "owner" : "co_owner",
     isCommissioner: !!user && !!league && league.commissioner_id === user.id,
     reload: load,
   };

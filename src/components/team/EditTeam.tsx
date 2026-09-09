@@ -5,16 +5,18 @@ import { ImagePlus, Trash2, X } from "lucide-react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { CREST_BUCKET, CREST_TYPES, crestUpload, crestUrl } from "@/lib/crest";
 import { Seal, useToast } from "@/components/ui";
+import { CoOwners } from "@/components/team/CoOwners";
 import type { Team } from "@/lib/types";
 
 /**
- * The manager's own team, as he wants it: a name he chose and a picture he
- * uploaded.
+ * The manager's own team, as he wants it: a name he chose, a picture he
+ * uploaded, and whoever he has chosen to run it with him.
  *
- * Everything here is the manager's alone. `ff_update_my_team` takes no team id
- * — it edits whatever team the caller owns — and the storage policy only lets
- * him write inside the folder named for it, so there is nothing on this screen
- * that could be pointed at somebody else's team.
+ * Everything here is the manager's alone — or his co-owner's, who holds the
+ * same seat. `ff_update_my_team` takes no team id — it edits whatever team the
+ * caller holds — and the storage policy only lets him write inside the folder
+ * named for it, so there is nothing on this screen that could be pointed at
+ * somebody else's team.
  *
  * The order of operations matters, and it is: upload the file, then save the
  * key. A failed save deletes the file it just uploaded, so a rejected name
@@ -174,6 +176,14 @@ export function EditTeam({ team, onClose, onSaved }: {
             <div style={{ fontSize: "var(--t-micro)", color: "var(--dim)", marginTop: 7, lineHeight: 1.5 }}>
               This is the name the whole league sees — standings, scoreboard, draft board.
             </div>
+          </div>
+
+          {/* The seats are their own transaction: sending an invite or removing a
+              co-owner happens on the tap, not on Save, and the list refetches
+              itself. Leaving the team reloads the session through onSaved,
+              because the caller no longer holds the team this modal is for. */}
+          <div style={{ borderTop: "1px solid var(--rule)", paddingTop: "var(--s5)" }}>
+            <CoOwners teamId={team.id} onChanged={async () => { await onSaved(); onClose(); }} />
           </div>
 
           <div style={{ display: "flex", gap: "var(--s2)", justifyContent: "flex-end" }}>
