@@ -8,6 +8,14 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 import { AuthFrame } from "@/components/AuthFrame";
 import { enterThroughDoors } from "@/components/Doors";
 
+type Invite = {
+  team: string;
+  league: string;
+  /** The manager: the reader, on a manager's link; the host, on a co-owner's. */
+  manager: string | null;
+  role: "manager" | "co_owner";
+};
+
 function JoinForm() {
   const router = useRouter();
   const params = useSearchParams();
@@ -27,7 +35,10 @@ function JoinForm() {
   // a second copy of it in state only creates a first render where the link
   // has a token and the screen does not.
   const token = params.get("t");
-  const [invite, setInvite] = useState<{ team: string; league: string; manager: string | null } | null>(null);
+  // The preview says which kind of link this is. A manager's link hands over
+  // the team; a co-owner's seats you beside the manager who sent it, and the
+  // screen should say so — the same form claims either.
+  const [invite, setInvite] = useState<Invite | null>(null);
   const [looked, setLooked] = useState(false);
 
   // Likewise derived: we are checking exactly while there is a token whose
@@ -41,7 +52,7 @@ function JoinForm() {
       .rpc("ff_invite_preview", { p_token: token })
       .then(({ data }) => {
         if (!alive) return;
-        setInvite((data as { team: string; league: string; manager: string | null } | null) ?? null);
+        setInvite((data as Invite | null) ?? null);
         setLooked(true);
       });
     return () => { alive = false; };
@@ -117,12 +128,13 @@ function JoinForm() {
   return (
     <form onSubmit={submit} noValidate>
       <h1 className="display" style={{ fontSize: "var(--t-title)", margin: "0 0 10px" }}>
-        Claim {invite.team}
+        {invite.role === "co_owner" ? `Co-own ${invite.team}` : `Claim ${invite.team}`}
       </h1>
 
       <p className="prose" style={{ margin: "0 0 26px", fontSize: "var(--t-body)" }}>
-        {invite.manager ? `${invite.manager} — this` : "This"} link is yours alone,
-        and it works once. Set a password and you&apos;re in{invite.league ? ` to ${invite.league}` : ""}.
+        {invite.role === "co_owner"
+          ? `${invite.manager ?? "The manager"} has asked you to run ${invite.team} with them. This link is yours alone, and it works once. Set a password and you're in${invite.league ? ` to ${invite.league}` : ""}.`
+          : `${invite.manager ? `${invite.manager} — this` : "This"} link is yours alone, and it works once. Set a password and you're in${invite.league ? ` to ${invite.league}` : ""}.`}
       </p>
 
       <label className="eyebrow" htmlFor="email" style={{ display: "block", marginBottom: 7 }}>

@@ -43,7 +43,7 @@ async function initialsBadge(initials: string): Promise<File> {
 export default function WelcomePage() {
   const router = useRouter();
   const toast = useToast();
-  const { team, ready, reload } = useSession();
+  const { team, seat, ready, reload } = useSession();
   const [step, setStep] = useState(0);
   const [name, setName] = useState("");
   const [initials, setInitials] = useState("");
@@ -60,7 +60,10 @@ export default function WelcomePage() {
 
   useEffect(() => () => { if (photo) URL.revokeObjectURL(photo.preview); }, [photo]);
 
-  const first = (team?.manager_name || "Manager").trim().split(/\s+/)[0];
+  // manager_name is the manager's, as the commissioner typed it. A co-owner
+  // arriving through the same door is greeted as the seat, not as somebody
+  // else's first name.
+  const first = seat === "co_owner" ? null : (team?.manager_name || "Manager").trim().split(/\s+/)[0];
   const preview = mode === "photo" ? photo?.preview ?? crestUrl(team?.logo_path) : null;
   const badgeName = mode === "initials" ? initials : name;
   const valid = name.trim().length >= 2 && name.trim().length <= 40 && /^[A-Za-z0-9]{1,3}$/.test(initials);
@@ -115,8 +118,12 @@ export default function WelcomePage() {
           <div className="card__body" style={{ padding: "clamp(28px, 7vw, 58px)", textAlign: "center" }}>
             <Seal name={team.name} src={crestUrl(team.logo_path)} mine size={88} />
             <div className="eyebrow" style={{ color: "var(--gold)", marginTop: 24 }}>Your table is ready</div>
-            <h1 className="display" style={{ margin: "8px 0", fontSize: "clamp(2rem, 7vw, 3.5rem)" }}>Welcome, {first}.</h1>
-            <p className="prose" style={{ maxWidth: 520, margin: "0 auto 26px" }}>You&apos;re officially in the Main Street Steakhouse league. First, make this team yours.</p>
+            <h1 className="display" style={{ margin: "8px 0", fontSize: "clamp(2rem, 7vw, 3.5rem)" }}>{first ? `Welcome, ${first}.` : "Welcome to the table."}</h1>
+            <p className="prose" style={{ maxWidth: 520, margin: "0 auto 26px" }}>
+              {seat === "co_owner"
+                ? `You're officially in the Main Street Steakhouse league, running ${team.name}${team.manager_name ? ` with ${team.manager_name}` : ""}. Same lineup, same draft, same roster — two sets of hands on it.`
+                : "You're officially in the Main Street Steakhouse league. First, make this team yours."}
+            </p>
             <button className="btn" data-v="primary" onClick={() => setStep(1)}>Set up my team <ChevronRight size={15} /></button>
           </div>
         </section>}

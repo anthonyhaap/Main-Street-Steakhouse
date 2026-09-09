@@ -2,9 +2,10 @@
 
 import { useCallback, useMemo, useState } from "react";
 import {
-  ChevronDown, ChevronUp, Crown, Dices, Landmark, Link2, ListChecks, Mail, Save, Scale, ScrollText, Send, Timer,
+  ChevronDown, ChevronUp, Crown, Dices, Landmark, Link2, ListChecks, Mail, Save, Scale, ScrollText, Send, Timer, Users,
 } from "lucide-react";
 import { HistoryImport } from "@/components/admin/HistoryImport";
+import { CoOwners } from "@/components/team/CoOwners";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { useLive } from "@/lib/live";
 import { useSession } from "@/lib/session";
@@ -211,7 +212,8 @@ export default function AdminPage() {
               <div className="note" data-kind="info">
                 Team name and the manager&apos;s real name show up across the league. The email is
                 only used here: save it, then send the invite. They get a link, pick a password,
-                and they&apos;re in.
+                and they&apos;re in. Once a manager has joined, <b>Seats</b> lets you put a
+                co-owner beside them — same team, same rights, their own login.
               </div>
               <div className="rows">
                 {data.teams.map((t) => (
@@ -328,6 +330,9 @@ function TeamRow({ team, busy, onSave }: { team: Team; busy: boolean; onSave: Sa
   const [manager, setManager] = useState(team.manager_name ?? "");
   const [email, setEmail] = useState(team.owner_email ?? "");
   const [sending, setSending] = useState(false);
+  // The seats panel opens under the row. Only once somebody holds the team: a
+  // co-owner sits beside a manager, and the database says the same.
+  const [seats, setSeats] = useState(false);
 
   const namesDirty = name !== team.name || manager !== (team.manager_name ?? "");
   const emailDirty = email !== (team.owner_email ?? "");
@@ -378,6 +383,7 @@ function TeamRow({ team, busy, onSave }: { team: Team; busy: boolean; onSave: Sa
   }
 
   return (
+    <>
     <div className="row" style={{ flexWrap: "wrap", rowGap: 10, alignItems: "center" }}>
       <span className="num eyebrow" style={{ width: 22 }}>{team.draft_slot}</span>
       <Seal name={name || "?"} src={crestUrl(team.logo_path)} size={28} />
@@ -419,8 +425,21 @@ function TeamRow({ team, busy, onSave }: { team: Team; busy: boolean; onSave: Sa
           {sending ? <Link2 size={14} /> : <Send size={14} />}
           {sending ? "Sending" : team.owner_id ? "Resend" : "Invite"}
         </button>
+
+        {team.owner_id && (
+          <button className="btn" data-v="ghost" data-size="sm" onClick={() => setSeats((s) => !s)}
+            aria-expanded={seats} title="Co-owners for this team">
+            <Users size={14} /> Seats
+          </button>
+        )}
       </div>
     </div>
+    {seats && team.owner_id && (
+      <div style={{ padding: "0 var(--s5) var(--s5) 48px" }}>
+        <CoOwners teamId={team.id} />
+      </div>
+    )}
+    </>
   );
 }
 
