@@ -22,13 +22,16 @@ import type { GameWeather } from "@/lib/nfl/venues";
  * `buildLineup` as factors and are printed verbatim.
  */
 export function Coach({
-  plan, week, busy, weather, onApply, onClose,
+  plan, week, busy, weather, own = true, onApply, onClose,
 }: {
   plan: LineupPlan;
   week: number;
   busy: boolean;
   weather: Map<string, GameWeather> | null;
-  /** Absent where there is no team to write to — the fixture. */
+  /** False on another manager's desk: the plan reads as theirs, not yours. */
+  own?: boolean;
+  /** Absent where there is no team to write to — the fixture, or a desk that
+   *  is not the reader's own. */
   onApply?: () => void;
   onClose: () => void;
 }) {
@@ -53,7 +56,9 @@ export function Coach({
           <div>
             <div className="eyebrow" data-tone="gold">Week {week}</div>
             <h2 style={{ fontFamily: "var(--serif)", margin: "var(--s1) 0" }}>
-              {plan.moves.length === 0 ? "You are already there" : "The best lineup we can see"}
+              {plan.moves.length === 0
+                ? (own ? "You are already there" : "They are already there")
+                : "The best lineup we can see"}
             </h2>
           </div>
           <button className="btn" data-v="ghost" data-size="icon" onClick={onClose}
@@ -65,7 +70,7 @@ export function Coach({
         <div className="th-strip" style={{ borderTop: 0 }}>
           <div className="th-stat">
             <b>{plan.now.toFixed(1)}</b>
-            <span>Your lineup now</span>
+            <span>{own ? "Your lineup now" : "Their lineup now"}</span>
           </div>
           <div className="th-stat">
             <b data-tone="gold">{plan.best.toFixed(1)}</b>
@@ -93,8 +98,11 @@ export function Coach({
           {/* ------------------------------------------------ the changes -- */}
           {plan.moves.length === 0 ? (
             <div className="empty" style={{ padding: "var(--s5) 0" }}>
-              Nothing on the wire, the schedule or the forecast beats the lineup you
-              already have.<br />Set it and enjoy the games.
+              {own
+                ? <>Nothing on the wire, the schedule or the forecast beats the lineup you
+                  already have.<br />Set it and enjoy the games.</>
+                : <>Nothing on the wire, the schedule or the forecast beats the lineup they
+                  already have.</>}
             </div>
           ) : (
             <div className="coach">

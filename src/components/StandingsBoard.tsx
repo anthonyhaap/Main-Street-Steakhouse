@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import Link from "next/link";
 import { Trophy } from "lucide-react";
 import type { Outlook } from "@/lib/types";
 import { SIMS, oddsCanSeparate, projectPlayoffs, rankKey, type PlayoffProjection } from "@/lib/playoffs";
@@ -132,7 +133,11 @@ export function StandingsBoard({ outlook, myTeamId, crestOf }: {
                         <div style={{ display: "flex", alignItems: "center", gap: "var(--s2)" }}>
                           <Seal name={t.name} src={crestOf?.(t.id) ?? null} mine={mine} size={28} />
                           <div style={{ minWidth: 0 }}>
-                            <div style={{ whiteSpace: "nowrap", fontWeight: mine ? 600 : 500 }}>{t.name}</div>
+                            {/* Every name is a door to that team's desk —
+                                yours included, which is just /team. */}
+                            <div style={{ whiteSpace: "nowrap", fontWeight: mine ? 600 : 500 }}>
+                              <Link className="tlink" href={mine ? "/team" : `/team?id=${t.id}`}>{t.name}</Link>
+                            </div>
                             {t.manager_name && (
                               <div style={{ fontSize: "var(--t-micro)", color: "var(--dim)", whiteSpace: "nowrap", marginTop: 1 }}>
                                 {t.manager_name}

@@ -57,9 +57,14 @@ export async function proxy(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user && !isPublic) {
+    // The whole address goes through the door, query included: `/team?id=x`
+    // is somebody else's desk, and `/team` on its own is the reader's. The
+    // original query is cleared first so it rides inside `next` rather than
+    // beside it.
     const url = request.nextUrl.clone();
     url.pathname = "/login";
-    url.searchParams.set("next", path);
+    url.search = "";
+    url.searchParams.set("next", path + request.nextUrl.search);
     return NextResponse.redirect(url);
   }
 

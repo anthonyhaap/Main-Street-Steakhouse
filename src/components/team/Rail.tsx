@@ -33,13 +33,21 @@ const KIND_WORD = {
  * against your roster it becomes two or three sentences that change a lineup:
  * the back ahead of yours is out, so his carries are yours this week. The
  * ranking is done in `buildInsights`; this only draws it.
+ *
+ * `whose` names the team when the roster is not the reader's own — the same
+ * notes, addressed to the right person.
  */
-export function InsightBoard({ insights, wire }: { insights: Insight[]; wire: Wire | null }) {
+export function InsightBoard({ insights, wire, whose = null }: {
+  insights: Insight[];
+  wire: Wire | null;
+  /** The team's name when this is somebody else's desk; null means the reader's. */
+  whose?: string | null;
+}) {
   const empty = wire !== null && wire.injuries.length === 0;
   return (
     <section className="card" data-accent="gold">
       <div className="card__head">
-        <h2>What changed for you</h2>
+        <h2>{whose ? `What changed for ${whose}` : "What changed for you"}</h2>
         <span className="eyebrow">
           {insights.length ? <><span className="num">{insights.length}</span> notes</> : "Clear"}
         </span>
@@ -54,7 +62,9 @@ export function InsightBoard({ insights, wire }: { insights: Insight[]; wire: Wi
 
       {insights.length === 0 ? (
         <div className="empty" style={{ padding: "var(--s6) var(--s5)" }}>
-          Nothing on the wire touches your roster.<br />Set it and enjoy the games.
+          {whose
+            ? <>Nothing on the wire touches this roster.</>
+            : <>Nothing on the wire touches your roster.<br />Set it and enjoy the games.</>}
         </div>
       ) : (
         <div>
@@ -93,7 +103,13 @@ export function InsightBoard({ insights, wire }: { insights: Insight[]; wire: Wi
 
 type Tagged = { article: WireArticle; players: HubPlayer[]; clubs: string[] };
 
-export function NewsWire({ mine, all, wire }: { mine: Tagged[]; all: WireArticle[]; wire: Wire | null }) {
+export function NewsWire({ mine, all, wire, own = true }: {
+  mine: Tagged[];
+  all: WireArticle[];
+  wire: Wire | null;
+  /** False when the roster is somebody else's: the tab says so. */
+  own?: boolean;
+}) {
   const [tab, setTab] = useState<"mine" | "league">("mine");
   const newsOk = (wire?.articles.length ?? 0) > 0;
   const showing = tab === "mine" ? mine : all.map((a) => ({ article: a, players: [], clubs: [] }));
@@ -104,7 +120,7 @@ export function NewsWire({ mine, all, wire }: { mine: Tagged[]; all: WireArticle
         <h2>The wire</h2>
         <div className="segmented">
           <button className="segmented__opt" data-on={tab === "mine"} onClick={() => setTab("mine")}>
-            My players
+            {own ? "My players" : "Their players"}
           </button>
           <button className="segmented__opt" data-on={tab === "league"} onClick={() => setTab("league")}>
             League
@@ -123,7 +139,7 @@ export function NewsWire({ mine, all, wire }: { mine: Tagged[]; all: WireArticle
       {wire && newsOk && showing.length === 0 && (
         <div className="empty" style={{ padding: "var(--s6) var(--s5)" }}>
           {tab === "mine"
-            ? "No stories about your roster in the last day."
+            ? `No stories about ${own ? "your" : "this"} roster in the last day.`
             : "The wire is quiet."}
         </div>
       )}

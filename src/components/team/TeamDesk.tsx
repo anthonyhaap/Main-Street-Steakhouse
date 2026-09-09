@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Pencil, Wand2 } from "lucide-react";
+import { useMemo, useState, type ReactNode } from "react";
+import Link from "next/link";
+import { Eye, Pencil, Wand2 } from "lucide-react";
 import { buildInsights, myNews } from "@/lib/nfl/insights";
 import { injuriesByPlayer } from "@/lib/nfl/wire";
 import { buildLineup, slotOk } from "@/lib/nfl/lineup";
@@ -32,15 +33,32 @@ export type MoveTarget = { slot: string; player: HubPlayer | null };
  *
  * The crests come in as URLs rather than being looked up here, for the same
  * reason: the fixture has no session to look them up in.
+ *
+ * `readOnly` is the same desk drawn for a visitor — any manager in the league
+ * can open any other manager's team. Everything that *reads* stays: the
+ * lineup, the form, the wire against that roster, even the coach's opinion of
+ * it. Everything that *writes* goes: no move buttons, no edit, no "set this
+ * lineup", and no notification settings, which are per person rather than per
+ * team. The database already lets any member read any team's hub, so this is
+ * a matter of what the page offers, not what it is allowed.
  */
 export function TeamDesk({
   hub, wire, moving, busy, crest = null, oppCrest = null, weather = null, matchups = null,
+  readOnly = false, picker = null,
   onPickUp, onCancelMove, onDrop, onWeek, onEdit, onSetLineup,
 }: {
   hub: TeamHub;
   wire: Wire | null;
   moving: HubPlayer | null;
   busy: boolean;
+  /** True when this is another manager's team: draw it, but offer no writes. */
+  readOnly?: boolean;
+  /**
+   * A control for choosing whose desk to look at, drawn in the hero next to
+   * the team's record. The live page supplies a select over the league; the
+   * fixture has no league and leaves it out.
+   */
+  picker?: ReactNode;
   /** This team's crest, from `crestUrl()`. Null falls back to the monogram. */
   crest?: string | null;
   oppCrest?: string | null;
@@ -52,7 +70,8 @@ export function TeamDesk({
   onCancelMove: () => void;
   onDrop: (target: MoveTarget) => void;
   onWeek: (week: number) => void;
-  /** Absent on the fixture, where there is no team to edit. */
+  /** Absent on the fixture, where there is no team to edit, and on a desk
+   *  that is not the reader's own. */
   onEdit?: () => void;
   /**
    * Apply a whole lineup at once — `{ player_id: slot }`, exactly what
@@ -128,11 +147,17 @@ export function TeamDesk({
                     </span>
                   )}
                   {rec && <span className="eyebrow">{ordinal(rec.rank)} of {rec.teams}</span>}
-                  {onEdit && (
+                  {readOnly && (
+                    <span className="badge" data-tone="neutral" title="Another manager's team — read only">
+                      <Eye size={11} /> Viewing
+                    </span>
+                  )}
+                  {onEdit && !readOnly && (
                     <button className="btn" data-v="ghost" data-size="sm" onClick={onEdit}>
                       <Pencil size={13} /> Edit team
                     </button>
                   )}
+                  {picker}
                 </div>
               </div>
             </div>
@@ -149,7 +174,13 @@ export function TeamDesk({
 
             <div className="th-side" data-align="end">
               <div style={{ minWidth: 0 }}>
-                <h1>{hub.matchup?.opponent.name ?? "No opponent"}</h1>
+                {/* The opponent is a door, not a label: their desk is one tap
+                    away, the same way this one was from the standings. */}
+                <h1>
+                  {hub.matchup
+                    ? <Link className="tlink" href={`/team?id=${hub.matchup.opponent.id}`}>{hub.matchup.opponent.name}</Link>
+                    : "No opponent"}
+                </h1>
                 <div className="th-side__meta">
                   {hub.matchup?.opponent.record && (
                     <span className="badge" data-tone="neutral">
@@ -254,6 +285,7 @@ export function TeamDesk({
                     target={!!moving && slotOk(s.slot, moving.position)}
                     selected={!!moving && moving.player_id === s.player?.player_id}
                     busy={busy}
+                    canMove={!readOnly}
                     onPickUp={() => s.player && onPickUp(s.player)}
                     onDrop={() => onDrop({ slot: s.slot, player: s.player })}
                   />
@@ -283,6 +315,7 @@ export function TeamDesk({
                     target={!!moving && moving.slot !== "BN"}
                     selected={moving?.player_id === p.player_id}
                     busy={busy}
+                    canMove={!readOnly}
                     onPickUp={() => onPickUp(p)}
                     onDrop={() => onDrop({ slot: "BN", player: null })}
                   />
@@ -292,12 +325,13 @@ export function TeamDesk({
           </div>
 
           <div className="th-col">
-            <InsightBoard insights={insights} wire={wire} />
+            <InsightBoard insights={insights} wire={wire} whose={readOnly ? hub.team.name : null} />
             <TeamStats hub={hub} />
-            <NewsWire mine={tagged} all={wire?.articles ?? []} wire={wire} />
+            <NewsWire mine={tagged} all={wire?.articles ?? []} wire={wire} own={!readOnly} />
             {/* Per-manager and per-device, so it belongs on his own screen
-                rather than in the commissioner's league settings. */}
-            <Notifications />
+                rather than in the commissioner's league settings — and not on
+                anybody else's desk. */}
+            {!readOnly && <Notifications />}
           </div>
         </div>
       </main>
@@ -308,13 +342,14 @@ export function TeamDesk({
           week={hub.week}
           busy={busy}
           weather={weather}
+          own={!readOnly}
           onClose={() => setCoaching(false)}
-          onApply={onSetLineup && (async () => {
+          onApply={onSetLineup && !readOnly ? (async () => {
             const assignments: Record<string, string> = {};
             for (const m of plan.moves) assignments[m.player.player_id] = m.to;
             await onSetLineup(assignments);
             setCoaching(false);
-          })}
+          }) : undefined}
         />
       )}
     </>
