@@ -94,3 +94,4 @@
 20260908134237 league_scoped_membership
 20260908151909 draft_reactions
 20260909000351 draft_autopick_toggle
+20260909194727 team_co_owners
