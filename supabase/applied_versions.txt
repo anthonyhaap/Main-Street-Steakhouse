@@ -93,3 +93,4 @@
 20260906153449 rivalry_card
 20260908134237 league_scoped_membership
 20260908151909 draft_reactions
+20260909000351 draft_autopick_toggle
