@@ -157,6 +157,11 @@ them can be inspected without a session.
 
 ### The season
 
+**A record waits for the week.** A matchup becomes a result when its NFL week
+is over — every game final, or four hours past the last kickoff
+(`ff_week_final`) — and not when the first starter scores. Until then the
+scoreboard shows the live score and the table shows last week's records.
+
 **Standings carry playoff odds.** `ff_playoff_outlook` returns the table, the
 whole schedule with a played flag per matchup, and each lineup's projected
 points per game (the starters' remaining season projections, spread over the

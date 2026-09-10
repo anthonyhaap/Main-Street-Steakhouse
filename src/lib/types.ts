@@ -166,6 +166,7 @@ export type OutlookMatchup = {
   away_team_id: string;
   home_points: number;
   away_points: number;
+  /** The NFL week is over and somebody scored: a result, not a live score. */
   played: boolean;
 };
 

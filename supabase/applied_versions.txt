@@ -95,3 +95,4 @@
 20260908151909 draft_reactions
 20260909000351 draft_autopick_toggle
 20260909194727 team_co_owners
+20260910130245 records_wait_for_the_week
