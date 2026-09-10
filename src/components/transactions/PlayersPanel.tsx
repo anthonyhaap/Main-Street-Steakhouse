@@ -14,10 +14,30 @@ import { ClaimSheet } from "@/components/waivers/ClaimSheet";
 const POSITIONS = ["ALL", "QB", "RB", "WR", "TE", "K", "DST"] as const;
 
 /**
- * The player pool: everybody in the league, and what you may do about them.
+ * What the list is of. "Available" is every player nobody owns — a free agent
+ * you can sign outright, or a man on the wire you can claim. "Everyone" is the
+ * whole pool, rostered players included, which is where you release your own
+ * and see who has whom.
+ */
+const VIEWS = [
+  { key: "available", label: "Available" },
+  { key: "everyone",  label: "Everyone" },
+] as const;
+
+type View = (typeof VIEWS)[number]["key"];
+
+/**
+ * The player pool: who is available, and what you may do about them.
  *
  * The first tab of the transaction centre, because it is the one every other
  * tab begins at — you sign, claim or trade a name you found here.
+ *
+ * It opens on the available players rather than the whole pool. Ordered by
+ * rank, the first two hundred names in the pool are the ones that were
+ * drafted, so a list of everybody was a wall of other managers' rosters with
+ * the free agents starting somewhere below the fold — and the question a
+ * manager brings to this tab is "who can I sign", not "who does everyone
+ * have". The whole pool is one tap away for the times that is the question.
  */
 export function PlayersPanel() {
   const { ready, team } = useSession();
@@ -27,7 +47,7 @@ export function PlayersPanel() {
   const [week, setWeek] = useState<number | null>(null);
   const [pos, setPos] = useState<(typeof POSITIONS)[number]>("ALL");
   const [q, setQ] = useState("");
-  const [onlyFree, setOnlyFree] = useState(false);
+  const [view, setView] = useState<View>("available");
   const [busy, setBusy] = useState<string | null>(null);
   // The player a full roster is trying to sign: the picker is open for him.
   const [signing, setSigning] = useState<PoolPlayer | null>(null);
@@ -56,14 +76,18 @@ export function PlayersPanel() {
     if (!ready) return;
     void (async () => {
       const supabase = supabaseBrowser();
+      // Ownership lands before the pool does, on purpose. The list opens on the
+      // available players, and "available" is decided against the owners; a
+      // pool rendered a beat before them would show every drafted player as
+      // signable and then take them all away.
       const [p, w] = await Promise.all([
         supabase.from("draft_pool").select("*")
           .order("overall_rank", { ascending: true, nullsFirst: false }).range(0, 2499),
         supabase.rpc("ff_current_week"),
+        loadOwners(),
       ]);
-      setPool((p.data ?? []) as PoolPlayer[]);
       setWeek((w.data as number) ?? 1);
-      await loadOwners();
+      setPool((p.data ?? []) as PoolPlayer[]);
     })();
   }, [ready, loadOwners]);
 
@@ -75,17 +99,28 @@ export function PlayersPanel() {
   const mineIds = useMemo(() => new Set(mine.map((o) => o.player_id)), [mine]);
   const isMine = useCallback((id: string) => mineIds.has(id), [mineIds]);
 
-  const rows = useMemo(() => {
+  // Everybody the position and the search allow, before the view decides
+  // between them — so an empty available list can say how many of the matches
+  // it is hiding rather than claiming nobody exists.
+  const matches = useMemo(() => {
     if (!pool) return [];
     const term = q.trim().toLowerCase();
     return pool
       .filter((p) => pos === "ALL" || p.position === pos)
-      // On the wire is not free: the count below already excluded them, and a
-      // filter that disagrees with its own total is worse than no filter.
-      .filter((p) => !onlyFree || (!taken.has(p.id) && !waivers.has(p.id)))
-      .filter((p) => !term || p.full_name.toLowerCase().includes(term) || (p.nfl_team ?? "").toLowerCase().includes(term))
-      .slice(0, 300);
-  }, [pool, pos, q, onlyFree, taken, waivers]);
+      .filter((p) => !term || p.full_name.toLowerCase().includes(term) || (p.nfl_team ?? "").toLowerCase().includes(term));
+  }, [pool, pos, q]);
+
+  // Available is "nobody owns him". A man on the wire is not on a roster —
+  // he has a Claim button rather than a Sign button, and the count in the
+  // head says how many of each so the list agrees with its own total.
+  const rows = useMemo(
+    () => matches.filter((p) => view === "everyone" || !taken.has(p.id)).slice(0, 300),
+    [matches, view, taken],
+  );
+  const rostered = useMemo(
+    () => (view === "available" ? matches.length - matches.filter((p) => !taken.has(p.id)).length : 0),
+    [matches, view, taken],
+  );
 
   /**
    * Sign a free agent, dropping someone in the same move when one is named.
@@ -155,13 +190,20 @@ export function PlayersPanel() {
     () => (pool ? pool.filter((p) => !taken.has(p.id) && !waivers.has(p.id)).length : 0),
     [pool, taken, waivers],
   );
+  const waivedCount = useMemo(
+    () => (pool ? pool.filter((p) => !taken.has(p.id) && waivers.has(p.id)).length : 0),
+    [pool, taken, waivers],
+  );
 
   return (
     <>
       <div className="card">
         <div className="card__head">
           <h2>Players</h2>
-          <span className="eyebrow"><span className="num">{freeCount}</span> free</span>
+          <span className="eyebrow">
+            <span className="num">{freeCount}</span> free
+            {waivedCount > 0 && <> · <span className="num">{waivedCount}</span> on waivers</>}
+          </span>
         </div>
 
         <div style={{ padding: "var(--s3) var(--s4)", borderBottom: "1px solid var(--rule)", display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: "var(--s3)", minWidth: 0 }}>
@@ -186,11 +228,12 @@ export function PlayersPanel() {
                 ))}
               </div>
             </div>
-            <label className="eyebrow" style={{ display: "flex", gap: 7, alignItems: "center", cursor: "pointer", marginLeft: "auto" }}>
-              <input type="checkbox" checked={onlyFree} onChange={(e) => setOnlyFree(e.target.checked)}
-                style={{ accentColor: "var(--gold)" }} />
-              Free agents only
-            </label>
+            <div className="segmented" style={{ marginLeft: "auto" }} role="group" aria-label="Show">
+              {VIEWS.map((v) => (
+                <button key={v.key} className="segmented__opt" data-on={view === v.key}
+                  aria-pressed={view === v.key} onClick={() => setView(v.key)}>{v.label}</button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -198,7 +241,20 @@ export function PlayersPanel() {
 
         {pool && (
           <div className="rows">
-            {rows.length === 0 && <div className="empty">Nobody matches that.</div>}
+            {rows.length === 0 && (
+              <div className="empty">
+                {rostered > 0 ? (
+                  <>
+                    Nobody available matches that
+                    {" — "}<span className="num">{rostered}</span> {rostered === 1 ? "is" : "are"} on a roster.{" "}
+                    <button className="btn" data-v="ghost" data-size="sm" onClick={() => setView("everyone")}
+                      style={{ display: "inline-flex", verticalAlign: "middle" }}>
+                      Show everyone
+                    </button>
+                  </>
+                ) : view === "available" ? "Nobody available matches that." : "Nobody matches that."}
+              </div>
+            )}
             {rows.map((p) => {
               const owner = taken.get(p.id);
               return (
