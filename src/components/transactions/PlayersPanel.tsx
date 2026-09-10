@@ -7,6 +7,8 @@ import { useSession } from "@/lib/session";
 import { LEAGUE_ID } from "@/lib/config";
 import type { PoolPlayer } from "@/lib/types";
 import { PlayerBadge } from "@/components/PlayerBadge";
+import { Matchup } from "@/components/nfl";
+import { gameFor, useWeekGames } from "@/lib/nfl/schedule";
 import { SkeletonRows, useToast } from "@/components/ui";
 import { DropPicker, type Owned } from "@/components/players/DropPicker";
 import { ClaimSheet } from "@/components/waivers/ClaimSheet";
@@ -38,6 +40,9 @@ export function PlayersPanel() {
   // database refuses every time.
   const [waivers, setWaivers] = useState<Map<string, string>>(new Map());
   const [claiming, setClaiming] = useState<PoolPlayer | null>(null);
+  // Who each club plays this week. The pool view stops at the club, and the
+  // club is half of the question a manager asks before he signs anybody.
+  const { games } = useWeekGames(week);
 
   // Ownership comes from ff_pool_owners, not from the draft board. During the
   // draft the two agree — no transactions have happened — and after it only
@@ -221,6 +226,9 @@ export function PlayersPanel() {
                           {p.position_rank ? <span>{p.position}{p.position_rank}</span> : null}
                           {p.bye_week ? <span>Bye {p.bye_week}</span> : null}
                           {p.adp ? <span className="num">ADP {Number(p.adp).toFixed(1)}</span> : null}
+                          {/* The bye is already said above, so a club not on
+                              the slate prints nothing here. */}
+                          <Matchup game={gameFor(games, p.nfl_team)} week={week} showBye={false} />
                         </>
                       }
                     />
@@ -292,6 +300,8 @@ export function PlayersPanel() {
           player={{ id: claiming.id, name: claiming.full_name }}
           roster={mine}
           settlesAt={waivers.get(claiming.id) ?? null}
+          games={games}
+          week={week}
           busy={busy === claiming.id}
           onCancel={() => setClaiming(null)}
           onSubmit={(dropId) => void claim(claiming, dropId)}
@@ -302,6 +312,8 @@ export function PlayersPanel() {
         <DropPicker
           signing={signing}
           roster={mine}
+          games={games}
+          week={week}
           busy={busy === signing.id}
           onCancel={() => setSigning(null)}
           onDrop={(dropId) => void sign(signing, dropId)}

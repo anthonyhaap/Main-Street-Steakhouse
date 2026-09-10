@@ -51,3 +51,16 @@ test("the block says listing promises nothing", async ({ page }) => {
   await expect(page.getByText(/want a back/)).toBeVisible();
   await expect(page.getByRole("button", { name: "List yours" })).toBeVisible();
 });
+
+test("every name on the desk reads with who he plays this week", async ({ page }) => {
+  await page.goto("/preview/trades");
+  const incoming = page.locator(".card", { hasText: "Prime Cut offered you" });
+  // Odunze's Bears are away at Miami; Wright's Dolphins host them.
+  await expect(incoming.getByText("Rome Odunze").locator("..")).toContainText("@");
+  await expect(incoming.getByText("Rome Odunze").locator("..")).toContainText("MIA");
+  await expect(incoming.getByText("Jaylen Wright").locator("..")).toContainText("vs");
+  // Tennessee is on its bye in the fixture, so Spears says so on the block.
+  const block = page.locator(".card", { hasText: "The block" });
+  await expect(block.locator(".row", { hasText: "Tyjae Spears" })).toContainText("Bye");
+  await expect(block.locator(".row", { hasText: "Zay Flowers" })).toContainText("PIT");
+});

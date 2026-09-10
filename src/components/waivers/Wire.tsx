@@ -2,6 +2,8 @@
 
 import { ArrowDown, ArrowUp, Clock, Gavel, Trash2 } from "lucide-react";
 import type { WaiverBoard, WaiverPlayer } from "@/lib/types";
+import { Matchup } from "@/components/nfl";
+import { gameFor, type WeekGames } from "@/lib/nfl/schedule";
 
 /** "Wed 8:00 AM" rather than a countdown: a ticking clock on a weekly deadline
  *  is anxiety, not information. */
@@ -19,10 +21,13 @@ export const when = (iso: string) =>
  * page above it owns the fetching and the RPCs; everything here is props.
  */
 export function Wire({
-  board, teamName, busy, claimed, onClaim, onCancelClaim, onMove,
+  board, teamName, busy, claimed, games = null, week = null, onClaim, onCancelClaim, onMove,
 }: {
   board: WaiverBoard;
   teamName: string;
+  /** This week's slate, so a man on the wire reads with who he plays. */
+  games?: WeekGames | null;
+  week?: number | null;
   busy: string | null;
   claimed: Set<string>;
   onClaim: (p: WaiverPlayer) => void;
@@ -92,7 +97,10 @@ export function Wire({
               <span className="pos" data-p={p.position}>{p.position}</span>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.player}</div>
-                <div className="eyebrow">{p.nfl_team ?? "FA"} · clears {when(p.clears_at)}</div>
+                <div className="eyebrow" style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                  <span>{p.nfl_team ?? "FA"} · clears {when(p.clears_at)}</span>
+                  <Matchup game={gameFor(games, p.nfl_team)} week={week} />
+                </div>
               </div>
               <button className="btn" data-size="sm"
                 disabled={busy !== null || claimed.has(p.player_id)}

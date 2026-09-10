@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { X } from "lucide-react";
 import type { Owned } from "@/components/players/DropPicker";
+import { Matchup } from "@/components/nfl";
+import { gameFor, type WeekGames } from "@/lib/nfl/schedule";
 
 /**
  * Choose who you would listen to offers on.
@@ -11,9 +13,12 @@ import type { Owned } from "@/components/players/DropPicker";
  * that only ever grows stops meaning anything by week six.
  */
 export function BlockSheet({
-  roster, listed, busy, onCancel, onSave,
+  roster, listed, games = null, week = null, busy, onCancel, onSave,
 }: {
   roster: Owned[];
+  /** This week's slate, beside each man you might list. */
+  games?: WeekGames | null;
+  week?: number | null;
   listed: string[];
   busy: boolean;
   onCancel: () => void;
@@ -59,7 +64,10 @@ export function BlockSheet({
               <span className="pos" data-p={r.position}>{r.position}</span>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.player}</div>
-                <div className="eyebrow">{r.nfl_team ?? "FA"}</div>
+                <div className="eyebrow" style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                  <span>{r.nfl_team ?? "FA"}</span>
+                  <Matchup game={gameFor(games, r.nfl_team)} week={week} />
+                </div>
               </div>
             </label>
           ))}

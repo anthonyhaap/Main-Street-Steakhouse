@@ -58,3 +58,24 @@ test("a quiet wire explains itself rather than showing nothing", async ({ page }
   await expect(page.getByText(/anyone never owned is a free agent/)).toBeVisible();
   await expect(page.getByText(/Nothing claimed/)).toBeVisible();
 });
+
+test("a man on the wire reads with who he plays this week", async ({ page }) => {
+  await page.goto("/preview/waivers");
+  const wire = page.locator(".card", { hasText: "On waivers" });
+  // Miami is away at Buffalo; Tampa Bay is home to Chicago.
+  const wright = wire.locator(".row", { hasText: "Jaylen Wright" });
+  await expect(wright).toContainText("@");
+  await expect(wright).toContainText("BUF");
+  const otton = wire.locator(".row", { hasText: "Cade Otton" });
+  await expect(otton).toContainText("vs");
+  await expect(otton).toContainText("CHI");
+});
+
+test("the claim sheet says who each man you might release plays", async ({ page }) => {
+  await page.goto("/preview/waivers");
+  await page.getByRole("button", { name: "Claim Adonai Mitchell" }).click();
+  const sheet = page.getByRole("dialog", { name: /Claim Adonai Mitchell/ });
+  await expect(sheet.locator(".row", { hasText: "Release Trey McBride" })).toContainText("CAR");
+  // Tennessee is not on the fixture's slate, so Spears is on his bye.
+  await expect(sheet.locator(".row", { hasText: "Release Tyjae Spears" })).toContainText("Bye");
+});

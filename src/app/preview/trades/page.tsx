@@ -13,6 +13,14 @@ import { useState } from "react";
 import { TopBar } from "@/components/Shell";
 import { Desk } from "@/components/trades/Desk";
 import type { TradeDesk } from "@/lib/types";
+import { foldGames } from "@/lib/nfl/schedule";
+
+/** A week-6 slate for the names on the desk. Tennessee is on its bye. */
+const GAMES = foldGames([
+  { home_team: "BAL", away_team: "PIT", kickoff_at: "2026-10-11T17:00:00Z", status: "pre", status_detail: "Sun 1:00 PM ET" },
+  { home_team: "MIA", away_team: "CHI", kickoff_at: "2026-10-11T17:00:00Z", status: "pre", status_detail: "Sun 1:00 PM ET" },
+  { home_team: "TB",  away_team: "IND", kickoff_at: "2026-10-11T20:25:00Z", status: "pre", status_detail: "Sun 4:25 PM ET" },
+]);
 
 const BLOCK = [
   { player_id: "b1", player: "Zay Flowers", position: "WR", nfl_team: "BAL",
@@ -80,6 +88,8 @@ export default function PreviewTrades() {
         <Desk
           desk={shut ? CLOSED : OPEN}
           busy={null}
+          games={GAMES}
+          week={shut ? CLOSED.week : OPEN.week}
           onRespond={() => {}}
           onCounter={() => {}}
           onOpenBlock={() => {}}

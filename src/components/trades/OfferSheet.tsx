@@ -3,6 +3,8 @@
 import { useMemo, useState } from "react";
 import { X } from "lucide-react";
 import type { Owned } from "@/components/players/DropPicker";
+import { Matchup } from "@/components/nfl";
+import { gameFor, type WeekGames } from "@/lib/nfl/schedule";
 import type { TradeOffer } from "@/lib/types";
 
 /**
@@ -17,12 +19,15 @@ import type { TradeOffer } from "@/lib/types";
  * they wanted from you becomes what you are being asked to give.
  */
 export function OfferSheet({
-  myTeamId, teams, owners, counters, busy, onCancel, onSubmit,
+  myTeamId, teams, owners, counters, games = null, week = null, busy, onCancel, onSubmit,
 }: {
   myTeamId: string;
   teams: { id: string; name: string }[];
   owners: Owned[];
   counters: TradeOffer | null;
+  /** This week's slate, beside every name on either side of the table. */
+  games?: WeekGames | null;
+  week?: number | null;
   busy: boolean;
   onCancel: () => void;
   onSubmit: (
@@ -68,8 +73,12 @@ export function OfferSheet({
               aria-label={`${label}: ${o.player}`}
               style={{ accentColor: "var(--gold)" }} />
             <span className="pos" data-p={o.position}>{o.position}</span>
-            <div style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {o.player}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.player}</div>
+              <div className="eyebrow" style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                <span>{o.nfl_team ?? "FA"}</span>
+                <Matchup game={gameFor(games, o.nfl_team)} week={week} />
+              </div>
             </div>
           </label>
         ))}

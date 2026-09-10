@@ -16,8 +16,19 @@ import { Wire } from "@/components/waivers/Wire";
 import { ClaimSheet } from "@/components/waivers/ClaimSheet";
 import type { Owned } from "@/components/players/DropPicker";
 import type { WaiverBoard, WaiverPlayer } from "@/lib/types";
+import { foldGames } from "@/lib/nfl/schedule";
 
 const WEDNESDAY = "2026-09-09T08:00:00.000Z";
+
+/** Enough of a week-2 slate to put an opponent beside every name here.
+ *  Tennessee is left off it, so Tyjae Spears reads as a bye. */
+const WEEK = 2;
+const GAMES = foldGames([
+  { home_team: "BUF", away_team: "MIA", kickoff_at: "2026-09-13T17:00:00Z", status: "pre", status_detail: "Sun 1:00 PM ET" },
+  { home_team: "IND", away_team: "DEN", kickoff_at: "2026-09-13T17:00:00Z", status: "pre", status_detail: "Sun 1:00 PM ET" },
+  { home_team: "TB",  away_team: "CHI", kickoff_at: "2026-09-13T20:25:00Z", status: "pre", status_detail: "Sun 4:25 PM ET" },
+  { home_team: "ARI", away_team: "CAR", kickoff_at: "2026-09-13T20:05:00Z", status: "pre", status_detail: "Sun 4:05 PM ET" },
+]);
 
 const ROSTER: Owned[] = [
   { player_id: "r1", player: "Trey McBride", position: "TE", nfl_team: "ARI", team_id: "t1", team: "Gridiron Butchers" },
@@ -88,6 +99,8 @@ export default function PreviewWaivers() {
           teamName="Gridiron Butchers"
           busy={null}
           claimed={new Set(board.my_claims.map((c) => c.add_player_id))}
+          games={GAMES}
+          week={WEEK}
           onClaim={setClaiming}
           onCancelClaim={() => {}}
           onMove={() => {}}
@@ -99,6 +112,8 @@ export default function PreviewWaivers() {
           player={{ id: claiming.player_id, name: claiming.player }}
           roster={ROSTER}
           settlesAt={claiming.clears_at}
+          games={GAMES}
+          week={WEEK}
           busy={false}
           onCancel={() => setClaiming(null)}
           onSubmit={() => setClaiming(null)}
