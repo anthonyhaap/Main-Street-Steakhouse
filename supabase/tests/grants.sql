@@ -51,6 +51,7 @@ declare
     'ff_roll_rosters', 'ff_materialize_roster', 'ff_refresh_wire', 'ff_refresh_projections',
     'ff_rebuild_season_projections', 'ff_load_season_projections', 'ff_load_sleeper_projections',
     'ff_load_espn_injuries', 'ff_load_espn_news', 'ff_backfill_bye_weeks',
+    'ff_load_nfl_schedule', 'ff_load_nfl_week',
     'ff_player_season', 'ff_recap_body', 'ff_injury_severity', 'ff_height_inches',
     'ff_club', 'ff_who',
     'ff_poll_live', 'ff_post_weekly_recaps', 'ff_resolve_matchup_challenges',

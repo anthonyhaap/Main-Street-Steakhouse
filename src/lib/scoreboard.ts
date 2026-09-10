@@ -160,7 +160,10 @@ export type CardState = "pre" | "live" | "settled" | "between";
 export function cardState(c: ScoreCard): CardState {
   const left = c.home.yet_to_play + c.away.yet_to_play;
   const on = c.home.in_action + c.away.in_action;
-  const played = starters(c).some((s) => s.final && s.kickoff_at !== null);
+  // Points on the board mean the game was played, whatever the feed says
+  // about it: a game state that never left `pre` hid a whole Thursday night
+  // behind its projection once.
+  const played = starters(c).some((s) => (s.final && s.kickoff_at !== null) || Number(s.points) > 0);
   if (on > 0) return "live";
   if (left === 0) return played || starters(c).length > 0 ? "settled" : "pre";
   return played ? "between" : "pre";
