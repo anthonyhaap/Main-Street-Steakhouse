@@ -7,6 +7,7 @@ import { Wire } from "@/components/waivers/Wire";
 import type { Owned } from "@/components/players/DropPicker";
 import { LEAGUE_ID } from "@/lib/config";
 import { useLive, type WireStatus } from "@/lib/live";
+import { useWeekGames } from "@/lib/nfl/schedule";
 import { useSession } from "@/lib/session";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import type { WaiverBoard, WaiverPlayer } from "@/lib/types";
@@ -18,6 +19,7 @@ export function WirePanel({ onStatus }: { onStatus?: (s: WireStatus) => void }) 
   const toast = useToast();
   const [claiming, setClaiming] = useState<WaiverPlayer | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const { week, games } = useWeekGames();
 
   const fetcher = useCallback(async () => {
     if (!team) return null;
@@ -121,6 +123,8 @@ export function WirePanel({ onStatus }: { onStatus?: (s: WireStatus) => void }) 
         teamName={team.name}
         busy={busy}
         claimed={claimedIds}
+        games={games}
+        week={week}
         onClaim={setClaiming}
         onCancelClaim={(id, name) => void run(id,
           () => supabaseBrowser().rpc("ff_cancel_waiver_claim", { p_claim_id: id }),
@@ -133,6 +137,8 @@ export function WirePanel({ onStatus }: { onStatus?: (s: WireStatus) => void }) 
           player={{ id: claiming.player_id, name: claiming.player }}
           roster={roster}
           settlesAt={board.settles_at ?? null}
+          games={games}
+          week={week}
           busy={busy === claiming.player_id}
           onCancel={() => setClaiming(null)}
           onSubmit={(dropId) => void claim(dropId)}

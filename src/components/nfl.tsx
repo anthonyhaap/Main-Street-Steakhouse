@@ -156,6 +156,26 @@ export function Kickoff({ game, week }: { game: HubGame | null; week: number }) 
   );
 }
 
+/**
+ * The same line, for a row that only knows the player's club.
+ *
+ * `gameFor` says nothing (undefined) until the slate is in hand, and a bye is
+ * an explicit null. Nothing is drawn for the first, so a list never flashes
+ * "Bye" at everybody while the schedule loads; the second prints a quiet
+ * "Bye" unless the row already says so in its own words (`showBye={false}`).
+ */
+export function Matchup({
+  game, week, showBye = true,
+}: { game: HubGame | null | undefined; week: number | null; showBye?: boolean }) {
+  if (game === undefined || week == null) return null;
+  if (game === null) {
+    return showBye
+      ? <span style={{ color: "var(--faint)", fontSize: "var(--t-micro)" }}>Bye</span>
+      : null;
+  }
+  return <Kickoff game={game} week={week} />;
+}
+
 /* -------------------------------------------------------------- injuries -- */
 
 const SEV_TONE: Record<WireInjury["severity"], string> = {
