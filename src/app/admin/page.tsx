@@ -289,8 +289,10 @@ export default function AdminPage() {
               <div className="card__head"><h2>After the draft</h2><ListChecks size={17} color="var(--gold)" /></div>
               <div className="card__body">
                 <p className="prose" style={{ marginTop: 0, fontSize: "var(--t-small)" }}>
-                  Run these once the board is full. Seeding builds week-1 rosters from the draft
-                  results; the schedule generates the head-to-head season.
+                  Rosters build themselves the moment the last pick lands, with an opening lineup
+                  for every team. Seeding rebuilds week 1 from the draft board alone — it ignores
+                  any move made since, so use it only for a draft that has just finished. The
+                  schedule generates the head-to-head season.
                 </p>
                 <div style={{ display: "flex", gap: "var(--s2)", flexWrap: "wrap", marginTop: "var(--s4)" }}>
                   <button className="btn" disabled={busy}

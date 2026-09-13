@@ -626,6 +626,16 @@ league with no picks and no moves has not drafted, which is not the same as
 delete rosters it cannot rebuild. That is the state this project sits in all
 preseason, so the guard is the normal case.
 
+The cache is first written by the **last pick of the draft**. `ff_make_pick`
+is the statement that sets the draft complete, and it now hands the league to
+`ff_rosters_after_draft`, which materializes every team for the current week
+and gives any team with no starters an opening lineup — best season projection
+under our rules first, a player on bye this week last. The night the league
+drafted, nothing did this: the board was full, `ff_owner_at` was right, and
+twelve team pages were empty until a cron seven hours away. Undoing a pick out
+of a complete draft takes the player back out of the cache, and a lineup a
+manager has already set is never reshuffled when the build runs again.
+
 `ff_roll_rosters` runs daily at 09:20 UTC and materializes the current week for
 every league — daily rather than weekly for the same reason the recaps are: a
 flexed game or a missed run should not cost a league its rosters, and
