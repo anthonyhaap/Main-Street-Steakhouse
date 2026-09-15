@@ -11,8 +11,9 @@ import type { WireStatus } from "@/lib/live";
 import { Seal } from "@/components/ui";
 
 /**
- * The first four are the tab bar on a phone, in thumb order: the briefing,
- * the scores, your lineup, the table. Everything else is one tap further.
+ * The first five are the tab bar on a phone, in thumb order: the briefing,
+ * the scores, your lineup, the table, and the moves. Everything else is one
+ * tap further.
  *
  * Two names were doing two jobs each. "Scores" is the week's matchups, and
  * calling it Scores made it read as a results page rather than the screen
@@ -23,11 +24,21 @@ import { Seal } from "@/components/ui";
  * Players, Waivers, Trades and Ledger used to be four entries here. They are
  * four views of one question — how a roster changes — so they are one
  * destination, Transactions, and the tabs inside it.
+ *
+ * Transactions earned its place in the tab bar the week the season started:
+ * signing a man off the wire on a Wednesday is the most common thing a
+ * manager does on his phone after setting a lineup, and it was behind More.
+ * The bar has room for five and a More, and "Transactions" does not fit under
+ * an icon at a fifth of a phone — so the bar says Moves, the word the desk's
+ * own strip uses for the same doors, and the wide nav keeps the full name.
  */
 type NavItem = {
   href: string;
   label: string;
   Icon: typeof UtensilsCrossed;
+  /** What the phone's tab bar says when the label is too long to sit under
+   *  an icon at a fifth of the screen. Defaults to the label. */
+  tab?: string;
   /** Set apart in the bar: the commissioner's room, not a manager's. */
   commish?: boolean;
 };
@@ -37,15 +48,15 @@ const NAV: NavItem[] = [
   { href: "/matchups",     label: "Matchups",     Icon: Radio },
   { href: "/team",         label: "My Team",      Icon: Shield },
   { href: "/standings",    label: "Standings",    Icon: BarChart3 },
+  { href: "/transactions", label: "Transactions", Icon: ArrowLeftRight, tab: "Moves" },
   { href: "/draft",        label: "Draft",        Icon: Swords },
   { href: "/history",      label: "History",      Icon: Landmark },
-  { href: "/transactions", label: "Transactions", Icon: ArrowLeftRight },
   { href: "/chat",         label: "The House",    Icon: MessageCircle },
   { href: "/challenges",   label: "Challenges",   Icon: CircleDollarSign },
 ];
 
-/** Four thumb-reachable tabs; everything else lives behind More. */
-const TAB_COUNT = 4;
+/** Five thumb-reachable tabs; everything else lives behind More. */
+const TAB_COUNT = 5;
 
 const isOn = (path: string, href: string) =>
   href === "/" ? path === "/" : path.startsWith(href);
@@ -157,7 +168,7 @@ export function TopBar({ status }: { status?: WireStatus }) {
       </header>
 
       <nav className="tabbar" aria-label="Primary">
-        {tabs.map(({ href, label, Icon }) => (
+        {tabs.map(({ href, label, tab, Icon }) => (
           <Link
             key={href}
             href={href}
@@ -166,9 +177,11 @@ export function TopBar({ status }: { status?: WireStatus }) {
             onClick={close}
             // The next screen starts loading on the touch, not the tap.
             onTouchStart={() => router.prefetch(href)}
+            // The short word is what is drawn; the full name is what is read out.
+            aria-label={tab ? label : undefined}
           >
             <Icon strokeWidth={1.75} />
-            {label}
+            {tab ?? label}
           </Link>
         ))}
         <button
@@ -177,7 +190,9 @@ export function TopBar({ status }: { status?: WireStatus }) {
           data-on={more || restActive}
           aria-expanded={more}
           onClick={() => setMore((v) => !v)}
-          style={{ border: 0, background: "none", cursor: "pointer", font: "inherit" }}
+          // No `font: inherit` here: an inline font beats the class, and it
+          // left More set in the button's own size beside five 9px labels.
+          style={{ border: 0, background: "none", cursor: "pointer" }}
         >
           <MoreHorizontal strokeWidth={1.75} />
           More
