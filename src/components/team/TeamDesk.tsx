@@ -14,6 +14,7 @@ import { PlayerRow } from "@/components/team/Lineup";
 import { Coach } from "@/components/team/Coach";
 import { InsightBoard, NewsWire, TeamStats } from "@/components/team/Rail";
 import { Notifications } from "@/components/team/Notifications";
+import { RosterMoves } from "@/components/team/Moves";
 
 export { slotOk };
 
@@ -44,7 +45,7 @@ export type MoveTarget = { slot: string; player: HubPlayer | null };
  */
 export function TeamDesk({
   hub, wire, moving, busy, crest = null, oppCrest = null, weather = null, matchups = null,
-  readOnly = false, picker = null,
+  readOnly = false, picker = null, settlesAt = null,
   onPickUp, onCancelMove, onDrop, onWeek, onEdit, onSetLineup,
 }: {
   hub: TeamHub;
@@ -66,6 +67,12 @@ export function TeamDesk({
   weather?: Map<string, GameWeather> | null;
   /** Each man's week against his own projection curve, from `useMatchups`. */
   matchups?: MatchupCurve | null;
+  /**
+   * When the wire next settles, from `useWaiverDeadline`. Drawn under the hero
+   * on the reader's own desk beside the doors to the transaction centre; null
+   * while it is still being asked.
+   */
+  settlesAt?: string | null;
   onPickUp: (p: HubPlayer) => void;
   onCancelMove: () => void;
   onDrop: (target: MoveTarget) => void;
@@ -222,6 +229,12 @@ export function TeamDesk({
             </div>
           </div>
         </section>
+
+        {/* ------------------------------------------------- roster moves -- */}
+        {/* The reader's own desk only. The doors lead to *his* signings and
+            claims, and the deadline matters to the man with a claim to file —
+            not to somebody looking over another manager's roster. */}
+        {!readOnly && <RosterMoves settlesAt={settlesAt} />}
 
         {/* -------------------------------------------------- week picker -- */}
         <div className="scroll" style={{ overflowX: "auto", overflowY: "hidden", paddingBottom: 2 }}>

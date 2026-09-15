@@ -122,6 +122,37 @@ test("another manager's desk can be read and not touched", async ({ page }) => {
 });
 
 /**
+ * The doors to the transaction centre, and the deadline that decides which
+ * one to use, are on the desk itself.
+ *
+ * Signing and claiming live under Transactions, which on a phone is behind
+ * More; a manager staring at a hole in his lineup should not have to know
+ * that. The strip under the hero names when the wire settles and opens
+ * straight onto the free agents and the wire — and only on his own desk,
+ * because the claim and the deadline are his, not the roster he is visiting.
+ */
+test("the desk says when waivers settle and opens onto the pool", async ({ page }) => {
+  await page.goto("/preview/team");
+  const moves = page.getByRole("region", { name: "Roster moves" });
+  await expect(moves).toBeVisible();
+  // The fixture settles on a Wednesday morning; the words are what matter,
+  // the clock is the browser's.
+  await expect(moves.getByText(/Waivers settle/)).toBeVisible();
+  await expect(moves.getByText(/Wed/)).toBeVisible();
+  await expect(moves.getByText(/Claims are blind until then/)).toBeVisible();
+  await expect(moves.getByRole("link", { name: "Free agents" }))
+    .toHaveAttribute("href", "/transactions?tab=players");
+  await expect(moves.getByRole("link", { name: "Waiver wire" }))
+    .toHaveAttribute("href", "/transactions?tab=waivers");
+  await expect(moves.getByRole("link", { name: "Trades" }))
+    .toHaveAttribute("href", "/transactions?tab=trades");
+
+  await page.goto("/preview/team?as=visitor");
+  await expect(page.getByText("Viewing")).toBeVisible();
+  await expect(page.getByRole("region", { name: "Roster moves" })).toHaveCount(0);
+});
+
+/**
  * The standings are the front door to the other desks: every team's name is a
  * link to `/team?id=`, and your own is plain `/team`.
  */

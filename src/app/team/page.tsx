@@ -6,6 +6,7 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 import { useLive } from "@/lib/live";
 import { useCrests, useSession } from "@/lib/session";
 import { useWire } from "@/lib/nfl/wire";
+import { useWaiverDeadline } from "@/lib/waivers";
 import { useWeather } from "@/lib/nfl/weather";
 import { useMatchups } from "@/lib/nfl/matchup";
 import type { HubPlayer, TeamHub } from "@/lib/nfl/types";
@@ -85,6 +86,8 @@ function Desk() {
   }, [ready, subjectId, week, refetch]);
 
   const { data: wire } = useWire(ready);
+  // Only the reader's own desk draws the deadline, so only that desk asks.
+  const settlesAt = useWaiverDeadline(ready && mine);
 
   // The two signals the hub does not carry: what the sky is doing over each
   // stadium, and how this week's projection compares with the rest of the
@@ -209,6 +212,7 @@ function Desk() {
           oppCrest={crestOf(hub.matchup?.opponent.id)}
           weather={weather}
           matchups={matchups}
+          settlesAt={settlesAt}
           picker={<TeamPicker teams={teams} value={subject.id} mine={team?.id ?? null} onPick={look} />}
           onPickUp={setMoving}
           onCancelMove={() => setMoving(null)}

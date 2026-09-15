@@ -18,8 +18,9 @@ test("the pool opens on who is available", async ({ page }) => {
   // Nobody on a roster — not another manager's, and not your own.
   await expect(page.getByText("Ja'Marr Chase")).toHaveCount(0);
   await expect(page.getByText("Trey McBride")).toHaveCount(0);
-  // The head counts the two kinds of available separately.
-  await expect(page.getByText(/4 free · 1 on waivers/)).toBeVisible();
+  // The head counts the two kinds of available separately, and says when the
+  // one on the wire clears — the moment his Claim button becomes a Sign button.
+  await expect(page.getByText(/4 free · 1 on waivers · clear Wed/)).toBeVisible();
 });
 
 test("everyone is one tap away, with who has whom", async ({ page }) => {

@@ -7,6 +7,7 @@ import { PlayerBadge } from "@/components/PlayerBadge";
 import { SkeletonRows } from "@/components/ui";
 import { DropPicker, type Owned } from "@/components/players/DropPicker";
 import { ClaimSheet } from "@/components/waivers/ClaimSheet";
+import { when } from "@/lib/waivers";
 
 const POSITIONS = ["ALL", "QB", "RB", "WR", "TE", "K", "DST"] as const;
 
@@ -113,6 +114,15 @@ export function Pool({
     () => (pool ? pool.filter((p) => !taken.has(p.id) && waivers.has(p.id)).length : 0),
     [pool, taken, waivers],
   );
+  // The soonest clearing time among the men on the wire is the next settlement
+  // — the moment a Claim button here turns into a Sign button. Said in the
+  // head, so a manager weighing "claim him or sign somebody else" knows how
+  // long the wait is without leaving the list.
+  const clearsAt = useMemo(() => {
+    let soonest: string | null = null;
+    for (const at of waivers.values()) if (!soonest || at < soonest) soonest = at;
+    return soonest;
+  }, [waivers]);
 
   const sign = useCallback(async (add: PoolPlayer, dropId?: string) => {
     const result = await onSign(add, dropId);
@@ -137,6 +147,7 @@ export function Pool({
           <span className="eyebrow">
             <span className="num">{freeCount}</span> free
             {waivedCount > 0 && <> · <span className="num">{waivedCount}</span> on waivers</>}
+            {waivedCount > 0 && clearsAt && <> · <span style={{ whiteSpace: "nowrap" }}>clear {when(clearsAt)}</span></>}
           </span>
         </div>
 
