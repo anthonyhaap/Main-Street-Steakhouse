@@ -27,3 +27,32 @@ for (const path of ["/players", "/waivers", "/trades", "/ledger"]) {
     await expect(page).toHaveURL(new RegExp(`/login\\?next=%2F${path.slice(1)}$`));
   });
 }
+
+/**
+ * On a phone the centre is in the tab bar, not behind More. Signing a man off
+ * the wire on a Wednesday is the commonest thing a manager does on his phone
+ * after setting a lineup. The bar says Moves — "Transactions" does not fit
+ * under an icon at a fifth of a phone — and reads out the full name.
+ */
+test("the centre is a phone tab", async ({ page }, testInfo) => {
+  await page.goto("/preview/players");
+  const bar = page.locator(".tabbar");
+  const tab = bar.getByRole("link", { name: "Transactions" });
+  if (testInfo.project.name === "mobile") {
+    await expect(bar).toBeVisible();
+    await expect(tab).toBeVisible();
+    await expect(tab).toHaveText("Moves");
+    await expect(tab).toHaveAttribute("href", "/transactions");
+    // Five tabs and More, and nothing hangs off the edge of the screen.
+    await expect(bar.locator(".tabbar__item")).toHaveCount(6);
+    const width = page.viewportSize()!.width;
+    const doc = await page.evaluate(() => document.documentElement.scrollWidth);
+    expect(doc).toBeLessThanOrEqual(width);
+    for (const item of await bar.locator(".tabbar__item").all()) {
+      const clipped = await item.evaluate((el) => el.scrollWidth > el.clientWidth);
+      expect(clipped, `${await item.textContent()} is clipped`).toBe(false);
+    }
+  } else {
+    await expect(bar).toBeHidden();
+  }
+});

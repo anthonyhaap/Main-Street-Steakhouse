@@ -328,6 +328,11 @@ body {
 }
 .tabbar__item[data-on="true"] { color: var(--wine); }
 .tabbar__item svg { width: 20px; height: 20px; }
+/* Six items across the narrowest phones: the labels give up a little tracking
+   rather than running into each other. */
+@media (max-width: 359px) {
+  .tabbar__item { font-size: 8px; letter-spacing: 0.04em; }
+}
 
 .page {
   flex: 1;
