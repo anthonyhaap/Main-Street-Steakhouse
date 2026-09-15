@@ -25,13 +25,6 @@ export const when = (iso: string) =>
  * served, nothing about any team, so it is cheap and it is the same answer the
  * wire gives.
  *
- * `ff_next_waiver_run` is the fallback for the deploy that ships this before
- * the migration adding `ff_waiver_settles_at` has been applied — migrations
- * land after their pull request merges, the app lands on the merge. It is the
- * answer the desk gave until then, right except in the minutes between a
- * scheduled settlement and the cron that serves it, and it can go once the
- * migration is recorded.
- *
  * Fetched once per mount rather than kept live. The settlement moves once a
  * week, at the settlement, and a desk left open across it will be a week stale
  * about a deadline that has passed — which the wire itself corrects the moment
@@ -43,14 +36,9 @@ export function useWaiverDeadline(enabled = true): string | null {
   useEffect(() => {
     if (!enabled) return;
     let alive = true;
-    void (async () => {
-      const supabase = supabaseBrowser();
-      const asked = await supabase.rpc("ff_waiver_settles_at", { p_league_id: LEAGUE_ID });
-      const { data } = asked.error
-        ? await supabase.rpc("ff_next_waiver_run", { p_league_id: LEAGUE_ID })
-        : asked;
-      if (alive && typeof data === "string") setAt(data);
-    })();
+    void supabaseBrowser()
+      .rpc("ff_waiver_settles_at", { p_league_id: LEAGUE_ID })
+      .then(({ data }) => { if (alive && typeof data === "string") setAt(data); });
     return () => { alive = false; };
   }, [enabled]);
 
