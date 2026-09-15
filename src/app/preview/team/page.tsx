@@ -318,6 +318,7 @@ function TeamPreview() {
         busy={false}
         readOnly={visitor}
         weather={WEATHER}
+        settlesAt="2026-09-16T08:00:00.000Z"
         onPickUp={setMoving}
         onCancelMove={() => setMoving(null)}
         onDrop={drop}

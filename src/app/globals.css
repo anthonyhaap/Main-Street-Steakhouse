@@ -1122,6 +1122,27 @@ a.kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); border-c
   min-width: 0;
 }
 
+/* --- roster moves ------------------------------------------------------- */
+/* One row under the hero: the settlement on the left, the doors on the right.
+   On a phone the doors drop under the sentence and share the width. */
+.moves {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--s3) var(--s4);
+  padding: var(--s3) var(--s5);
+}
+.moves__when { display: flex; align-items: center; gap: var(--s3); min-width: 0; color: var(--muted); font-size: var(--t-small); }
+.moves__when svg { color: var(--gold); flex-shrink: 0; }
+.moves__when strong { color: var(--cream); font-weight: 700; white-space: nowrap; }
+.moves__blind { display: block; margin-top: 2px; }
+.moves__doors { display: flex; gap: var(--s2); flex-wrap: wrap; }
+@media (max-width: 640px) {
+  .moves__doors { width: 100%; }
+  .moves__doors .btn { flex: 1 1 0; justify-content: center; }
+}
+
 /* --- hero band ---------------------------------------------------------- */
 
 .th-hero {

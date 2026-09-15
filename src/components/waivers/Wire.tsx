@@ -2,14 +2,9 @@
 
 import { ArrowDown, ArrowUp, Clock, Gavel, Trash2 } from "lucide-react";
 import type { WaiverBoard, WaiverPlayer } from "@/lib/types";
+import { when } from "@/lib/waivers";
 
-/** "Wed 8:00 AM" rather than a countdown: a ticking clock on a weekly deadline
- *  is anxiety, not information. */
-export const when = (iso: string) =>
-  new Date(iso).toLocaleString(undefined, {
-    weekday: "short", month: "short", day: "numeric",
-    hour: "numeric", minute: "2-digit",
-  });
+export { when };
 
 /**
  * The wire, as a manager reads it: when it settles, what he has asked for and
@@ -38,13 +33,22 @@ export function Wire({
             <span className="eyebrow">your call: <span className="num">#{board.my_priority}</span></span>
           )}
         </div>
-        <div className="card__body" style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <Clock size={15} style={{ color: "var(--faint)" }} />
-          <span className="eyebrow">
-            {board.settles_at
-              ? <>Next settlement <strong>{when(board.settles_at)}</strong>. Claims are blind until then.</>
-              : "No settlement scheduled."}
-          </span>
+        {/* The deadline is the one fact on this screen that decides what a
+            manager does tonight, so it is set in the size of a stat rather
+            than an eyebrow: readable from across the room, and first. */}
+        <div className="card__body" style={{ display: "flex", gap: 12, alignItems: "center" }}>
+          <Clock size={22} strokeWidth={1.75} style={{ color: "var(--gold)", flexShrink: 0 }} />
+          <div style={{ minWidth: 0 }}>
+            <div className="eyebrow">Next settlement</div>
+            <div style={{ font: "400 clamp(1.15rem, 0.9rem + 0.8vw, 1.5rem)/1.15 var(--serif)", letterSpacing: "-0.02em", marginTop: 2 }}>
+              {board.settles_at ? when(board.settles_at) : "Not scheduled"}
+            </div>
+            <div style={{ fontSize: "var(--t-small)", color: "var(--muted)", marginTop: 4 }}>
+              {board.settles_at
+                ? "Claims are blind until then. Anyone never owned is a free agent and can be signed now."
+                : "No settlement is on the calendar."}
+            </div>
+          </div>
         </div>
       </div>
 

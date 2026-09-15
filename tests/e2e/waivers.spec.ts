@@ -16,7 +16,12 @@ test("the wire is behind the session", async ({ page }) => {
 
 test("it says when it settles, and that claims are blind", async ({ page }) => {
   await page.goto("/preview/waivers");
-  await expect(page.getByText(/Next settlement/)).toBeVisible();
+  const card = page.locator(".card", { hasText: "Next settlement" });
+  await expect(card.getByText(/Next settlement/)).toBeVisible();
+  // The fixture settles on a Wednesday morning, and the day is the first
+  // thing on the card rather than a line of small print under it. Scoped to
+  // the card: the recent settlements below were Wednesdays too.
+  await expect(card.getByText(/^Wed/)).toBeVisible();
   await expect(page.getByText(/Claims are blind until then/)).toBeVisible();
   await expect(page.getByText(/your call:/)).toBeVisible();
 });
