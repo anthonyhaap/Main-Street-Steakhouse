@@ -162,6 +162,14 @@ test("the phone gets a manifest and a launch screen", async ({ request }) => {
   expect(json.display).toBe("standalone");
   expect(json.background_color).toBe("#191614");
 
+  // Android's richer install sheet wants pictures; both must actually serve.
+  expect(json.screenshots.length).toBeGreaterThanOrEqual(2);
+  for (const shot of json.screenshots) {
+    const png = await request.get(shot.src);
+    expect(png.ok(), `${shot.src} is missing`).toBeTruthy();
+    expect(png.headers()["content-type"]).toContain("image/png");
+  }
+
   const splash = await request.get("/splash/1170x2532.png");
   expect(splash.ok()).toBeTruthy();
   expect(splash.headers()["content-type"]).toContain("image/png");

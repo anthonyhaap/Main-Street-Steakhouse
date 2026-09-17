@@ -23,7 +23,7 @@ import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "@/lib/config";
  * `/sw.js` must be served at the root for a service worker to claim the whole
  * scope, and the browser fetches it without credentials.
  */
-const PUBLIC = ["/login", "/auth", "/join", "/share", "/splash", "/preview",
+const PUBLIC = ["/login", "/auth", "/join", "/share", "/splash", "/preview", "/install",
                 "/manifest.webmanifest", "/sw.js", "/api/push/drain"];
 
 export async function proxy(request: NextRequest) {

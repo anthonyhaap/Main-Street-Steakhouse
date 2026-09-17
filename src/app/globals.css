@@ -1055,6 +1055,17 @@ a.kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); border-c
 .recap > .card[style] { margin-top: 0 !important; }
 
 /* ============================================================================
+   INSTALL — the two taps
+   ========================================================================== */
+
+.install__steps { margin: 0; padding-left: 1.4em; display: grid; gap: var(--s2); line-height: 1.55; }
+.install__steps svg { vertical-align: -2px; color: var(--wine); }
+.install__why { display: grid; gap: var(--s3); }
+.install__why p { margin: 0; color: var(--muted); line-height: 1.55; }
+.install__why svg { vertical-align: -2px; color: var(--gold); margin-right: 2px; }
+.install__why b { color: var(--cream); }
+
+/* ============================================================================
    HEAD TO HEAD — the bets
    ========================================================================== */
 

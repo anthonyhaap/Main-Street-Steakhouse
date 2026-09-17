@@ -236,6 +236,18 @@ else behind More; pull to refresh works in the installed app only, where the
 browser's own is absent. Fraunces and Inter arrive through `next/font`, so the
 headline has an optical-size axis and every score sits in tabular figures.
 
+**There is no app store, on purpose.** Installing from the browser is the only
+route that costs nothing, and for twelve managers a store listing buys nothing
+but the fee: Google Play is a one-off $25 developer registration to wrap the
+same site as a Trusted Web Activity (PWABuilder does it), and the App Store is
+Apple's $99-a-year program with no way around it — TestFlight needs it too.
+So the site makes the browser install feel like one. `/install`, behind More
+and linked from the first-visit nudge, has the two taps for each phone and
+calls Android's own prompt when Chrome offers it; the manifest carries two
+captures of the fixtures (`scripts/screenshots.mjs`) so the install sheet
+shows the app rather than an icon and a name. If the league ever wants the
+stores, that paragraph is the whole plan.
+
 ### The wall
 
 "Est. 2016" is on the crest, and `/history` is the room that proves it: a
