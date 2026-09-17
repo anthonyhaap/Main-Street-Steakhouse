@@ -214,7 +214,7 @@ export function TopBar({ status }: { status?: WireStatus }) {
           )}
         </nav>
 
-        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "var(--s3)" }}>
+        <div className="topbar__actions">
           <Wire status={status} />
           {team && (
             <div style={{ display: "flex", alignItems: "center", gap: "var(--s2)" }}>
