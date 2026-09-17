@@ -122,6 +122,14 @@ test("the primary nav fits the header it is in", async ({ page }, testInfo) => {
   expect(shown).toBe(width > 1180);
   const doc = await page.evaluate(() => document.documentElement.scrollWidth);
   expect(doc, `${testInfo.project.name} at ${width}px scrolls sideways`).toBeLessThanOrEqual(width);
+
+  // The standings are the widest thing in the app; the phone drops two columns
+  // rather than scrolling the whole page. tests/e2e/proportion.spec.ts holds
+  // the same line on every preview.
+  await page.goto("/preview/standings");
+  await expect(page.getByRole("heading", { name: "Standings" })).toBeVisible();
+  const table = await page.evaluate(() => document.documentElement.scrollWidth);
+  expect(table, `${testInfo.project.name} at ${width}px: standings scroll the page sideways`).toBeLessThanOrEqual(width);
 });
 
 test("the history wall hangs the plaques", async ({ page }) => {

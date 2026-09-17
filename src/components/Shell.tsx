@@ -168,7 +168,7 @@ export function TopBar({ status }: { status?: WireStatus }) {
             onTouchStart={() => router.prefetch(href)}
           >
             <Icon strokeWidth={1.75} />
-            {label}
+            <span>{label}</span>
           </Link>
         ))}
         <button
@@ -180,7 +180,7 @@ export function TopBar({ status }: { status?: WireStatus }) {
           style={{ border: 0, background: "none", cursor: "pointer", font: "inherit" }}
         >
           <MoreHorizontal strokeWidth={1.75} />
-          More
+          <span>More</span>
         </button>
       </nav>
 

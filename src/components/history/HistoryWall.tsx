@@ -114,7 +114,11 @@ export function HistoryWall({ history, historicalStandings = [], myManager = nul
             </div>
             <Landmark size={17} color="var(--gold)" />
           </div>
-          <div style={{ display: "grid" }}>
+          {/* minmax(0, 1fr), not the implicit auto track: a season's table is
+              wider than a phone and scrolls inside its own box, and an auto
+              track would size itself to the table and push the card off the
+              screen instead. */}
+          <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr)" }}>
             {Object.entries(standingsBySeason)
               .sort(([a], [b]) => Number(b) - Number(a))
               .map(([season, rows], seasonIndex) => {
@@ -128,16 +132,16 @@ export function HistoryWall({ history, historicalStandings = [], myManager = nul
                       <div className="empty">ESPN records every team at 0–0 for this season.</div>
                     ) : (
                       <div className="scroll" style={{ padding: "0 var(--s4) var(--s4)" }}>
-                        <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 620 }}>
-                          <thead><tr><th>RK</th><th style={{ textAlign: "left" }}>TEAM</th><th>REC</th><th>PF</th><th>PA</th><th>MOVES</th></tr></thead>
+                        <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 440 }}>
+                          <thead><tr><th>RK</th><th style={{ textAlign: "left" }}>TEAM</th><th>REC</th><th>PF</th><th className="hide-sm">PA</th><th className="hide-sm">MOVES</th></tr></thead>
                           <tbody>{rows.map((row) => (
                             <tr key={row.final_rank}>
                               <td className="num" style={{ textAlign: "center" }}>{row.final_rank}</td>
                               <td><b>{row.team_name}</b><small style={{ display: "block", color: "var(--muted)" }}>{row.manager_names}</small></td>
                               <td className="num" style={{ textAlign: "center" }}>{row.wins}–{row.losses}{row.ties ? `–${row.ties}` : ""}</td>
                               <td className="num" style={{ textAlign: "right" }}>{Number(row.points_for).toFixed(2)}</td>
-                              <td className="num" style={{ textAlign: "right" }}>{Number(row.points_against).toFixed(2)}</td>
-                              <td className="num" style={{ textAlign: "center" }}>{row.moves ?? "—"}</td>
+                              <td className="num hide-sm" style={{ textAlign: "right" }}>{Number(row.points_against).toFixed(2)}</td>
+                              <td className="num hide-sm" style={{ textAlign: "center" }}>{row.moves ?? "—"}</td>
                             </tr>
                           ))}</tbody>
                         </table>
