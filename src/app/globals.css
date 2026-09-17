@@ -4475,19 +4475,38 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
 .pickem-dist__foot { margin-top: 2px; }
 
 /* --- who picked what, once it's no longer a secret ----------------------- */
-.pickem-picks summary {
+.pickem-picks__toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s2);
   cursor: pointer;
   list-style: none;
+  padding: 8px 12px;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-sm);
+  background: var(--ink-1);
   color: var(--muted);
+  font: 700 var(--t-micro)/1 var(--sans);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition: background 0.16s var(--ease), border-color 0.16s var(--ease), color 0.16s var(--ease);
 }
-.pickem-picks summary::-webkit-details-marker { display: none; }
-.pickem-picks summary:hover { color: var(--cream); }
+.pickem-picks__toggle::-webkit-details-marker { display: none; }
+.pickem-picks__toggle:hover { color: var(--cream); border-color: var(--gold-dim); }
+.pickem-picks__chevron { transition: transform 0.16s var(--ease); flex-shrink: 0; }
+.pickem-picks[open] .pickem-picks__toggle { border-radius: var(--r-sm) var(--r-sm) 0 0; }
+.pickem-picks[open] .pickem-picks__chevron { transform: rotate(180deg); }
 .pickem-picks__list {
   list-style: none;
-  margin: var(--s2) 0 0;
-  padding: 0;
+  margin: 0;
+  padding: var(--s3) 12px;
   display: grid;
   gap: 4px;
+  border: 1px solid var(--rule);
+  border-top: 0;
+  border-radius: 0 0 var(--r-sm) var(--r-sm);
+  background: var(--ink-2);
 }
 .pickem-picks__list li {
   display: flex;
