@@ -2,11 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { TopBar } from "@/components/Shell";
-import { SkeletonRows } from "@/components/ui";
+import { SkeletonRows, useToast } from "@/components/ui";
 import { useLive } from "@/lib/live";
 import { useSession } from "@/lib/session";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { LEAGUE_ID, SEASON } from "@/lib/config";
+import { team as clubOf } from "@/lib/nfl/teams";
 import type { PickemSeasonStanding, PickemWeek, PickemWeeklyStanding } from "@/lib/pickem/types";
 import { PickemHeader } from "@/components/pickem/PickemHeader";
 import { GameCard } from "@/components/pickem/GameCard";
@@ -25,10 +26,10 @@ type Tab = (typeof TABS)[number]["key"];
 
 export default function PickemPage() {
   const { ready } = useSession();
+  const toast = useToast();
   const [week, setWeek] = useState<number | null>(null);
   const [tab, setTab] = useState<Tab>("board");
   const [busyGame, setBusyGame] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
 
   // Open on the week ff_current_week says matters right now, then leave the
   // choice to the manager — switching weeks never refetches this.
@@ -100,12 +101,12 @@ export default function PickemPage() {
 
   const makePick = async (gameId: string, teamAbbr: string) => {
     setBusyGame(gameId);
-    setError(null);
     const { error: rpcError } = await supabaseBrowser().rpc("ff_make_pick", {
       p_league_id: LEAGUE_ID, p_game_id: gameId, p_team: teamAbbr,
     });
     setBusyGame(null);
-    if (rpcError) { setError(rpcError.message); return; }
+    if (rpcError) { toast("error", rpcError.message); return; }
+    toast("ok", `Picked the ${clubOf(teamAbbr)?.nick ?? teamAbbr}`);
     await refetchBoard();
   };
 
@@ -137,8 +138,7 @@ export default function PickemPage() {
           ))}
         </div>
 
-        {error && <p role="alert" style={{ color: "var(--lose)" }}>{error}</p>}
-        {!error && loadError && (
+        {loadError && (
           <p role="alert" style={{ color: "var(--lose)" }}>
             Couldn&apos;t load Pick&apos;em: {loadError}
           </p>
