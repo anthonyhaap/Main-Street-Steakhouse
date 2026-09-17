@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useRouter } from "next/navigation";
-import { ArrowLeftRight, BarChart3, CircleDollarSign, Crown, Landmark, LogOut, MessageCircle, MoreHorizontal, Newspaper, Radio, Shield, Smartphone, Swords, UtensilsCrossed, X } from "lucide-react";
+import { ArrowLeftRight, BarChart3, ChevronDown, CircleDollarSign, Crown, Landmark, LogOut, MessageCircle, MoreHorizontal, Newspaper, Radio, Shield, Smartphone, Swords, UtensilsCrossed, X } from "lucide-react";
 import { useStandalone } from "@/lib/install";
 import { useCrests, useSession } from "@/lib/session";
 import { supabaseBrowser } from "@/lib/supabase/client";
@@ -24,6 +24,15 @@ import { Seal } from "@/components/ui";
  * Players, Waivers, Trades and Ledger used to be four entries here. They are
  * four views of one question — how a roster changes — so they are one
  * destination, Transactions, and the tabs inside it.
+ *
+ * Draft, History, The House and Recap used to be four more entries here.
+ * Unlike Transactions they are not one question — a live draft board, a
+ * standings archive, the clubhouse chat and a weekly recap have nothing in
+ * common structurally — so they stay four separate pages rather than
+ * merging into one. What they share is that none of them is a destination
+ * you reach for outside league business, so they hang off the League page
+ * as a dropdown (desktop) or a grouped section of the More sheet (phone)
+ * instead of each claiming a slot of their own in the bar.
  */
 type NavItem = {
   href: string;
@@ -38,12 +47,16 @@ const NAV: NavItem[] = [
   { href: "/matchups",     label: "Matchups",     Icon: Radio },
   { href: "/team",         label: "My Team",      Icon: Shield },
   { href: "/standings",    label: "Standings",    Icon: BarChart3 },
-  { href: "/draft",        label: "Draft",        Icon: Swords },
-  { href: "/history",      label: "History",      Icon: Landmark },
   { href: "/transactions", label: "Transactions", Icon: ArrowLeftRight },
-  { href: "/chat",         label: "The House",    Icon: MessageCircle },
-  { href: "/recap",        label: "Recap",        Icon: Newspaper },
   { href: "/challenges",   label: "Challenges",   Icon: CircleDollarSign },
+];
+
+/** The league's own history and rituals, grouped under the League page. */
+const LEAGUE_PAGES: NavItem[] = [
+  { href: "/draft",   label: "Draft",     Icon: Swords },
+  { href: "/history", label: "History",   Icon: Landmark },
+  { href: "/chat",    label: "The House", Icon: MessageCircle },
+  { href: "/recap",   label: "Recap",     Icon: Newspaper },
 ];
 
 /** Four thumb-reachable tabs; everything else lives behind More. */
@@ -77,6 +90,59 @@ export function Crest({ size = 38 }: { size?: number }) {
   );
 }
 
+/** The League nav item's own dropdown: the hub plus its four grouped pages. */
+function LeagueMenu({ path }: { path: string }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const active = isOn(path, "/league") || LEAGUE_PAGES.some((i) => isOn(path, i.href));
+
+  useEffect(() => {
+    if (!open) return;
+    const onClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  return (
+    <div className="nav__dropdown" ref={ref}>
+      <button
+        type="button"
+        className="nav__item nav__dropdown-trigger"
+        data-on={active}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+      >
+        League
+        <ChevronDown size={13} strokeWidth={2.5} aria-hidden />
+      </button>
+      {open && (
+        <div className="nav__dropdown-panel" role="menu">
+          <Link href="/league" className="nav__dropdown-item" data-on={isOn(path, "/league")} role="menuitem" onClick={() => setOpen(false)}>
+            <Crown size={14} strokeWidth={1.75} aria-hidden />
+            League Home
+          </Link>
+          {LEAGUE_PAGES.map(({ href, label, Icon }) => (
+            <Link key={href} href={href} className="nav__dropdown-item" data-on={isOn(path, href)} role="menuitem" onClick={() => setOpen(false)}>
+              <Icon size={14} strokeWidth={1.75} aria-hidden />
+              {label}
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function TopBar({ status }: { status?: WireStatus }) {
   const path = usePathname();
   const router = useRouter();
@@ -98,7 +164,10 @@ export function TopBar({ status }: { status?: WireStatus }) {
   ];
   const tabs = items.slice(0, TAB_COUNT);
   const rest = items.slice(TAB_COUNT);
-  const restActive = rest.some((i) => isOn(path, i.href));
+  const restActive = rest.some((i) => isOn(path, i.href)) || LEAGUE_PAGES.some((i) => isOn(path, i.href));
+  // The sheet groups Draft/History/The House/Recap under their own "League"
+  // heading rather than listing League itself as one more flat tile.
+  const sheetRest = rest.filter((i) => i.href !== "/league");
 
   return (
     <>
@@ -112,18 +181,22 @@ export function TopBar({ status }: { status?: WireStatus }) {
         </Link>
 
         <nav className="nav" aria-label="Primary">
-          {items.map(({ href, label, commish }) => (
-            <Link
-              key={href}
-              href={href}
-              className="nav__item"
-              data-on={isOn(path, href)}
-              data-role={commish ? "commish" : undefined}
-            >
-              {commish && <Crown size={12} aria-hidden />}
-              {label}
-            </Link>
-          ))}
+          {items.map(({ href, label, commish }) =>
+            href === "/league" ? (
+              <LeagueMenu key={href} path={path} />
+            ) : (
+              <Link
+                key={href}
+                href={href}
+                className="nav__item"
+                data-on={isOn(path, href)}
+                data-role={commish ? "commish" : undefined}
+              >
+                {commish && <Crown size={12} aria-hidden />}
+                {label}
+              </Link>
+            )
+          )}
         </nav>
 
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "var(--s3)" }}>
@@ -196,8 +269,23 @@ export function TopBar({ status }: { status?: WireStatus }) {
                 <X size={16} />
               </button>
             </div>
+            <div className="sheet__section">
+              <span className="sheet__section-label">League</span>
+              <div className="sheet__grid">
+                <Link href="/league" className="qa__btn" data-on={isOn(path, "/league")} onClick={close}>
+                  <Crown strokeWidth={1.75} />
+                  League Home
+                </Link>
+                {LEAGUE_PAGES.map(({ href, label, Icon }) => (
+                  <Link key={href} href={href} className="qa__btn" data-on={isOn(path, href)} onClick={close}>
+                    <Icon strokeWidth={1.75} />
+                    {label}
+                  </Link>
+                ))}
+              </div>
+            </div>
             <div className="sheet__grid">
-              {rest.map(({ href, label, Icon }) => (
+              {sheetRest.map(({ href, label, Icon }) => (
                 <Link key={href} href={href} className="qa__btn" data-on={isOn(path, href)} onClick={close}>
                   <Icon strokeWidth={1.75} />
                   {label}
@@ -217,6 +305,57 @@ export function TopBar({ status }: { status?: WireStatus }) {
       )}
 
       <style>{`
+        /* The League item's own dropdown, desktop nav only (.nav hides below
+           1180px, where the sheet's grouped section below takes over). */
+        .nav__dropdown { position: relative; display: inline-flex; }
+        .nav__dropdown-trigger {
+          display: inline-flex; align-items: center; gap: 4px;
+          border: 0; background: none; cursor: pointer; font: inherit;
+        }
+        .nav__dropdown-trigger svg { transition: transform 0.18s var(--ease); }
+        .nav__dropdown-trigger[aria-expanded="true"] svg { transform: rotate(180deg); }
+        .nav__dropdown-panel {
+          position: absolute; top: calc(100% + 6px); left: 0; z-index: 70;
+          min-width: 180px;
+          display: grid; gap: 2px;
+          padding: 6px;
+          background: var(--ink-1);
+          border: 1px solid var(--rule-soft);
+          border-radius: var(--r-sm);
+          box-shadow: var(--shadow-2);
+          animation: dropdown-in .16s var(--ease);
+        }
+        .nav__dropdown-item {
+          display: flex; align-items: center; gap: 8px;
+          padding: 8px 10px;
+          border-radius: var(--r-sm);
+          font: 600 var(--t-small)/1 var(--sans);
+          color: var(--muted);
+          text-decoration: none;
+          white-space: nowrap;
+        }
+        .nav__dropdown-item svg { color: var(--wine); flex-shrink: 0; }
+        .nav__dropdown-item:hover { color: var(--cream); background: #1b18140a; }
+        .nav__dropdown-item[data-on="true"] { color: var(--wine); background: var(--wine-wash); }
+        @keyframes dropdown-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+
+        /* The sheet's own grouping for the same pages, phone-width equivalent
+           of the dropdown above. */
+        .sheet__section-label {
+          display: block;
+          padding: var(--s4) var(--s5) 0;
+          font: 700 var(--t-nano)/1 var(--sans);
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          color: var(--dim);
+        }
+        .sheet__section .sheet__grid { padding-top: var(--s2); }
+        .sheet__section + .sheet__grid {
+          padding-top: var(--s2);
+          margin-top: var(--s2);
+          border-top: 1px solid var(--rule-soft);
+        }
+
         /* Below the tab bar (z 60) on purpose: the tabs stay visible and
            tappable while the sheet is open, so More is a toggle, not a trap. */
         .sheet {
