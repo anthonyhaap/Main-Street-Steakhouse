@@ -182,6 +182,35 @@ begin
   end if;
   v_checks := v_checks + 1;
 
+  -- The two later kinds have switches of their own, and each is a switch and
+  -- not a mute: recaps off leaves challenges on, and vice versa. A kind the
+  -- outbox has never heard of is refused by the check constraint, so the
+  -- writer cannot be handed a typo and file it as "everything else".
+  delete from notification_outbox;
+  perform set_config('request.jwt.claims', json_build_object('sub', v_uid_b)::text, true);
+  perform ff_set_notification_prefs(true, true, true, false);   -- recaps off
+  if (ff_notification_prefs()->>'recaps')::boolean then raise exception 'recaps did not switch off'; end if;
+  if not (ff_notification_prefs()->>'challenges')::boolean then raise exception 'challenges switched off with recaps'; end if;
+  perform set_config('request.jwt.claims', null, true);
+  if ff_notify(v_uid_b, 'recap', 'Title', 'Body', '/recap/3') is not null then
+    raise exception 'a manager who switched recaps off was sent one';
+  end if;
+  if ff_notify(v_uid_b, 'challenge', 'Title', 'Body', '/challenges') is null then
+    raise exception 'switching recaps off also muted challenges';
+  end if;
+  begin
+    perform ff_notify(v_uid_b, 'gossip', 'Title', 'Body', '/');
+    raise exception 'an unknown kind was accepted';
+  exception when check_violation then null;
+  end;
+  -- Leaving the two switches out keeps what was set rather than resetting it.
+  perform set_config('request.jwt.claims', json_build_object('sub', v_uid_b)::text, true);
+  perform ff_set_notification_prefs(false, true);
+  if (ff_notification_prefs()->>'recaps')::boolean then raise exception 'a two-argument save reset recaps'; end if;
+  perform ff_set_notification_prefs(true, true, true, true);
+  perform set_config('request.jwt.claims', json_build_object('sub', v_uid_a)::text, true);
+  v_checks := v_checks + 6;
+
   -- ------------------------------------------------------------- the drain --
   delete from notification_outbox;
   perform ff_notify(v_uid_b, 'waiver', 'Title', 'Body', '/waivers');

@@ -4,7 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useRouter } from "next/navigation";
-import { ArrowLeftRight, BarChart3, CircleDollarSign, Crown, Landmark, LogOut, MessageCircle, MoreHorizontal, Radio, Shield, Swords, UtensilsCrossed, X } from "lucide-react";
+import { ArrowLeftRight, BarChart3, CircleDollarSign, Crown, Landmark, LogOut, MessageCircle, MoreHorizontal, Newspaper, Radio, Shield, Smartphone, Swords, UtensilsCrossed, X } from "lucide-react";
+import { useStandalone } from "@/lib/install";
 import { useCrests, useSession } from "@/lib/session";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import type { WireStatus } from "@/lib/live";
@@ -41,6 +42,7 @@ const NAV: NavItem[] = [
   { href: "/history",      label: "History",      Icon: Landmark },
   { href: "/transactions", label: "Transactions", Icon: ArrowLeftRight },
   { href: "/chat",         label: "The House",    Icon: MessageCircle },
+  { href: "/recap",        label: "Recap",        Icon: Newspaper },
   { href: "/challenges",   label: "Challenges",   Icon: CircleDollarSign },
 ];
 
@@ -81,6 +83,7 @@ export function TopBar({ status }: { status?: WireStatus }) {
   const { team, league, isCommissioner } = useSession();
   const crestOf = useCrests();
   const [more, setMore] = useState(false);
+  const standalone = useStandalone();
   const close = () => setMore(false);
 
   // Commish tools are not an everyday manager destination, and sitting them at
@@ -168,7 +171,7 @@ export function TopBar({ status }: { status?: WireStatus }) {
             onTouchStart={() => router.prefetch(href)}
           >
             <Icon strokeWidth={1.75} />
-            {label}
+            <span>{label}</span>
           </Link>
         ))}
         <button
@@ -180,7 +183,7 @@ export function TopBar({ status }: { status?: WireStatus }) {
           style={{ border: 0, background: "none", cursor: "pointer", font: "inherit" }}
         >
           <MoreHorizontal strokeWidth={1.75} />
-          More
+          <span>More</span>
         </button>
       </nav>
 
@@ -200,6 +203,14 @@ export function TopBar({ status }: { status?: WireStatus }) {
                   {label}
                 </Link>
               ))}
+              {/* The way back to the two taps the first-visit nudge showed once.
+                  Gone in the installed app, where it would be advice already taken. */}
+              {!standalone && (
+                <Link href="/install" className="qa__btn" data-on={isOn(path, "/install")} onClick={close}>
+                  <Smartphone strokeWidth={1.75} />
+                  Install the app
+                </Link>
+              )}
             </div>
           </div>
         </div>

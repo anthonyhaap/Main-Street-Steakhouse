@@ -192,7 +192,7 @@ function Starter({ p, now }: { p: BriefStarter; now: number }) {
   const live = p.game_status === "in";
   return (
     <>
-      <span className="pos" data-p={p.slot}>{p.slot}</span>
+      <span className="pos" data-p={p.slot} data-size="sm">{p.slot}</span>
       <b>{p.full_name}</b>
       <span className="tt__when">
         {live ? `${fmtPts(p.points)} · live` : p.kickoff_at ? `${fmtKick(p.kickoff_at)} · ${until(p.kickoff_at, now)}` : "—"}

@@ -93,12 +93,12 @@ export function StandingsBoard({ outlook, myTeamId, crestOf }: {
           <div className="scroll" style={{ overflowX: "auto" }}>
             <table style={{
               width: "100%", borderCollapse: "collapse",
-              minWidth: !separable ? 380 : showBye ? 860 : 780,
+              minWidth: !separable ? 380 : showBye ? 640 : 560,
             }}>
               <thead>
                 <tr>
                   {heads.map((h, i) => (
-                    <th key={i} className="eyebrow" scope="col"
+                    <th key={i} className={NARROW.has(h) ? "eyebrow hide-sm" : "eyebrow"} scope="col"
                       style={{
                         textAlign: h === "Team" ? "left" : "right",
                         padding: "var(--s3) var(--s4)",
@@ -152,8 +152,8 @@ export function StandingsBoard({ outlook, myTeamId, crestOf }: {
                       {separable && (
                         <>
                           <td className="num" style={cell}>{fmtPts(pf)}</td>
-                          <td className="num" style={{ ...cell, color: "var(--muted)" }}>{fmtPts(pa)}</td>
-                          <td className="num" style={{ ...cell, color: diff >= 0 ? "var(--win)" : "var(--lose)" }}>
+                          <td className="num hide-sm" style={{ ...cell, color: "var(--muted)" }}>{fmtPts(pa)}</td>
+                          <td className="num hide-sm" style={{ ...cell, color: diff >= 0 ? "var(--win)" : "var(--lose)" }}>
                             {diff >= 0 ? "+" : ""}{diff.toFixed(1)}
                           </td>
                           <td className="num" style={{ ...cell, color: "var(--muted)" }} title="Projected final record">
@@ -220,6 +220,10 @@ function Pct({ value, muted = false }: { value: number; muted?: boolean }) {
 }
 
 const cell: React.CSSProperties = { padding: "var(--s3) var(--s4)", textAlign: "right", whiteSpace: "nowrap" };
+/* Points against and the difference are the two a phone does without: both
+   follow from PF and the record, and with them the table scrolled sideways
+   on every phone in the league. */
+const NARROW = new Set(["PA", "Diff"]);
 
 const swatch = (color: string): React.CSSProperties => ({
   display: "inline-block", width: 18, height: 0, borderTop: `2px solid ${color}`,
