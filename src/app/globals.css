@@ -216,6 +216,20 @@ body {
      crest sits directly above the first card rather than out at the glass.
      Below that width the max() picks the plain gutter and nothing moves. */
   padding: 0 max(var(--gutter), calc((100% - var(--shell-max)) / 2 + var(--gutter)));
+  /* The nav used to carry its own margin-left:auto, which — paired with the
+     account cluster's margin-left:auto — centers it in the space *left over
+     between the logo and that cluster*, not in the bar's full width. Since
+     the wordmark is wider than the account cluster, that leftover space
+     isn't symmetric: the nav sat consistently right of true center by half
+     the difference. Swapping the flex auto-margin for a grid column with
+     justify-self:center has the identical problem — it's still centering
+     in the same leftover space, just via a different mechanism. Actually
+     centering on the bar's full width would need the nav free to overlap
+     the logo when the window is narrow, since the nav's own width doesn't
+     shrink with the viewport — and it's shown down to 1180px, where there
+     isn't room for that. So the nav doesn't try to center at all: it sits
+     flush after the logo, and only the account cluster gets pushed to the
+     far right. Nothing here computes a middle to get wrong. */
   display: flex;
   align-items: center;
   gap: var(--s5);
@@ -264,8 +278,10 @@ body {
 }
 @media (max-width: 560px) { .mark__words { display: none; } }
 
-.nav { display: flex; gap: 2px; margin-left: auto; min-width: 0; }
+.nav { display: flex; gap: 2px; min-width: 0; }
 @media (max-width: 1180px) { .nav { display: none; } }
+
+.topbar__actions { display: flex; align-items: center; gap: var(--s3); margin-left: auto; min-width: 0; }
 
 /* Sentence case, no tracking. "MATCHUPS" at 0.13em is a third wider than
    "Matchups" and harder to scan, which bought the room for an eleventh
