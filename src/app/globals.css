@@ -1019,6 +1019,42 @@ a.kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); border-c
 .modal__panel[data-wide="true"] { width: min(100%, 760px); }
 
 /* ============================================================================
+   THE WEEKLY SPECIAL — the recap page
+   ========================================================================== */
+
+.recap { display: grid; gap: var(--s4); }
+.recap__head {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: var(--s4); flex-wrap: wrap; margin-bottom: var(--s2);
+}
+.recap__h1 { font-size: var(--t-title); margin: var(--s2) 0 0; }
+/* The column, as the club prints it: the serif, a gold rule, and the line
+   breaks it was composed with. */
+.special {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: 400 var(--t-body)/1.65 var(--serif);
+  padding-left: var(--s4);
+  box-shadow: inset 3px 0 0 var(--gold-lit);
+}
+.recap__foot {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s3);
+  flex-wrap: wrap; margin-top: var(--s4); padding-top: var(--s3); border-top: 1px solid var(--rule);
+}
+.recap__mine { box-shadow: inset 3px 0 0 var(--wine), var(--shadow-1); }
+.recap__mine .card__body { display: grid; gap: var(--s2); }
+.recap__line { font: 400 var(--t-head)/1.2 var(--serif); margin: 0; }
+.recap__pair { display: grid; gap: var(--s4); grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); }
+.recap__badges { display: flex; flex-wrap: wrap; gap: var(--s2); }
+.recap__bets { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s2); }
+.recap__bets li { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); font-size: var(--t-small); }
+.recap__bets a { text-decoration: none; }
+.recap__bets a:hover { text-decoration: underline; text-underline-offset: 2px; }
+/* The page's own PowerRankings card has no margin to lose above it. */
+.recap > .card[style] { margin-top: 0 !important; }
+
+/* ============================================================================
    HEAD TO HEAD — the bets
    ========================================================================== */
 
@@ -3511,6 +3547,10 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
   font-size: var(--t-small); color: var(--dim); text-decoration: none;
 }
 .club__on:hover { color: var(--wine); text-decoration: underline; text-underline-offset: 2px; }
+/* The house post's door to its own page. Not .club__on: that names the game a
+   line was said about, and the house says nothing about one game. */
+.club__read { color: var(--gold); text-decoration: none; font: 700 var(--t-micro)/1 var(--sans); letter-spacing: 0.08em; text-transform: uppercase; }
+.club__read:hover { text-decoration: underline; text-underline-offset: 2px; }
 
 .club__empty {
   margin: 0; padding: var(--s4);

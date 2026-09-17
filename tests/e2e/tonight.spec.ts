@@ -104,6 +104,8 @@ test("the house writes the week up, and it reads as a column", async ({ page }) 
   // Written by the league, so it is nobody's line and carries no matchup.
   await expect(house).toHaveAttribute("data-mine", "false");
   await expect(house.locator(".club__on")).toHaveCount(0);
+  // But it has a page of its own, and the line says so.
+  await expect(house.getByRole("link", { name: "Read the Special →" })).toHaveAttribute("href", "/recap");
 
   // The line breaks it was composed with survive to the screen.
   await expect(house.locator("p")).toHaveCSS("white-space", "pre-wrap");
