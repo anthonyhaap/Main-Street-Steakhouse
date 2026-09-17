@@ -56,7 +56,7 @@ declare
     'ff_club', 'ff_who',
     'ff_poll_live', 'ff_post_weekly_recaps', 'ff_resolve_matchup_challenges',
     'ff_settle_recent_weeks', 'ff_all_games', 'ff_all_sides', 'ff_streak',
-    'ff_audit_challenge_change',
+    'ff_audit_challenge_change', 'ff_pickem_members',
     -- The push drain and the trigger bodies behind it. ff_notify writes into
     -- another manager's outbox, and ff_push_batch reads every pending message
     -- in the league with the endpoints to deliver them — neither is a
@@ -74,7 +74,8 @@ declare
   -- the managers out of their own app.
   v_manager_facing text[] := array[
     'ff_team_hub', 'ff_set_lineup', 'ff_add_drop', 'ff_claim_waiver', 'ff_waiver_board',
-    'ff_propose_trade', 'ff_respond_trade', 'ff_trade_desk', 'ff_briefing', 'ff_scoreboard'
+    'ff_propose_trade', 'ff_respond_trade', 'ff_trade_desk', 'ff_briefing', 'ff_scoreboard',
+    'ff_make_pick', 'ff_pickem_week'
   ];
 begin
   -- ------------------------------------- nobody signed in may call these --

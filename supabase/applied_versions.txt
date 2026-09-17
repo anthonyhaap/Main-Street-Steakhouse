@@ -101,3 +101,5 @@
 20260917013926 notification_kinds
 20260917014122 challenge_settlement_push
 20260917014302 recap_push
+20260917025200 nfl_game_scores
+20260917025956 pickem
