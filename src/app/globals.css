@@ -2846,11 +2846,7 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
 .sb-slate__fresh b { font-weight: 600; color: var(--muted); }
 
 .sb-list { display: grid; gap: var(--s3); }
-/* The hero card above this section is a plain sibling, not a grid item with
-   its own gap — the tab it lives under just wraps both in a styling-only
-   div. Without this, "Around the room" sits flush against the hero card's
-   bottom edge. Same stacked-card rhythm .dash__col uses. */
-.sb-rest { display: grid; margin-top: clamp(var(--s4), 2vw, var(--s5)); }
+.sb-rest { display: grid; }
 
 .sb {
   display: grid;

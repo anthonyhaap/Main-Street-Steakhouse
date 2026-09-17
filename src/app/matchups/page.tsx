@@ -218,7 +218,16 @@ export default function MatchupsPage() {
           )}
 
           {shown && shown.matchups.length > 0 && tab === "board" && (
-            <div style={{ opacity: stale ? 0.55 : 1, transition: "opacity .2s var(--ease)" }}>
+            // Grid, with the page's own gap: Scoreboard returns the hero card
+            // and "Around the room" as siblings, and this div is the only
+            // thing standing between them and .page's gap. Without its own
+            // gap, the two touch — the div's own box doesn't inherit .page's.
+            // /preview/matchups skips this wrapper entirely and gets the gap
+            // straight from .page, which is the behavior to match here too.
+            <div style={{
+              opacity: stale ? 0.55 : 1, transition: "opacity .2s var(--ease)",
+              display: "grid", gap: "clamp(var(--s4), 2.2vw, var(--s5))",
+            }}>
               <Scoreboard
                 board={shown}
                 now={clock}
