@@ -999,6 +999,45 @@ a.kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); border-c
 .modal__panel[data-wide="true"] { width: min(100%, 760px); }
 
 /* ============================================================================
+   HEAD TO HEAD — the bets
+   ========================================================================== */
+
+.bets__head {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: var(--s4); margin-bottom: var(--s5); flex-wrap: wrap;
+}
+.bets__h1 { font-size: var(--t-title); margin: var(--s2) 0; }
+.bets__tools { display: flex; gap: var(--s2); flex-wrap: wrap; }
+@media (max-width: 640px) {
+  .bets__tools { width: 100%; }
+  .bets__tools .btn { flex: 1; }
+}
+
+.bet__body { display: grid; gap: var(--s3); }
+.bet__title { font: 400 var(--t-head)/1.2 var(--serif); margin: 0; letter-spacing: -0.01em; }
+.bet__terms { margin: 0; color: var(--muted); white-space: pre-wrap; font-size: var(--t-small); }
+.bet__facts {
+  display: flex; flex-wrap: wrap; gap: var(--s3) var(--s5);
+  margin: 0; padding-top: var(--s3); border-top: 1px solid var(--rule);
+}
+.bet__facts > div { display: grid; gap: 3px; }
+.bet__facts dd { margin: 0; font-weight: 700; display: inline-flex; align-items: center; gap: 5px; }
+.bet__actions { display: flex; gap: var(--s2); flex-wrap: wrap; align-items: center; }
+.bet__actions .btn { flex: 1 1 auto; }
+.bet__wait, .bet__ref { margin: 0; color: var(--dim); font-size: var(--t-small); }
+.bet__ruling { display: grid; gap: var(--s2); padding-top: var(--s3); border-top: 1px solid var(--rule); }
+
+/* The card a push pointed at: a ring that fades once the eye has found it. */
+.bet[data-target="true"] { animation: bet-ring 4s var(--ease) forwards; }
+@keyframes bet-ring {
+  0%, 60% { box-shadow: 0 0 0 3px var(--gold-lit), var(--shadow-2); }
+  100%    { box-shadow: var(--shadow-1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bet[data-target="true"] { animation: none; box-shadow: 0 0 0 3px var(--gold-lit); }
+}
+
+/* ============================================================================
    FEEDBACK
    ========================================================================== */
 

@@ -48,3 +48,4 @@
 #
 # One name per line.
 notification_kinds
+challenge_settlement_push

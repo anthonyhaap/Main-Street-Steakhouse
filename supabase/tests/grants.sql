@@ -62,7 +62,9 @@ declare
     -- in the league with the endpoints to deliver them — neither is a
     -- manager's to call, and the trigger functions are the database's alone.
     'ff_notify', 'ff_push_batch', 'ff_push_settle',
-    'ff_on_trade_proposed', 'ff_on_trade_answered', 'ff_on_waiver_settled'
+    'ff_on_trade_proposed', 'ff_on_trade_answered', 'ff_on_waiver_settled',
+    -- The bet's own trigger, its daily reminder, and the name lookup they share.
+    'ff_on_challenge_changed', 'ff_remind_overdue_challenges', 'ff_challenge_who'
   ];
 
   -- A representative handful the screens really do call. Asserted so that a
