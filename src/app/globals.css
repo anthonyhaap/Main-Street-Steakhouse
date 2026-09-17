@@ -4353,3 +4353,151 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
   line-height: 1.35;
   color: var(--dim);
 }
+
+/* ============================================================================
+   PICK'EM — four states, four weights
+   ----------------------------------------------------------------------------
+   A week is never one kind of card. Some games still need a tap, some are
+   already called, some are live and can't be touched, and some are done and
+   graded — and the request is that those read as decreasing weight in that
+   order, so what's left to pick never has to be hunted for among what's
+   settled. `data-phase` on .pickem-card carries that; nothing here changes
+   layout between phases; only border, shadow and (for `final`) opacity move.
+   ========================================================================== */
+
+.pickem-card { transition: opacity 0.2s var(--ease), box-shadow 0.2s var(--ease); }
+
+/* Needs a pick: the one state that should pull the eye first. */
+.pickem-card[data-phase="open"] {
+  border-color: var(--wine-hair);
+  box-shadow: var(--shadow-2), inset 0 1px 0 #ffffff;
+}
+/* Picked, not yet locked: settled, but still open to a change of mind. */
+.pickem-card[data-phase="picked"] { border-color: var(--gold-dim); }
+/* Locked or live: nothing to do here now. Plain surface, no extra weight. */
+.pickem-card[data-phase="locked"] { box-shadow: var(--shadow-1); }
+/* Final: recedes, so the games still in front of a manager stand out against it. */
+.pickem-card[data-phase="final"] { opacity: 0.72; box-shadow: none; }
+.pickem-card[data-phase="final"]:hover { opacity: 1; }
+
+.pickem-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+  padding: var(--s3) var(--s4);
+  border-bottom: 1px solid var(--rule-soft);
+}
+
+.pickem-card__body { display: grid; gap: var(--s4); }
+
+.pickem-matchup {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: var(--s3);
+}
+
+.pickem-at {
+  font: 400 var(--t-small) var(--serif);
+  color: var(--faint);
+}
+
+.pickem-team {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  position: relative;
+  padding: var(--s4) var(--s2);
+  border: 1px solid var(--rule);
+  border-radius: var(--r);
+  background: var(--ink-1);
+  cursor: pointer;
+  min-height: 96px;
+  justify-content: center;
+  transition: background 0.16s var(--ease), border-color 0.16s var(--ease),
+              box-shadow 0.16s var(--ease), transform 0.08s var(--ease);
+}
+.pickem-team:hover:not(:disabled) { border-color: var(--gold-dim); box-shadow: var(--shadow-1); }
+.pickem-team:active:not(:disabled) { transform: translateY(1px); }
+.pickem-team:disabled { cursor: default; }
+/* A team not yet pickable (locked, no selection) still needs to read at full
+   strength — only the *action* is gone, not the information. */
+.pickem-team:disabled:not([data-mine="true"]) { opacity: 0.82; }
+
+.pickem-team__abbr {
+  font: 700 var(--t-small)/1 var(--sans);
+  letter-spacing: 0.06em;
+}
+.pickem-team__score { font-size: var(--t-head); }
+
+.pickem-team[data-mine="true"] {
+  border-color: var(--wine);
+  background: var(--wine-wash);
+  box-shadow: inset 0 0 0 1px var(--wine-hair);
+}
+.pickem-team[data-mine="true"] .pickem-team__abbr { color: var(--wine); }
+
+.pickem-team__check {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  color: #fff;
+  background: var(--wine);
+  border-radius: 50%;
+  padding: 2px;
+  box-shadow: var(--shadow-1);
+}
+
+/* Final score: the winner keeps its full crest and colour, the loser fades a
+   touch, so a glance at a settled card says who won before the score does. */
+.pickem-team[data-final="true"]:not([data-won="true"]) { opacity: 0.6; }
+.pickem-team[data-final="true"][data-won="true"] { border-color: var(--gold-dim); }
+.pickem-team[data-final="true"][data-won="true"][data-mine="true"] { border-color: var(--win); }
+
+/* --- pick distribution --------------------------------------------------- */
+.pickem-dist { display: grid; gap: 6px; padding-top: var(--s2); border-top: 1px solid var(--rule-soft); }
+.pickem-dist__row { display: flex; align-items: center; gap: var(--s2); }
+.pickem-dist__abbr {
+  font: 700 var(--t-micro)/1 var(--sans);
+  letter-spacing: 0.06em;
+  width: 30px;
+  flex-shrink: 0;
+}
+.pickem-dist__pct {
+  width: 38px;
+  flex-shrink: 0;
+  text-align: right;
+  color: var(--muted);
+  font-size: var(--t-small);
+}
+.pickem-dist__foot { margin-top: 2px; }
+
+/* --- who picked what, once it's no longer a secret ----------------------- */
+.pickem-picks summary {
+  cursor: pointer;
+  list-style: none;
+  color: var(--muted);
+}
+.pickem-picks summary::-webkit-details-marker { display: none; }
+.pickem-picks summary:hover { color: var(--cream); }
+.pickem-picks__list {
+  list-style: none;
+  margin: var(--s2) 0 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+.pickem-picks__list li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s2);
+  font-size: var(--t-small);
+  color: var(--muted);
+}
+.pickem-picks__team { color: var(--cream); font-weight: 600; }
+
+@media (max-width: 480px) {
+  .pickem-team { min-height: 84px; padding: var(--s3) var(--s1); }
+}

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useRouter } from "next/navigation";
-import { ArrowLeftRight, BarChart3, ChevronDown, CircleDollarSign, Crown, Landmark, LogOut, MessageCircle, MoreHorizontal, Newspaper, Radio, Shield, Smartphone, Swords, UtensilsCrossed, X } from "lucide-react";
+import { ArrowLeftRight, BarChart3, ChevronDown, CircleDollarSign, Crown, Landmark, LogOut, MessageCircle, MoreHorizontal, Newspaper, Radio, Shield, Smartphone, Swords, Target, UtensilsCrossed, X } from "lucide-react";
 import { useStandalone } from "@/lib/install";
 import { useCrests, useSession } from "@/lib/session";
 import { supabaseBrowser } from "@/lib/supabase/client";
@@ -47,6 +47,7 @@ const NAV: NavItem[] = [
   { href: "/matchups",     label: "Matchups",     Icon: Radio },
   { href: "/team",         label: "My Team",      Icon: Shield },
   { href: "/standings",    label: "Standings",    Icon: BarChart3 },
+  { href: "/pickem",       label: "Pick'em",      Icon: Target },
   { href: "/transactions", label: "Transactions", Icon: ArrowLeftRight },
   { href: "/challenges",   label: "Challenges",   Icon: CircleDollarSign },
 ];
