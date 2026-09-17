@@ -33,8 +33,14 @@ test("the kinds follow the account, and say so", async ({ page }) => {
 
   const trades = page.getByLabel("Trade offers and answers");
   const waivers = page.getByLabel("Waiver results");
+  const challenges = page.getByLabel("Challenges and stakes");
+  const recaps = page.getByLabel("The Weekly Special, with your line in it");
   await expect(trades).toBeChecked();
   await expect(waivers).toBeChecked();
+  await expect(challenges).toBeChecked();
+  await expect(recaps).toBeChecked();
+  // Four kinds, and no fifth: the card is the whole list of what can push.
+  await expect(page.getByRole("checkbox")).toHaveCount(4);
 
   await trades.uncheck();
   await expect(trades).not.toBeChecked();
