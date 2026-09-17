@@ -65,6 +65,9 @@ export function RoomBoard({ feed, now }: { feed: Feed; now: number }) {
               </span>
               {/* The recap arrives as written: a title, the card, the notes. */}
               <p>{line.body}</p>
+              {line.kind === "house" && (
+                <Link className="club__read" href="/recap">Read the Special →</Link>
+              )}
               {line.about && (
                 <Link className="club__on" href={`/matchups?week=${line.about.week}`}>
                   on {line.about.mine ? "your game" : `${line.about.away} vs ${line.about.home}`}

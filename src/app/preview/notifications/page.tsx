@@ -21,7 +21,7 @@ const STATES: PushState[] = ["off", "on", "denied", "ios-needs-install", "unsupp
 
 export default function PreviewNotifications() {
   const [state, setState] = useState<PushState>("off");
-  const [prefs, setPrefs] = useState<Prefs>({ trades: true, waivers: true, devices: 2 });
+  const [prefs, setPrefs] = useState<Prefs>({ trades: true, waivers: true, challenges: true, recaps: true, devices: 2 });
 
   return (
     <>

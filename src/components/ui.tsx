@@ -96,7 +96,9 @@ export function Seal({ name, src = null, mine = false, size = 30 }: {
       className="seal"
       data-mine={mine}
       data-crest={!!crest}
-      style={{ width: size, height: size, fontSize: size * 0.37 }}
+      // The monogram scales with the disc, but never below the nine-pixel floor
+      // every other letter in the app keeps: a 24px seal is still read.
+      style={{ width: size, height: size, fontSize: Math.max(9, size * 0.37) }}
       aria-hidden
     >
       {crest ? (

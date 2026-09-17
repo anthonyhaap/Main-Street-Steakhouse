@@ -11,6 +11,12 @@
    Token names are unchanged from v1 on purpose, so every screen inherits the
    new palette without being rewritten. --cream now means "primary text",
    --ink-N now means "surface, lightest first".
+
+   Type is set from the --t-* scale, always. Raw pixel sizes are allowed only
+   for drawn objects — the wordmark, the doors, the draft TV, the share card's
+   image and the splash — where the size is part of the drawing. Anything a
+   manager reads takes a token, and tests/e2e/proportion.spec.ts holds the
+   floor at nine pixels.
    ========================================================================== */
 
 :root {
@@ -79,6 +85,12 @@
   --t-body:  0.9375rem;
   --t-small: 0.8125rem;
   --t-micro: 0.6875rem;
+  /* Below micro there is one size, not five. Nine pixels is the floor — the
+     tab bar's label, a position pill in a tight grid, a week label under a
+     score — and nothing a manager reads is set smaller. Twelve fills the one
+     gap between micro and small, for a name in a draft-board cell. */
+  --t-nano:  0.5625rem;
+  --t-tiny:  0.75rem;
 
   /* --- rhythm ------------------------------------------------------------ */
   --s1: 4px;  --s2: 8px;  --s3: 12px; --s4: 16px;
@@ -238,7 +250,7 @@ body {
   line-height: 1;
 }
 .mark__words b {
-  font: 700 11px/1 var(--sans);
+  font: 700 var(--t-micro)/1 var(--sans);
   letter-spacing: 0.22em;
   text-transform: uppercase;
   color: var(--cream);
@@ -317,7 +329,7 @@ body {
   gap: 4px;
   text-decoration: none;
   color: var(--dim);
-  font: 700 9px/1 var(--sans);
+  font: 700 var(--t-nano)/1 var(--sans);
   letter-spacing: 0.1em;
   text-transform: uppercase;
   transition: color 0.18s var(--ease);
@@ -327,6 +339,9 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 .tabbar__item[data-on="true"] { color: var(--wine); }
+/* A label that outgrows its fifth of the bar is clipped, not the bar widened:
+   a renamed tab must never scroll the phone sideways. */
+.tabbar__item > span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tabbar__item svg { width: 20px; height: 20px; }
 
 .page {
@@ -415,7 +430,7 @@ body {
   border: 1px solid var(--rule);
   border-radius: 999px;
   background: var(--ink-1);
-  font: 700 9px/1 var(--sans);
+  font: 700 var(--t-nano)/1 var(--sans);
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--muted);
@@ -639,7 +654,7 @@ body {
   border-radius: 999px;
   border: 1px solid color-mix(in srgb, currentColor 26%, transparent);
   background: color-mix(in srgb, currentColor 11%, #ffffff);
-  font: 700 10px/1 var(--sans);
+  font: 700 var(--t-micro)/1 var(--sans);
   letter-spacing: 0.08em;
   flex-shrink: 0;
   white-space: nowrap;
@@ -697,6 +712,11 @@ body {
   background: var(--wine);
   border-color: var(--wine);
 }
+/* One smaller badge, for a tag beside a name in a rail or a pool row. It used
+   to be three different inline shrinks; it is one size now, and the same size
+   as the small position pill below it. */
+.badge[data-size="sm"] { min-height: 18px; padding: 2px 8px; font-size: var(--t-nano); letter-spacing: 0.09em; }
+.pos[data-size="sm"]   { height: 19px; min-width: 34px; padding: 0 7px; font-size: var(--t-nano); }
 
 /* Team monogram */
 .seal {
@@ -707,7 +727,7 @@ body {
   border: 1px solid var(--rule-hard);
   border-radius: 50%;
   background: linear-gradient(160deg, #ffffff, #f2ebdd);
-  font: 400 11px/1 var(--serif);
+  font: 400 var(--t-micro)/1 var(--serif);
   color: var(--muted);
   letter-spacing: 0.02em;
   box-shadow: inset 0 1px 0 #fff, var(--shadow-1);
@@ -872,7 +892,7 @@ a.kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); border-c
 }
 .mgr:hover { background: var(--ink-2); }
 .mgr__slot {
-  font: 400 13px/1 var(--serif);
+  font: 400 var(--t-small)/1 var(--serif);
   color: var(--faint);
   text-align: right;
   font-variant-numeric: tabular-nums;
@@ -924,7 +944,7 @@ a.kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); border-c
   text-align: center;
 }
 .cal__wk b { font: 400 1.05rem/1 var(--serif); }
-.cal__wk span { font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); }
+.cal__wk span { font-size: var(--t-nano); letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); }
 .cal__wk[data-state="now"] {
   border-color: var(--gold-lit);
   background: var(--gold-haze);
@@ -997,6 +1017,92 @@ a.kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); border-c
 /* A panel that argues a case rather than taking a name: the coach puts two
    players and their reasons side by side, which needs the room. */
 .modal__panel[data-wide="true"] { width: min(100%, 760px); }
+
+/* ============================================================================
+   THE WEEKLY SPECIAL — the recap page
+   ========================================================================== */
+
+.recap { display: grid; gap: var(--s4); }
+.recap__head {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: var(--s4); flex-wrap: wrap; margin-bottom: var(--s2);
+}
+.recap__h1 { font-size: var(--t-title); margin: var(--s2) 0 0; }
+/* The column, as the club prints it: the serif, a gold rule, and the line
+   breaks it was composed with. */
+.special {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: 400 var(--t-body)/1.65 var(--serif);
+  padding-left: var(--s4);
+  box-shadow: inset 3px 0 0 var(--gold-lit);
+}
+.recap__foot {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s3);
+  flex-wrap: wrap; margin-top: var(--s4); padding-top: var(--s3); border-top: 1px solid var(--rule);
+}
+.recap__mine { box-shadow: inset 3px 0 0 var(--wine), var(--shadow-1); }
+.recap__mine .card__body { display: grid; gap: var(--s2); }
+.recap__line { font: 400 var(--t-head)/1.2 var(--serif); margin: 0; }
+.recap__pair { display: grid; gap: var(--s4); grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); }
+.recap__badges { display: flex; flex-wrap: wrap; gap: var(--s2); }
+.recap__bets { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s2); }
+.recap__bets li { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); font-size: var(--t-small); }
+.recap__bets a { text-decoration: none; }
+.recap__bets a:hover { text-decoration: underline; text-underline-offset: 2px; }
+/* The page's own PowerRankings card has no margin to lose above it. */
+.recap > .card[style] { margin-top: 0 !important; }
+
+/* ============================================================================
+   INSTALL — the two taps
+   ========================================================================== */
+
+.install__steps { margin: 0; padding-left: 1.4em; display: grid; gap: var(--s2); line-height: 1.55; }
+.install__steps svg { vertical-align: -2px; color: var(--wine); }
+.install__why { display: grid; gap: var(--s3); }
+.install__why p { margin: 0; color: var(--muted); line-height: 1.55; }
+.install__why svg { vertical-align: -2px; color: var(--gold); margin-right: 2px; }
+.install__why b { color: var(--cream); }
+
+/* ============================================================================
+   HEAD TO HEAD — the bets
+   ========================================================================== */
+
+.bets__head {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: var(--s4); margin-bottom: var(--s5); flex-wrap: wrap;
+}
+.bets__h1 { font-size: var(--t-title); margin: var(--s2) 0; }
+.bets__tools { display: flex; gap: var(--s2); flex-wrap: wrap; }
+@media (max-width: 640px) {
+  .bets__tools { width: 100%; }
+  .bets__tools .btn { flex: 1; }
+}
+
+.bet__body { display: grid; gap: var(--s3); }
+.bet__title { font: 400 var(--t-head)/1.2 var(--serif); margin: 0; letter-spacing: -0.01em; }
+.bet__terms { margin: 0; color: var(--muted); white-space: pre-wrap; font-size: var(--t-small); }
+.bet__facts {
+  display: flex; flex-wrap: wrap; gap: var(--s3) var(--s5);
+  margin: 0; padding-top: var(--s3); border-top: 1px solid var(--rule);
+}
+.bet__facts > div { display: grid; gap: 3px; }
+.bet__facts dd { margin: 0; font-weight: 700; display: inline-flex; align-items: center; gap: 5px; }
+.bet__actions { display: flex; gap: var(--s2); flex-wrap: wrap; align-items: center; }
+.bet__actions .btn { flex: 1 1 auto; }
+.bet__wait, .bet__ref { margin: 0; color: var(--dim); font-size: var(--t-small); }
+.bet__ruling { display: grid; gap: var(--s2); padding-top: var(--s3); border-top: 1px solid var(--rule); }
+
+/* The card a push pointed at: a ring that fades once the eye has found it. */
+.bet[data-target="true"] { animation: bet-ring 4s var(--ease) forwards; }
+@keyframes bet-ring {
+  0%, 60% { box-shadow: 0 0 0 3px var(--gold-lit), var(--shadow-2); }
+  100%    { box-shadow: var(--shadow-1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bet[data-target="true"] { animation: none; box-shadow: 0 0 0 3px var(--gold-lit); }
+}
 
 /* ============================================================================
    FEEDBACK
@@ -1080,7 +1186,8 @@ a.kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); border-c
 }
 .scroll::-webkit-scrollbar-thumb:hover { background: #1b181440; background-clip: content-box; }
 
-.hide-sm { }
+/* Columns and chips a phone does without. The rule lives entirely in the
+   media query; there is nothing to say about it at full width. */
 @media (max-width: 640px) { .hide-sm { display: none !important; } }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1286,7 +1393,7 @@ a.kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); border-c
   font-size: var(--t-micro); color: var(--dim); letter-spacing: 0.04em;
 }
 .plr__form b { font: 400 var(--t-body)/1 var(--serif); font-variant-numeric: tabular-nums; }
-.plr__form span { display: block; font-size: 10px; color: var(--dim); margin-top: 2px; }
+.plr__form span { display: block; font-size: var(--t-micro); color: var(--dim); margin-top: 2px; }
 .plr__form svg { margin-top: 4px; }
 .plr__use { font-size: var(--t-micro); color: var(--muted); line-height: 1.45; }
 .plr__pts {
@@ -1301,7 +1408,7 @@ a.kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); border-c
   display: block;
   margin-top: 1px;
   font-family: var(--sans);
-  font-size: 10px; font-weight: 600; letter-spacing: 0.02em;
+  font-size: var(--t-micro); font-weight: 600; letter-spacing: 0.02em;
   color: var(--gold); white-space: nowrap;
 }
 .plr__act {
@@ -1378,7 +1485,7 @@ a.kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); border-c
 }
 .coach__pts span {
   display: block; margin-top: 2px;
-  font: 600 10px/1.3 var(--sans); letter-spacing: 0.02em; color: var(--dim);
+  font: 600 var(--t-micro)/1.3 var(--sans); letter-spacing: 0.02em; color: var(--dim);
   white-space: nowrap;
 }
 .coach__why {
@@ -1424,7 +1531,7 @@ a.kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); border-c
 .ins__tag {
   display: inline-flex; align-items: center; gap: 4px;
   margin-top: 6px;
-  font: 700 9px/1 var(--sans); letter-spacing: 0.14em; text-transform: uppercase;
+  font: 700 var(--t-nano)/1 var(--sans); letter-spacing: 0.14em; text-transform: uppercase;
 }
 .ins[data-kind="alert"]     .ins__tag { color: var(--lose); }
 .ins[data-kind="boost"]     .ins__tag { color: var(--win); }
@@ -1463,7 +1570,7 @@ a.kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); border-c
 }
 .news__meta {
   display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
-  margin-top: 6px; font-size: 10px; color: var(--faint); letter-spacing: 0.06em;
+  margin-top: 6px; font-size: var(--t-micro); color: var(--faint); letter-spacing: 0.06em;
 }
 @media (max-width: 420px) {
   .news { grid-template-columns: 64px minmax(0, 1fr); }
@@ -1537,8 +1644,8 @@ a.kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); border-c
   min-height: 2px;
 }
 .gamelog__col[data-best="true"] .gamelog__bar { background: linear-gradient(180deg, var(--wine-lit), var(--wine)); }
-.gamelog__col b { font-size: 10px; font-variant-numeric: tabular-nums; color: var(--muted); }
-.gamelog__col span { font-size: 9px; color: var(--faint); letter-spacing: 0.08em; }
+.gamelog__col b { font-size: var(--t-micro); font-variant-numeric: tabular-nums; color: var(--muted); }
+.gamelog__col span { font-size: var(--t-nano); color: var(--faint); letter-spacing: 0.08em; }
 
 /* ============================================================================
    PLAYER — the badge, and the page behind it
@@ -1671,7 +1778,7 @@ a.kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); border-c
   box-shadow: 0 0 0 3px var(--gold-wash);
 }
 .proj__wk b { font: 400 1.3rem/1 var(--serif); font-variant-numeric: tabular-nums; }
-.proj__wk span { font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); }
+.proj__wk span { font-size: var(--t-nano); letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); }
 
 /* --- stat table ---------------------------------------------------------- */
 
@@ -1697,7 +1804,7 @@ a.kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); border-c
 .depth__row + .depth__row { border-top: 1px solid var(--rule-soft); }
 .depth__row:hover { background: var(--ink-2); }
 .depth__row[data-me="true"] { background: var(--gold-haze); box-shadow: inset 3px 0 0 var(--gold-lit); }
-.depth__ord { font: 400 13px/1 var(--serif); color: var(--faint); text-align: right; font-variant-numeric: tabular-nums; }
+.depth__ord { font: 400 var(--t-small)/1 var(--serif); color: var(--faint); text-align: right; font-variant-numeric: tabular-nums; }
 .depth__name { font-size: var(--t-small); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .depth__row[data-me="true"] .depth__name { font-weight: 600; }
 
@@ -1726,7 +1833,7 @@ a.kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); border-c
   color: var(--gold);
 }
 .pool__proj span {
-  font: 700 9px/1 var(--sans);
+  font: 700 var(--t-nano)/1 var(--sans);
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--dim);
@@ -2367,7 +2474,7 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
   font-size: var(--t-small);
 }
 .tt__left li b { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.tt__left .pos { min-width: 40px; height: 20px; font-size: 9px; }
+.tt__left .pos { min-width: 40px; }
 .tt__when { color: var(--dim); font-size: var(--t-micro); white-space: nowrap; }
 .tt__proj { color: var(--gold); font-weight: 600; min-width: 36px; text-align: right; }
 .tt__more { color: var(--dim); font-size: var(--t-micro); grid-template-columns: 1fr !important; }
@@ -2466,7 +2573,7 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
   color: var(--muted);
 }
 .table__side[data-lead="true"] .table__pts b { color: var(--gold); }
-.table__pts .eyebrow { font-size: 8px; letter-spacing: 0.16em; min-height: 8px; }
+.table__pts .eyebrow { font-size: var(--t-nano); letter-spacing: 0.16em; min-height: 9px; }
 
 /* --- the table (standings as a place card) ------------------------------ */
 .place__list {
@@ -2565,7 +2672,7 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
   padding: var(--s4) var(--s3);
   background: #1e1a16;
 }
-.plaque__year em { font: 700 10px/1 var(--sans); font-style: normal; letter-spacing: 0.22em; text-transform: uppercase; color: var(--gold-lit); }
+.plaque__year em { font: 700 var(--t-micro)/1 var(--sans); font-style: normal; letter-spacing: 0.22em; text-transform: uppercase; color: var(--gold-lit); }
 .plaque__year b { font: 400 1.35rem/1.1 var(--serif); color: var(--ink-text); }
 .plaque__year span { font-size: var(--t-micro); color: #b6a992; }
 .plaque__year[data-now="true"] { background: #26201b; }
@@ -2574,7 +2681,7 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
 /* --- the grid ----------------------------------------------------------- */
 .h2h { overflow-x: auto; }
 .h2h table { border-collapse: separate; border-spacing: 2px; margin: 0 auto; }
-.h2h th { font: 700 9px/1 var(--sans); letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); padding: 4px; }
+.h2h th { font: 700 var(--t-nano)/1 var(--sans); letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); padding: 4px; }
 .h2h thead th { height: 74px; vertical-align: bottom; }
 .h2h thead th > span { display: inline-block; writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; max-height: 70px; overflow: hidden; }
 .h2h tbody th { text-align: right; white-space: nowrap; max-width: 92px; overflow: hidden; text-overflow: ellipsis; }
@@ -2583,7 +2690,7 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
   display: grid; place-items: center;
   width: 40px; height: 40px;
   border-radius: 6px;
-  font: 600 10px/1 var(--sans);
+  font: 600 var(--t-micro)/1 var(--sans);
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
   color: #fff;
@@ -3378,7 +3485,7 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
 .talk__who b { font-weight: 600; font-size: var(--t-small); }
 .talk__who time { font-size: var(--t-small); color: var(--faint); }
 .talk__side {
-  font: 700 9px/1 var(--sans); letter-spacing: 0.14em; text-transform: uppercase;
+  font: 700 var(--t-nano)/1 var(--sans); letter-spacing: 0.14em; text-transform: uppercase;
   color: var(--dim); font-style: normal;
 }
 .talk__body p {
@@ -3451,6 +3558,10 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
   font-size: var(--t-small); color: var(--dim); text-decoration: none;
 }
 .club__on:hover { color: var(--wine); text-decoration: underline; text-underline-offset: 2px; }
+/* The house post's door to its own page. Not .club__on: that names the game a
+   line was said about, and the house says nothing about one game. */
+.club__read { color: var(--gold); text-decoration: none; font: 700 var(--t-micro)/1 var(--sans); letter-spacing: 0.08em; text-transform: uppercase; }
+.club__read:hover { text-decoration: underline; text-underline-offset: 2px; }
 
 .club__empty {
   margin: 0; padding: var(--s4);
@@ -3842,7 +3953,7 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
 .tickr__palette { display: inline-flex; gap: 1px; }
 .tickr__pick {
   border: 0; background: none; cursor: pointer;
-  font-size: 15px; line-height: 1; padding: 3px 2px;
+  font-size: var(--t-body); line-height: 1; padding: 3px 2px;
 }
 .tickr__pick:hover { transform: scale(1.25); }
 @media (prefers-reduced-motion: reduce) { .tickr__pick:hover { transform: none; } }
@@ -3861,7 +3972,7 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
   display: flex;
   align-items: center;
   gap: 5px;
-  font: 700 9px/1 var(--sans);
+  font: 700 var(--t-nano)/1 var(--sans);
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--dim);
@@ -3925,7 +4036,7 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
 
 .board__player { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .board__pname {
-  font-size: 12px;
+  font-size: var(--t-tiny);
   font-weight: 600;
   line-height: 1.2;
   white-space: nowrap;
@@ -3937,7 +4048,7 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
   gap: 6px;
   align-items: center;
   margin-top: 4px;
-  font-size: 10px;
+  font-size: var(--t-micro);
   color: var(--dim);
 }
 .board__grade {
@@ -3946,7 +4057,7 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
   width: 6px; height: 6px;
   border-radius: 50%;
 }
-.board__empty { font-size: 10px; color: var(--faint); }
+.board__empty { font-size: var(--t-micro); color: var(--faint); }
 .board__cell[data-current="true"] .board__empty { color: var(--gold); font-weight: 700; }
 
 /* On a phone the grid is a horizontal scroll either way; the question is how
@@ -4035,7 +4146,7 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
    second line of height across the whole filter row. */
 .pool__scarce {
   margin-left: 4px;
-  font: 700 8px/1 var(--sans);
+  font: 700 var(--t-nano)/1 var(--sans);
   letter-spacing: 0.04em;
   opacity: 0.7;
   vertical-align: 2px;
@@ -4053,7 +4164,7 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
   text-transform: uppercase;
   color: var(--dim);
 }
-.pool__run .pos { min-width: 0; height: 19px; padding: 0 7px; font-size: 9px; }
+.pool__run .pos { min-width: 0; }
 .pool__run b { color: var(--muted); }
 
 /* A pool row is a name, a projection and two controls in whatever the column

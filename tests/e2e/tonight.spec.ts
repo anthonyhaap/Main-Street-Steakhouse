@@ -104,6 +104,8 @@ test("the house writes the week up, and it reads as a column", async ({ page }) 
   // Written by the league, so it is nobody's line and carries no matchup.
   await expect(house).toHaveAttribute("data-mine", "false");
   await expect(house.locator(".club__on")).toHaveCount(0);
+  // But it has a page of its own, and the line says so.
+  await expect(house.getByRole("link", { name: "Read the Special →" })).toHaveAttribute("href", "/recap");
 
   // The line breaks it was composed with survive to the screen.
   await expect(house.locator("p")).toHaveCSS("white-space", "pre-wrap");
@@ -122,6 +124,14 @@ test("the primary nav fits the header it is in", async ({ page }, testInfo) => {
   expect(shown).toBe(width > 1180);
   const doc = await page.evaluate(() => document.documentElement.scrollWidth);
   expect(doc, `${testInfo.project.name} at ${width}px scrolls sideways`).toBeLessThanOrEqual(width);
+
+  // The standings are the widest thing in the app; the phone drops two columns
+  // rather than scrolling the whole page. tests/e2e/proportion.spec.ts holds
+  // the same line on every preview.
+  await page.goto("/preview/standings");
+  await expect(page.getByRole("heading", { name: "Standings" })).toBeVisible();
+  const table = await page.evaluate(() => document.documentElement.scrollWidth);
+  expect(table, `${testInfo.project.name} at ${width}px: standings scroll the page sideways`).toBeLessThanOrEqual(width);
 });
 
 test("the history wall hangs the plaques", async ({ page }) => {
@@ -151,6 +161,14 @@ test("the phone gets a manifest and a launch screen", async ({ request }) => {
   const json = await manifest.json();
   expect(json.display).toBe("standalone");
   expect(json.background_color).toBe("#191614");
+
+  // Android's richer install sheet wants pictures; both must actually serve.
+  expect(json.screenshots.length).toBeGreaterThanOrEqual(2);
+  for (const shot of json.screenshots) {
+    const png = await request.get(shot.src);
+    expect(png.ok(), `${shot.src} is missing`).toBeTruthy();
+    expect(png.headers()["content-type"]).toContain("image/png");
+  }
 
   const splash = await request.get("/splash/1170x2532.png");
   expect(splash.ok()).toBeTruthy();

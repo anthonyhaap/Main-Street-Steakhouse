@@ -60,7 +60,7 @@ function Said({ item, busy, onReact }: {
         )}
         <Reactions reactions={item.reactions ?? []} busy={busy} onPress={onReact} />
       </div>
-      <time className="num" style={{ color: "var(--dim)", fontSize: "var(--t-micro)" }}>
+      <time className="num" suppressHydrationWarning style={{ color: "var(--dim)", fontSize: "var(--t-micro)" }}>
         {stamp(item.at)}
       </time>
     </div>
@@ -81,7 +81,7 @@ function Did({ item, busy, onReact }: {
         )}
         <Reactions reactions={item.reactions ?? []} busy={busy} onPress={onReact} />
       </div>
-      <time className="num" style={{ color: "var(--dim)", fontSize: "var(--t-micro)" }}>
+      <time className="num" suppressHydrationWarning style={{ color: "var(--dim)", fontSize: "var(--t-micro)" }}>
         {stamp(item.at)}
       </time>
     </div>
@@ -104,7 +104,7 @@ function Asked({ item, busy, voting, onReact, onVote }: {
         {item.poll && <PollCard poll={item.poll} busy={voting} onVote={onVote} />}
         <Reactions reactions={item.reactions ?? []} busy={busy} onPress={onReact} />
       </div>
-      <time className="num" style={{ color: "var(--dim)", fontSize: "var(--t-micro)" }}>
+      <time className="num" suppressHydrationWarning style={{ color: "var(--dim)", fontSize: "var(--t-micro)" }}>
         {stamp(item.at)}
       </time>
     </div>
