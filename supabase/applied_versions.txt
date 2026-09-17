@@ -98,3 +98,6 @@
 20260910130245 records_wait_for_the_week
 20260910135937 games_keep_up
 20260915133033 waiver_deadline_holds_until_run
+20260917013926 notification_kinds
+20260917014122 challenge_settlement_push
+20260917014302 recap_push
