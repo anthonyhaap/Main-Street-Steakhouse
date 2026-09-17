@@ -188,6 +188,31 @@ begin
   end if;
   v_checks := v_checks + 2;
 
+  -- -------------------------------------------- a week nobody could play --
+  -- Two final games in a week where the league made no picks at all — the
+  -- way week 1 of the real season went before Pick'em existed. Nobody
+  -- should be charged an incorrect for a week he never had the chance to
+  -- play; everyone reads 0 correct, 0 incorrect, both games remaining.
+  declare v_g4 uuid; v_g5 uuid; v_row jsonb;
+  begin
+    insert into nfl_games (espn_event_id, season, season_type, week, home_team, away_team,
+                           kickoff_at, status, status_detail, home_score, away_score)
+    values ('pickem-test-g4', 9999, 2, 2, 'MIA', 'NYJ', now() - interval '1 day', 'post', 'Final', 24, 10)
+    returning id into v_g4;
+    insert into nfl_games (espn_event_id, season, season_type, week, home_team, away_team,
+                           kickoff_at, status, status_detail, home_score, away_score)
+    values ('pickem-test-g5', 9999, 2, 2, 'LAR', 'ARI', now() - interval '1 day', 'post', 'Final', 17, 20)
+    returning id into v_g5;
+
+    v_j := ff_pickem_weekly_standings(v_league, 9999, 2);
+    for v_row in select value from jsonb_array_elements(v_j) loop
+      if (v_row->>'correct')::int <> 0 or (v_row->>'incorrect')::int <> 0 or (v_row->>'remaining')::int <> 2 then
+        raise exception 'a week with no league-wide picks graded somebody: %', v_row;
+      end if;
+    end loop;
+  end;
+  v_checks := v_checks + 1;
+
   -- ---------------------------------------------------------- the refusals --
   perform set_config('request.jwt.claims', json_build_object('sub', v_uid_out)::text, true);
   begin

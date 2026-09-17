@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Lock, X } from "lucide-react";
+import { Check, ChevronDown, Lock, X } from "lucide-react";
 import { TeamLogo } from "@/components/nfl";
 import { team as clubOf } from "@/lib/nfl/teams";
 import type { PickemGame } from "@/lib/pickem/types";
@@ -89,7 +89,10 @@ export function GameCard({
 
         {game.picks && game.picks.length > 0 && (
           <details className="pickem-picks">
-            <summary className="eyebrow">Everyone&apos;s picks</summary>
+            <summary className="pickem-picks__toggle">
+              <span>See everyone&apos;s picks</span>
+              <ChevronDown className="pickem-picks__chevron" size={14} aria-hidden />
+            </summary>
             <ul className="pickem-picks__list">
               {game.picks.map((p) => (
                 <li key={p.user_id}>
