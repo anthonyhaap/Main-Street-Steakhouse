@@ -47,7 +47,7 @@ export default function PickemPage() {
     if (rpcError) throw rpcError;
     return data as PickemWeek;
   }, [week]);
-  const { data: board, status, refetch: refetchBoard } = useLive<PickemWeek | null>(boardFetcher, {
+  const { data: board, status, error: boardError, refetch: refetchBoard } = useLive<PickemWeek | null>(boardFetcher, {
     tables: ["pickem_picks", "nfl_games"], channel: `pickem-board-${week ?? 0}`, pollMs: 20000, enabled: ready && week !== null,
   });
 
@@ -63,7 +63,7 @@ export default function PickemPage() {
     if (prev.error) throw prev.error;
     return { current: (cur.data as PickemWeeklyStanding[]) ?? [], previous: (prev.data as PickemWeeklyStanding[]) ?? [] };
   }, [week]);
-  const { data: standings } = useLive<{ current: PickemWeeklyStanding[]; previous: PickemWeeklyStanding[] }>(standingsFetcher, {
+  const { data: standings, error: standingsError } = useLive<{ current: PickemWeeklyStanding[]; previous: PickemWeeklyStanding[] }>(standingsFetcher, {
     tables: ["pickem_picks", "nfl_games"], channel: `pickem-standings-${week ?? 0}`, pollMs: 30000, enabled: ready && week !== null,
   });
 
@@ -74,9 +74,13 @@ export default function PickemPage() {
     if (rpcError) throw rpcError;
     return (data as PickemSeasonStanding[]) ?? [];
   }, []);
-  const { data: season } = useLive<PickemSeasonStanding[]>(seasonFetcher, {
+  const { data: season, error: seasonError } = useLive<PickemSeasonStanding[]>(seasonFetcher, {
     tables: ["pickem_picks", "nfl_games"], channel: "pickem-season", pollMs: 60000, enabled: ready,
   });
+
+  // Any of the three reads failing (most likely: the database hasn't caught
+  // up with the code yet) should say so, not spin the skeleton forever.
+  const loadError = boardError ?? standingsError ?? seasonError;
 
   const myWeekly = standings?.current.find((r) => r.mine);
   const mySeason = season?.find((r) => r.mine);
@@ -134,10 +138,15 @@ export default function PickemPage() {
         </div>
 
         {error && <p role="alert" style={{ color: "var(--lose)" }}>{error}</p>}
+        {!error && loadError && (
+          <p role="alert" style={{ color: "var(--lose)" }}>
+            Couldn&apos;t load Pick&apos;em: {loadError}
+          </p>
+        )}
 
         {tab === "board" && (
           !board ? (
-            <div className="card"><SkeletonRows n={6} /></div>
+            boardError ? null : <div className="card"><SkeletonRows n={6} /></div>
           ) : board.games.length === 0 ? (
             <div className="card"><div className="empty">No games scheduled for week {week}.</div></div>
           ) : (
@@ -159,10 +168,10 @@ export default function PickemPage() {
         )}
 
         {tab === "weekly" && (
-          <WeeklyStandings rows={standings?.current ?? null} previous={standings?.previous ?? null} loading={!standings} />
+          <WeeklyStandings rows={standings?.current ?? null} previous={standings?.previous ?? null} loading={!standings && !standingsError} />
         )}
 
-        {tab === "season" && <SeasonStandings rows={season ?? null} loading={!season} />}
+        {tab === "season" && <SeasonStandings rows={season ?? null} loading={!season && !seasonError} />}
       </main>
     </>
   );
