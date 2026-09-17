@@ -27,7 +27,7 @@ do $$
 declare
   -- ff_create_challenge refuses any league but the one the app is built for.
   v_league uuid := '11111111-1111-1111-1111-111111111111';
-  v_uid_a uuid; v_uid_b uuid;
+  v_uid_a uuid; v_uid_b uuid; v_uid_co uuid;
   v_a uuid; v_b uuid;
   v_m1 uuid; v_m2 uuid;
   v_game uuid;
@@ -200,6 +200,20 @@ begin
     raise exception 'a tie did not tell both sides';
   end if;
   v_checks := v_checks + 3;
+
+  -- ------------------------------------------------- a co-owner has a name --
+  -- A co-owner may call a shot for the seat; the push names them, not the
+  -- manager whose seat it is, and not "Somebody".
+  delete from notification_outbox;
+  insert into auth.users (id, email) values (gen_random_uuid(), 'cal@example.com') returning id into v_uid_co;
+  insert into team_co_owners (team_id, user_id, league_id) values (v_a, v_uid_co, v_league);
+  perform pg_temp.as_user(v_uid_co);
+  perform ff_save_settlement_profile('Cal Ripken', 'venmo', 'cal-pays');
+  perform ff_create_challenge(v_league, v_uid_b, 'Kicker of the year', 'Commissioner decides.', 'Bragging rights', 'custom', null, null);
+  select * into v_row from notification_outbox where user_id = v_uid_b;
+  if v_row.title <> 'Cal challenged you' then raise exception 'a co-owner''s shot reads "%"', v_row.title; end if;
+  perform pg_temp.as_user(null);
+  v_checks := v_checks + 1;
 
   -- --------------------------------------------------------- who may call --
   if has_function_privilege('authenticated', 'public.ff_remind_overdue_challenges()', 'execute') then

@@ -99,7 +99,8 @@ begin
     end if;
   end if;
 
-  -- The table, this week against last: wins, then points, the standings' order.
+  -- The table, this week against last, in the standings' own order: wins with
+  -- a tie worth half, then points.
   with sides as (
     select m.week, s.team_id, s.pf, s.pa
       from matchups m
@@ -109,9 +110,11 @@ begin
   ),
   tbl as (
     select t.id,
-           rank() over (order by count(*) filter (where g.pf > g.pa) desc,
+           rank() over (order by count(*) filter (where g.pf > g.pa)
+                                 + count(*) filter (where g.pf = g.pa) / 2.0 desc,
                                  coalesce(sum(g.pf), 0) desc, t.name) as now_rank,
-           rank() over (order by count(*) filter (where g.pf > g.pa and g.week < p_week) desc,
+           rank() over (order by count(*) filter (where g.pf > g.pa and g.week < p_week)
+                                 + count(*) filter (where g.pf = g.pa and g.week < p_week) / 2.0 desc,
                                  coalesce(sum(g.pf) filter (where g.week < p_week), 0) desc, t.name) as before_rank
       from teams t left join sides g on g.team_id = t.id
      where t.league_id = p_league_id

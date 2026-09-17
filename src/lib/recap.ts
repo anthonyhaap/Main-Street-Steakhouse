@@ -58,16 +58,18 @@ export function wireCounts(rows: { kind: string }[]): WireCount[] {
 }
 
 /**
- * The bets the week decided: resolved inside the seven days before the
- * Special was written, which is the week it was written about.
+ * The bets the week decided: resolved in the seven days up to the moment the
+ * Special was written, which is the week it was written about. Publication is
+ * the upper bound — a bet ruled on afterwards belongs to the next week's
+ * column, not retroactively to this one.
  */
 export function settledThisWeek(
   challenges: Pick<Challenge, "id" | "title" | "status" | "winner_id" | "resolved_at" | "stake_amount_cents">[],
   recapCreatedAt: string,
   nameOf: (userId: string | null) => string,
 ): SettledBet[] {
-  const end = new Date(recapCreatedAt).getTime() + 864e5;
-  const start = end - 8 * 864e5;
+  const end = new Date(recapCreatedAt).getTime();
+  const start = end - 7 * 864e5;
   return challenges
     .filter((c) => c.resolved_at && c.winner_id)
     .filter((c) => { const t = new Date(c.resolved_at!).getTime(); return t >= start && t <= end; })

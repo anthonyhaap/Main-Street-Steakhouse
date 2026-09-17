@@ -37,7 +37,9 @@ as $$
 $$;
 
 -- A manager's first name, as the recap writes it; the seat's name if the
--- commissioner never typed one; "Somebody" for a user with no seat here.
+-- commissioner never typed one. A co-owner is a person too: their own first
+-- name from the profile the settlement handle was saved with, and the seat's
+-- name when there is none. "Somebody" only for a user with no seat here.
 create or replace function public.ff_challenge_who(p_league_id uuid, p_user_id uuid)
 returns text
 language sql
@@ -50,6 +52,12 @@ as $$
        from teams t
       where t.league_id = p_league_id and t.owner_id = p_user_id
       order by t.created_at limit 1),
+    (select public.ff_who(p.display_name, t.name)
+       from team_co_owners co
+       join teams t on t.id = co.team_id
+       left join profiles p on p.id = co.user_id
+      where co.league_id = p_league_id and co.user_id = p_user_id
+      limit 1),
     'Somebody')
 $$;
 
