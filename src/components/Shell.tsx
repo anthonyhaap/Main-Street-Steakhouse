@@ -91,11 +91,25 @@ export function Crest({ size = 38 }: { size?: number }) {
   );
 }
 
-/** The League nav item's own dropdown: the hub plus its four grouped pages. */
+/**
+ * The League nav item's own dropdown: the hub plus its four grouped pages.
+ *
+ * This is a disclosure, not an ARIA menu — it doesn't own arrow-key or
+ * Home/End navigation between its links, so it doesn't claim `role="menu"`.
+ * The links inside are ordinary tab stops, and Escape both closes the panel
+ * and gives focus back to the trigger that opened it.
+ */
 function LeagueMenu({ path }: { path: string }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const active = isOn(path, "/league") || LEAGUE_PAGES.some((i) => isOn(path, i.href));
+
+  const close = () => setOpen(false);
+  const closeAndRefocus = () => {
+    setOpen(false);
+    triggerRef.current?.focus();
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -103,7 +117,7 @@ function LeagueMenu({ path }: { path: string }) {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key === "Escape") closeAndRefocus();
     };
     document.addEventListener("mousedown", onClick);
     document.addEventListener("keydown", onKey);
@@ -116,10 +130,10 @@ function LeagueMenu({ path }: { path: string }) {
   return (
     <div className="nav__dropdown" ref={ref}>
       <button
+        ref={triggerRef}
         type="button"
         className="nav__item nav__dropdown-trigger"
         data-on={active}
-        aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
       >
@@ -127,13 +141,13 @@ function LeagueMenu({ path }: { path: string }) {
         <ChevronDown size={13} strokeWidth={2.5} aria-hidden />
       </button>
       {open && (
-        <div className="nav__dropdown-panel" role="menu">
-          <Link href="/league" className="nav__dropdown-item" data-on={isOn(path, "/league")} role="menuitem" onClick={() => setOpen(false)}>
+        <div className="nav__dropdown-panel">
+          <Link href="/league" className="nav__dropdown-item" data-on={isOn(path, "/league")} onClick={close}>
             <Crown size={14} strokeWidth={1.75} aria-hidden />
             League Home
           </Link>
           {LEAGUE_PAGES.map(({ href, label, Icon }) => (
-            <Link key={href} href={href} className="nav__dropdown-item" data-on={isOn(path, href)} role="menuitem" onClick={() => setOpen(false)}>
+            <Link key={href} href={href} className="nav__dropdown-item" data-on={isOn(path, href)} onClick={close}>
               <Icon size={14} strokeWidth={1.75} aria-hidden />
               {label}
             </Link>
@@ -368,6 +382,12 @@ export function TopBar({ status }: { status?: WireStatus }) {
         }
         .sheet__panel {
           width: 100%;
+          /* dvh, not vh, same reason as .modal__panel: this sits on a fixed,
+             inset:0 overlay, so it's the visible viewport that must bound it.
+             A grouped League section plus every other tile can outgrow a
+             short phone screen, and the sheet has no other way back up. */
+          max-height: 85dvh;
+          overflow-y: auto;
           background: var(--ink-1);
           border-top: 3px solid var(--gold-lit);
           border-radius: var(--r-lg) var(--r-lg) 0 0;
