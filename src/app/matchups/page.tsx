@@ -13,6 +13,7 @@ import { Scoreboard } from "@/components/Scoreboard";
 import { MatchupTalk } from "@/components/matchup/Talk";
 import { Rivalry } from "@/components/matchup/Rivalry";
 import { AroundTheHouse } from "@/components/matchup/AroundTheHouse";
+import { ScoreTicker } from "@/components/matchup/ScoreTicker";
 import { liveCount } from "@/lib/around";
 import { scoreCardText, shareOrigin } from "@/lib/share";
 import type { WeekRivalries } from "@/lib/history";
@@ -154,6 +155,7 @@ export default function MatchupsPage() {
   return (
     <>
       <TopBar status={status} />
+      {shown && shown.matchups.length > 1 && <ScoreTicker board={shown} />}
       <PullToRefresh onRefresh={refetch}>
         <main className="page sb-board">
           <div className="scroll" style={{ overflowX: "auto", overflowY: "hidden", paddingBottom: 2 }}>

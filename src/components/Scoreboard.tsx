@@ -329,6 +329,15 @@ function PlayerRow({ p, now }: { p: ScoreStarter; now: number }) {
           team={p.nfl_team}
           espnId={p.espn_id}
           size={26}
+          sub={
+            <>
+              <span>{p.position} · {p.nfl_team ?? "FA"}</span>
+              <span className="sb__plr-stat">
+                <b className="num">{fmt1(p.points)}</b>
+                {p.projection != null && <> · proj. {fmt1(p.projection)}</>}
+              </span>
+            </>
+          }
         />
         <span className="sb__mark" data-state={mark.state}>
           {mark.state === "live" && <i className="sb__pip" aria-hidden />}
@@ -336,10 +345,6 @@ function PlayerRow({ p, now }: { p: ScoreStarter; now: number }) {
           {p.severity === "out" && <b className="sb__hurt"> · OUT</b>}
         </span>
       </div>
-      <span className="sb__plr-pts">
-        <b className="num">{fmt1(p.points)}</b>
-        <span className="num">{p.projection == null ? "—" : fmt1(p.projection)}</span>
-      </span>
     </div>
   );
 }

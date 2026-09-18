@@ -22,6 +22,7 @@ import { Scoreboard } from "@/components/Scoreboard";
 import { TalkThread } from "@/components/matchup/Talk";
 import { Rivalry } from "@/components/matchup/Rivalry";
 import { AroundTheHouse } from "@/components/matchup/AroundTheHouse";
+import { ScoreTicker } from "@/components/matchup/ScoreTicker";
 import { scoreCardText } from "@/lib/share";
 import type { WeekRivalries } from "@/lib/history";
 import { freshness, slateLine, talkTeaser, type ScoreCard, type ScoreSide, type ScoreStarter, type Scoreboard as Board, type Talk, type ThreadMessage } from "@/lib/scoreboard";
@@ -308,6 +309,7 @@ export default function MatchupsPreviewPage() {
   return (
     <>
       <TopBar status="live" />
+      <ScoreTicker board={b} />
       <div style={{
         padding: "10px clamp(16px, 3vw, 32px)", background: "var(--gold-haze)",
         borderBottom: "1px solid var(--gold-dim)", color: "#7d5a11", fontSize: "var(--t-small)",

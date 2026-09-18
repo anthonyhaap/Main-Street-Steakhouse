@@ -2834,6 +2834,52 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
    tap away on someone else's phone.
    ========================================================================== */
 
+/* --- the ticker: the other tables, run along the top -------------------- */
+/* The topbar is sticky at 68px; the ticker sits right under it and stays
+   stuck there too, so the rest of the room's scores never cost a scroll back
+   up. Dark rather than paper, on purpose — it borrows the plaque/share-card
+   surface so it reads as a scoreboard and not one more card on the page. */
+.ticker {
+  position: sticky;
+  top: 68px;
+  z-index: 40;
+  background:
+    radial-gradient(1200px 80px at 50% -60%, var(--ink-warm), transparent 70%),
+    var(--ink-deep);
+  border-bottom: 1px solid var(--rule-hard);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.ticker::-webkit-scrollbar { display: none; }
+.ticker__row {
+  display: flex;
+  width: max-content;
+  min-width: 100%;
+}
+.ticker__game {
+  display: flex; align-items: center; gap: var(--s2);
+  padding: 9px var(--s4);
+  border-right: 1px solid #ffffff14;
+  white-space: nowrap;
+}
+.ticker__team { display: inline-flex; align-items: baseline; gap: 6px; font-family: var(--mono); }
+.ticker__team b { font-size: var(--t-tiny); letter-spacing: 0.06em; color: #b6a992; }
+.ticker__team .num { font-size: var(--t-small); font-weight: 600; color: var(--ink-text); font-variant-numeric: tabular-nums; }
+.ticker__team[data-lead="true"] b,
+.ticker__team[data-lead="true"] .num { color: var(--gold-lit); }
+.ticker__state {
+  font-size: var(--t-nano); font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+  color: #7a6f5e; display: inline-flex; align-items: center; gap: 4px;
+}
+.ticker__game[data-state="live"] .ticker__state { color: var(--wine-lit); }
+.ticker__pip {
+  width: 5px; height: 5px; border-radius: 50%; background: var(--wine-lit);
+  animation: sb-pip 1.6s ease-in-out infinite;
+}
+@media (max-width: 520px) {
+  .ticker__game { padding: 8px var(--s3); gap: 6px; }
+}
+
 .sb-board { display: grid; gap: clamp(var(--s4), 2.5vw, var(--s5)); }
 
 .sb-slate {
@@ -2989,7 +3035,7 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
 
 .sb__plr {
   display: grid;
-  grid-template-columns: 40px minmax(0, 1fr) auto;
+  grid-template-columns: 40px minmax(0, 1fr);
   gap: 10px; align-items: center;
   padding: 7px var(--s4);
 }
@@ -2997,9 +3043,11 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
 .sb__plr[data-final="true"] { opacity: 0.72; }
 .sb__plr[data-bye="true"] { background: #b3341f08; }
 .sb__plr-who { min-width: 0; display: grid; gap: 2px; }
-.sb__plr-pts { display: grid; justify-items: end; gap: 1px; }
-.sb__plr-pts b { font-family: var(--sans); font-weight: 600; font-size: var(--t-body); }
-.sb__plr-pts span { font-size: var(--t-small); color: var(--dim); }
+/* The line under a starter's name that used to sit in its own column on the
+   right — pulled under the name instead, so the row stays narrow enough for
+   both lineups to sit side by side on a phone. */
+.sb__plr-stat { font-weight: 600; color: var(--muted); }
+.sb__plr-stat b { color: var(--cream); font-weight: 600; }
 
 .sb__mark { display: inline-flex; align-items: center; gap: 5px; font-size: var(--t-small); color: var(--dim); }
 .sb__mark[data-state="live"] { color: var(--wine); font-weight: 600; }
@@ -3022,6 +3070,16 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
      line from the label on a phone. The odds are explained on /standings. */
   .sb__odds-src { display: none; }
   .sb__tops > :last-child { justify-self: start; text-align: left; }
+
+  /* Both lineups, open on a phone: `auto-fit` would drop the second one to
+     its own row below the first, which is a scorecard read top-to-bottom
+     instead of the two opponents it is actually about. Forced to two columns
+     and given back the width `.sb__plr-stat` freed, the same head-to-head
+     the team row above already shows survives all the way down the roster. */
+  .sb__lineups { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .sb__plr { gap: 6px; padding: 7px var(--s2); }
+  .sb__lineup-head { padding: var(--s3) var(--s2); }
+  .sb__plr-stat { display: block; }
 }
 
 /* --- table talk --------------------------------------------------------- */
