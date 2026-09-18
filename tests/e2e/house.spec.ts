@@ -104,6 +104,34 @@ test("a poll already answered shows the split straight away", async ({ page }) =
   await expect(page.getByRole("button", { name: /^No, Sunday or nothing, 3 of 9$/ })).toBeVisible();
 });
 
+test("a pinned announcement holds the rail above the feed", async ({ page }) => {
+  await page.goto("/preview/house");
+  // It shows once pinned, above the feed, AND stays a line in the feed below —
+  // pinning is about staying findable, not about hiding where it was said.
+  await expect(page.getByText("Draft moves to Thursday at 8pm — same slots, new night.").first()).toBeVisible();
+  await expect(page.getByText(/^Pinned/)).toBeVisible();
+});
+
+test("only the commissioner may unpin", async ({ page }) => {
+  await page.goto("/preview/house");
+
+  await expect(page.getByRole("button", { name: "Unpin this announcement" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Manager" }).click();
+  await expect(page.getByRole("button", { name: "Unpin this announcement" })).toHaveCount(0);
+  // Unpinning is gone, not the announcement itself.
+  await expect(page.getByText("Draft moves to Thursday at 8pm — same slots, new night.").first()).toBeVisible();
+});
+
+test("unpinning takes an announcement off the rail without deleting it", async ({ page }) => {
+  await page.goto("/preview/house");
+
+  await page.getByRole("button", { name: "Unpin this announcement" }).click();
+  await expect(page.getByText(/^Pinned/)).toHaveCount(0);
+  // Still a line the league said.
+  await expect(page.getByText("Draft moves to Thursday at 8pm — same slots, new night.")).toBeVisible();
+});
+
 test("a poll is talk, not a move", async ({ page }) => {
   await page.goto("/preview/house");
 

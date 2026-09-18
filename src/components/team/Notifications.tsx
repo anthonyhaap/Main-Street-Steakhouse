@@ -19,7 +19,10 @@ import { useToast } from "@/components/ui";
  * can be asserted without a session, a device, or a push service.
  */
 
-export type Prefs = { trades: boolean; waivers: boolean; challenges: boolean; recaps: boolean; devices: number };
+export type Prefs = {
+  trades: boolean; waivers: boolean; challenges: boolean; recaps: boolean;
+  announcements: boolean; devices: number;
+};
 
 /** Each state needs its own sentence — "denied" in particular, because script
  *  cannot re-ask and the manager has to go to the browser's own settings. */
@@ -83,6 +86,7 @@ export function NotificationsCard({
           <div style={{ display: "grid", gap: 8, borderTop: "1px solid var(--rule)", paddingTop: 12 }}>
             <span className="eyebrow">Tell me about</span>
             {([
+              ["announcements", "League announcements"],
               ["trades", "Trade offers and answers"],
               ["waivers", "Waiver results"],
               ["challenges", "Challenges and stakes"],
@@ -130,6 +134,7 @@ export function Notifications() {
     const { data, error: rpcError } = await supabaseBrowser().rpc("ff_set_notification_prefs", {
       p_trades: merged.trades, p_waivers: merged.waivers,
       p_challenges: merged.challenges, p_recaps: merged.recaps,
+      p_announcements: merged.announcements,
     });
     setSaving(false);
     if (rpcError) {

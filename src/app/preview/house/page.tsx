@@ -59,6 +59,11 @@ const ITEMS: FeedItem[] = [
         { option_id: "c", label: "Nobody, it's a wash", count: null, mine: false },
       ],
     } },
+  { id: "9", at: today(600), source: "message", kind: "announcement", pinned: true,
+    body: "Draft moves to Thursday at 8pm — same slots, new night.",
+    detail: null, author: "Ada", author_team_id: "t1", mine: false,
+    source_type: null, source_id: null, matchup: null, poll: null,
+    reactions: [] },
   { id: "8", at: today(300), source: "poll", kind: "poll",
     body: "Move the draft to Thursday?",
     detail: null, author: "You", author_team_id: "t1", mine: true,
@@ -76,7 +81,12 @@ const ITEMS: FeedItem[] = [
 export default function PreviewHouse() {
   const [filter, setFilter] = useState<HouseFilter>("all");
   const [empty, setEmpty] = useState(false);
+  const [commissioner, setCommissioner] = useState(true);
   const [items, setItems] = useState<FeedItem[]>(ITEMS);
+
+  function unpin(target: FeedItem) {
+    setItems((list) => list.map((f) => (f.id === target.id ? { ...f, pinned: false } : f)));
+  }
 
   /* Voting reveals the split, which is the behaviour worth being able to see
      held still — before and after are genuinely different screens. */
@@ -130,11 +140,16 @@ export default function PreviewHouse() {
               <button className="segmented__opt" data-on={!empty} onClick={() => setEmpty(false)}>Busy</button>
               <button className="segmented__opt" data-on={empty} onClick={() => setEmpty(true)}>Quiet</button>
             </div>
+            <div className="segmented">
+              <button className="segmented__opt" data-on={commissioner} onClick={() => setCommissioner(true)}>Commissioner</button>
+              <button className="segmented__opt" data-on={!commissioner} onClick={() => setCommissioner(false)}>Manager</button>
+            </div>
           </div>
         </div>
 
         <House
           items={empty ? [] : items}
+          pinned={empty ? [] : items.filter((i) => i.pinned)}
           filter={filter}
           onFilter={setFilter}
           hasMore={!empty}
@@ -144,6 +159,9 @@ export default function PreviewHouse() {
           onReact={react}
           voting={null}
           onVote={vote}
+          canPin={commissioner}
+          unpinning={null}
+          onUnpin={unpin}
         />
       </main>
     </>

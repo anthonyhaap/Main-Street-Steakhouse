@@ -457,7 +457,7 @@ export type FeedItem = {
   id: string;
   at: string;
   source: "message" | "event" | "poll";
-  /** message kind ('manager' | 'house') or activity_events.event_type */
+  /** message kind ('manager' | 'house' | 'announcement') or activity_events.event_type */
   kind: string;
   body: string;
   detail: string | null;
@@ -469,6 +469,9 @@ export type FeedItem = {
   reactions: Reaction[];
   poll: Poll | null;
   matchup: { id: string; week: number; home: string; away: string; mine: boolean } | null;
+  /** True while this announcement holds a place on the pinned rail. Only ever
+   *  true for kind === "announcement"; absent or `false` for everything else. */
+  pinned?: boolean;
 };
 
 /** One answer. `count` is NULL until the reader has voted or the poll closes —
@@ -497,9 +500,12 @@ export type Reaction = { emoji: string; count: number; mine: boolean };
 export const EMOJI = ["🔥", "😂", "💀", "👀", "🫡", "🥩"] as const;
 
 /** One page of ff_house_feed. `next_before` is the cursor for the next call,
- *  and null when this page was the end. */
+ *  and null when this page was the end. `pinned` is every announcement
+ *  currently held to the rail, independent of which page is loaded — it does
+ *  not shrink as `items` pages back through history, only when one is unpinned. */
 export type HouseFeed = {
   items: FeedItem[];
+  pinned: FeedItem[];
   next_before: string | null;
   now: string;
 };

@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useState } from "react";
-import { BarChart3, Plus, Send, X } from "lucide-react";
+import { BarChart3, Megaphone, Plus, Send, X } from "lucide-react";
 import { TopBar } from "@/components/Shell";
 import { SkeletonRows } from "@/components/ui";
 import { LEAGUE_ID } from "@/lib/config";
@@ -30,11 +30,18 @@ import { House, type HouseFilter } from "@/components/house/House";
  * screen would have split the room in exactly that way.
  */
 export default function HousePage() {
-  const { ready } = useSession();
+  const { ready, isCommissioner } = useSession();
   const [body, setBody] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<HouseFilter>("all");
+  const [unpinning, setUnpinning] = useState<string | null>(null);
+
+  // The announcement composer, closed by default and separate from the
+  // ordinary "say something" box — a rule change or a deadline is a deliberate
+  // thing to post, not a line typed in passing, and it costs one tap to reach.
+  const [announcing, setAnnouncing] = useState(false);
+  const [announcement, setAnnouncement] = useState("");
 
   // Pages fetched beyond the first. Kept apart from the live head so that a
   // refetch — a poll, a realtime nudge — refreshes the top of the feed without
@@ -158,6 +165,30 @@ export default function HousePage() {
     await refetch();
   }
 
+  async function announce(event: FormEvent) {
+    event.preventDefault();
+    const value = announcement.trim();
+    if (!value || busy) return;
+    setBusy(true);
+    setError(null);
+    const { error: rpcError } = await supabaseBrowser()
+      .rpc("ff_post_announcement", { p_league_id: LEAGUE_ID, p_body: value });
+    setBusy(false);
+    if (rpcError) return setError(rpcError.message);
+    setAnnouncement("");
+    setAnnouncing(false);
+    await refetch();
+  }
+
+  async function unpin(item: FeedItem) {
+    setUnpinning(item.id);
+    const { error: rpcError } = await supabaseBrowser()
+      .rpc("ff_set_announcement_pinned", { p_message_id: item.id, p_pinned: false });
+    setUnpinning(null);
+    if (rpcError) setError(rpcError.message);
+    await refetch();
+  }
+
   const items = [...(data?.items ?? []), ...older];
   const hasMore = (cursor ?? data?.next_before ?? null) !== null;
 
@@ -201,6 +232,35 @@ export default function HousePage() {
             <Send size={16} />
           </button>
         </form>
+
+        {isCommissioner && (announcing ? (
+          <form onSubmit={announce} className="card" style={{ marginBottom: "var(--s4)" }}>
+            <div className="card__head">
+              <h2>Post an announcement</h2>
+              <button type="button" className="btn" data-size="icon" aria-label="Cancel"
+                onClick={() => setAnnouncing(false)}>
+                <X size={15} />
+              </button>
+            </div>
+            <div className="card__body" style={{ display: "grid", gap: 8 }}>
+              <input className="field" maxLength={500} value={announcement} autoFocus
+                placeholder="The draft moves to Thursday at 8pm." aria-label="Your announcement"
+                onChange={(e) => setAnnouncement(e.target.value)} />
+              <button className="btn" data-v="primary" style={{ marginLeft: "auto" }}
+                disabled={busy || !announcement.trim()}>
+                {busy ? "…" : "Pin it"}
+              </button>
+              <span className="eyebrow" style={{ color: "var(--faint)" }}>
+                Held above the feed for every manager, with a push to anyone who
+                has notifications on, until you unpin it.
+              </span>
+            </div>
+          </form>
+        ) : (
+          <button className="btn" style={{ marginBottom: "var(--s4)" }} onClick={() => setAnnouncing(true)}>
+            <Megaphone size={14} /> Post an announcement
+          </button>
+        ))}
 
         {asking ? (
           <form onSubmit={ask} className="card" style={{ marginBottom: "var(--s4)" }}>
@@ -254,6 +314,7 @@ export default function HousePage() {
         ) : (
           <House
             items={items}
+            pinned={data.pinned}
             filter={filter}
             onFilter={setFilter}
             hasMore={hasMore}
@@ -263,6 +324,9 @@ export default function HousePage() {
             onReact={(item, emoji) => void react(item, emoji)}
             voting={voting}
             onVote={(item, optionId) => void vote(item, optionId)}
+            canPin={isCommissioner}
+            unpinning={unpinning}
+            onUnpin={(item) => void unpin(item)}
           />
         )}
       </main>
