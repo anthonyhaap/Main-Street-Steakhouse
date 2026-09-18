@@ -57,9 +57,11 @@ test("both lineups open with a game state on every row", async ({ page }) => {
   const hero = page.locator(".sb[data-hero='true']");
   await hero.getByRole("button", { name: /Both lineups/ }).click();
 
-  const rows = hero.locator(".sb__plr");
-  await expect(rows).toHaveCount(18);
-  await expect(rows.first().locator(".sb__mark")).toBeVisible();
+  // One row per roster slot, both starters in it — nine slots, two marks apiece.
+  const rows = hero.locator(".sb__vs-row");
+  await expect(rows).toHaveCount(9);
+  await expect(rows.first().locator(".sb__mark")).toHaveCount(2);
+  await expect(rows.first().locator(".sb__mark").first()).toBeVisible();
 });
 
 test("the numbers say when they were written", async ({ page }) => {
