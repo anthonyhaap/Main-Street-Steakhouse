@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeftRight, Gavel, MessageCircle, PenLine, Trophy, Megaphone, Swords } from "lucide-react";
+import { ArrowLeftRight, Gavel, MessageCircle, PinOff, PenLine, Trophy, Megaphone, Swords } from "lucide-react";
 import type { FeedItem } from "@/lib/types";
 import { Reactions } from "./Reactions";
 import { PollCard } from "./PollCard";
@@ -46,11 +46,14 @@ export function stamp(iso: string, now = new Date()): string {
 function Said({ item, busy, onReact }: {
   item: FeedItem; busy: boolean; onReact: (emoji: string) => void;
 }) {
+  const announcement = item.kind === "announcement";
   return (
     <div className="row" data-mine={item.mine} data-kind={item.kind} style={{ alignItems: "flex-start" }}>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div className="eyebrow" style={{ marginBottom: 5 }}>
+        <div className="eyebrow" style={{ marginBottom: 5, display: "flex", alignItems: "center", gap: 5 }}>
+          {announcement && <Megaphone size={11} style={{ color: "var(--gold)" }} />}
           {item.mine ? "You" : item.author ?? "League manager"}
+          {announcement && !item.mine && <span style={{ color: "var(--faint)" }}>· Commissioner</span>}
         </div>
         <div className="chat__body">{item.body}</div>
         {item.matchup && (
@@ -111,12 +114,53 @@ function Asked({ item, busy, voting, onReact, onVote }: {
   );
 }
 
+/** The pinned rail: league news, held above the scroll until the commissioner
+ *  takes it down. A separate block rather than sorting pinned items to the top
+ *  of the ordinary feed — pinning is about staying findable, not about lying
+ *  to the feed about when something was said. */
+function Pinned({ items, canPin, unpinning, onUnpin }: {
+  items: FeedItem[]; canPin: boolean; unpinning: string | null; onUnpin: (item: FeedItem) => void;
+}) {
+  if (items.length === 0) return null;
+  return (
+    <div className="rows" style={{ borderBottom: "1px solid var(--rule)" }}>
+      {items.map((item) => (
+        <div key={`pin-${item.id}`} className="row" style={{ alignItems: "flex-start", background: "var(--gold-wash, rgba(201,162,39,0.08))" }}>
+          <Megaphone size={14} style={{ color: "var(--gold)", flexShrink: 0, marginTop: 3 }} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="eyebrow" style={{ marginBottom: 5, color: "var(--gold)" }}>
+              Pinned · {item.mine ? "You" : item.author ?? "The Commissioner"}
+            </div>
+            <div className="chat__body">{item.body}</div>
+          </div>
+          {canPin && (
+            <button
+              className="btn"
+              data-size="icon"
+              disabled={unpinning === item.id}
+              aria-label="Unpin this announcement"
+              title="Unpin"
+              onClick={() => onUnpin(item)}
+            >
+              <PinOff size={14} />
+            </button>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export type HouseFilter = "all" | "talk" | "moves";
 
 export function House({
-  items, filter, onFilter, hasMore, loadingMore, onMore, reacting, onReact, voting, onVote,
+  items, pinned = [], filter, onFilter, hasMore, loadingMore, onMore, reacting, onReact, voting, onVote,
+  canPin = false, unpinning = null, onUnpin,
 }: {
   items: FeedItem[];
+  /** Currently-pinned announcements, shown above the filtered feed regardless
+   *  of which filter is active — league news is not "talk" or "moves". */
+  pinned?: FeedItem[];
   filter: HouseFilter;
   onFilter: (f: HouseFilter) => void;
   hasMore: boolean;
@@ -128,6 +172,11 @@ export function House({
   /** The poll id mid-flight, so only its own answers go quiet. */
   voting: string | null;
   onVote: (item: FeedItem, optionId: string) => void;
+  /** Whether this manager may take an announcement off the rail. */
+  canPin?: boolean;
+  /** The message id mid-flight, so only its own row goes quiet. */
+  unpinning?: string | null;
+  onUnpin?: (item: FeedItem) => void;
 }) {
   // A poll is talk: somebody asked it. Without this it belongs to neither
   // filter and disappears from both, which is the quiet kind of wrong.
@@ -155,6 +204,8 @@ export function House({
             ))}
         </div>
       </div>
+
+      <Pinned items={pinned} canPin={canPin} unpinning={unpinning} onUnpin={(item) => onUnpin?.(item)} />
 
       <div className="rows">
         {shown.length === 0 && (
