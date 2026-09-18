@@ -3020,36 +3020,64 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
 }
 .sb__toggle:hover { color: var(--wine); }
 
-.sb__lineups {
-  display: grid; gap: 1px;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
-  background: var(--rule); border: 1px solid var(--rule); border-radius: var(--r-sm);
-  overflow: hidden;
-}
-.sb__lineup { background: var(--ink-1); padding-bottom: 6px; }
-.sb__lineup-head {
-  display: flex; align-items: baseline; justify-content: space-between; gap: var(--s3);
-  padding: var(--s3) var(--s4); border-bottom: 1px solid var(--rule-soft);
-}
-.sb__lineup-tot { font-size: var(--t-body); font-weight: 600; }
-
-.sb__plr {
+/* One slot, one row, both players in it — the pill goes in the middle once
+   instead of twice, and each side's score sits hard against that middle
+   pill rather than out at the row's own outer edge. That's the thing worth
+   taking from a scoreboard app's matchup screen: the two numbers you are
+   actually weighing against each other land side by side, not a whole row
+   apart, and a slot lines up with the same slot on the other roster because
+   they now share one row instead of independently stacking. */
+.sb__vs-lineup {
   display: grid;
-  grid-template-columns: 40px minmax(0, 1fr);
-  gap: 10px; align-items: center;
-  padding: 7px var(--s4);
+  border: 1px solid var(--rule); border-radius: var(--r-sm);
+  background: var(--ink-1); overflow: hidden;
 }
-.sb__plr + .sb__plr { border-top: 1px solid var(--rule-soft); }
-.sb__plr[data-final="true"] { opacity: 0.72; }
-.sb__plr[data-bye="true"] { background: #b3341f08; }
-.sb__plr-who { min-width: 0; display: grid; gap: 2px; }
-/* The line under a starter's name that used to sit in its own column on the
-   right — pulled under the name instead, so the row stays narrow enough for
-   both lineups to sit side by side on a phone. */
-.sb__plr-stat { font-weight: 600; color: var(--muted); }
-.sb__plr-stat b { color: var(--cream); font-weight: 600; }
+.sb__vs-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: baseline; gap: var(--s2);
+  padding: var(--s3) var(--s4);
+  border-bottom: 1px solid var(--rule-soft);
+  background: var(--ink-2);
+}
+.sb__vs-team { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.sb__vs-team b {
+  font-size: var(--t-small); font-weight: 600; white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; min-width: 0; flex: 1 1 auto;
+}
+/* The score never truncates — only the name gives up room for it. */
+.sb__vs-team .num { font-size: var(--t-small); font-weight: 600; color: var(--muted); flex-shrink: 0; }
+.sb__vs-team[data-align="end"] { flex-direction: row-reverse; justify-self: end; }
 
-.sb__mark { display: inline-flex; align-items: center; gap: 5px; font-size: var(--t-small); color: var(--dim); }
+.sb__vs-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 40px minmax(0, 1fr);
+  align-items: center; gap: 6px;
+  padding: 6px var(--s3);
+}
+.sb__vs-row + .sb__vs-row { border-top: 1px solid var(--rule-soft); }
+.sb__vs-row > .pos { justify-self: center; }
+
+.sb__vs-cell {
+  display: flex; align-items: center; gap: 8px; min-width: 0;
+  min-height: 40px;
+}
+.sb__vs-cell[data-final="true"] { opacity: 0.72; }
+.sb__vs-cell[data-bye="true"] { background: #b3341f08; }
+/* The far side, mirrored: the score moves first in source order so it lands
+   next to the pill, which pushes the face and name out to the row's own
+   outer edge instead — the same left/right mirroring `.sb__sides` already
+   does for the team row above this one. */
+.sb__vs-cell[data-align="end"] { flex-direction: row-reverse; text-align: right; }
+.sb__vs-cell[data-align="end"] .pbadge { flex-direction: row-reverse; }
+.sb__vs-cell[data-align="end"] .pbadge__sub { justify-content: flex-end; }
+
+.sb__vs-pts { display: grid; justify-items: end; gap: 0; min-width: 30px; flex-shrink: 0; }
+.sb__vs-cell[data-align="end"] .sb__vs-pts { justify-items: start; }
+.sb__vs-pts b { font-family: var(--sans); font-weight: 600; font-size: var(--t-body); }
+.sb__vs-pts span:not(b) { font-size: var(--t-nano); color: var(--dim); }
+
+.sb__mark { display: inline-flex; align-items: center; gap: 5px; font-size: var(--t-nano); color: var(--dim); white-space: nowrap; }
 .sb__mark[data-state="live"] { color: var(--wine); font-weight: 600; }
 .sb__mark[data-state="final"] { color: var(--faint); }
 .sb__hurt { color: var(--lose); font-weight: 700; }
@@ -3071,15 +3099,12 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
   .sb__odds-src { display: none; }
   .sb__tops > :last-child { justify-self: start; text-align: left; }
 
-  /* Both lineups, open on a phone: `auto-fit` would drop the second one to
-     its own row below the first, which is a scorecard read top-to-bottom
-     instead of the two opponents it is actually about. Forced to two columns
-     and given back the width `.sb__plr-stat` freed, the same head-to-head
-     the team row above already shows survives all the way down the roster. */
-  .sb__lineups { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-  .sb__plr { gap: 6px; padding: 7px var(--s2); }
-  .sb__lineup-head { padding: var(--s3) var(--s2); }
-  .sb__plr-stat { display: block; }
+  .sb__vs-row { padding: 6px var(--s2); gap: 4px; }
+  .sb__vs-head { padding: var(--s3) var(--s2); }
+  /* The "Both lineups" toggle right above already says what this table is;
+     the label in its own header just eats the width the team names and
+     totals need on a phone. */
+  .sb__vs-head .eyebrow { display: none; }
 }
 
 /* --- table talk --------------------------------------------------------- */

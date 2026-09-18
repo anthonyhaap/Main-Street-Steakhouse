@@ -168,20 +168,7 @@ function Card({ c, now, myTeamId, talk, rivalry, onShare, hero = false }: {
         </button>
       )}
 
-      {open && (
-        <div className="sb__lineups">
-          {[c.away, c.home].map((s) => (
-            <div className="sb__lineup" key={s.team_id}>
-              <div className="sb__lineup-head">
-                <span className="eyebrow">{s.name}</span>
-                <span className="num sb__lineup-tot">{fmt1(s.points)}</span>
-              </div>
-              {s.starters.length === 0 && <div className="empty">No lineup set.</div>}
-              {s.starters.map((p) => <PlayerRow key={p.player_id} p={p} now={now} />)}
-            </div>
-          ))}
-        </div>
-      )}
+      {open && <VsLineups away={c.away} home={c.home} now={now} />}
 
       {/* Last, because it is the one thing on the card that grows. */}
       {talk?.(c)}
@@ -316,35 +303,93 @@ function TopLine({ s }: { s: ScoreSide }) {
   );
 }
 
-function PlayerRow({ p, now }: { p: ScoreStarter; now: number }) {
-  const mark = gameMark(p, now);
+/**
+ * Both lineups, one slot at a time.
+ *
+ * The old shape was two rosters, stacked side by side: read top to bottom
+ * once for your guy, then again for his. It also meant every row carried its
+ * own position pill, twice, and any row whose name wrapped a line pushed the
+ * two lists out of step with each other for the rest of the way down.
+ *
+ * A slot is a single row instead — one pill in the middle shared by both
+ * players in it, so QB always sits across from QB — and each player's score
+ * sits hard against that middle pill rather than off at the row's outer
+ * edge, which is the one thing worth stealing from ESPN's matchup screen:
+ * the two numbers you are actually comparing land right next to each other.
+ */
+function VsLineups({ away, home, now }: { away: ScoreSide; home: ScoreSide; now: number }) {
+  if (away.starters.length === 0 && home.starters.length === 0) {
+    return <div className="sb__vs-lineup"><div className="empty">No lineup set.</div></div>;
+  }
+  const rows = Math.max(away.starters.length, home.starters.length);
+
   return (
-    <div className="sb__plr" data-final={p.final} data-bye={p.on_bye}>
-      <span className="pos" data-p={p.slot}>{p.slot}</span>
-      <div className="sb__plr-who">
-        <PlayerBadge
-          id={p.player_id}
-          name={p.full_name}
-          position={p.position}
-          team={p.nfl_team}
-          espnId={p.espn_id}
-          size={26}
-          sub={
-            <>
-              <span>{p.position} · {p.nfl_team ?? "FA"}</span>
-              <span className="sb__plr-stat">
-                <b className="num">{fmt1(p.points)}</b>
-                {p.projection != null && <> · proj. {fmt1(p.projection)}</>}
-              </span>
-            </>
-          }
-        />
-        <span className="sb__mark" data-state={mark.state}>
-          {mark.state === "live" && <i className="sb__pip" aria-hidden />}
-          {mark.label}
-          {p.severity === "out" && <b className="sb__hurt"> · OUT</b>}
-        </span>
+    <div className="sb__vs-lineup">
+      <div className="sb__vs-head">
+        <VsTeam s={away} />
+        <span className="eyebrow">Lineups</span>
+        <VsTeam s={home} align="end" />
       </div>
+      {Array.from({ length: rows }, (_, i) => {
+        const a = away.starters[i], h = home.starters[i];
+        return (
+          <div className="sb__vs-row" key={a?.player_id ?? h?.player_id ?? i}>
+            <VsPlayer p={a} now={now} align="start" />
+            <span className="pos" data-p={a?.slot ?? h?.slot}>{a?.slot ?? h?.slot}</span>
+            <VsPlayer p={h} now={now} align="end" />
+          </div>
+        );
+      })}
     </div>
   );
+}
+
+function VsTeam({ s, align = "start" }: { s: ScoreSide; align?: "start" | "end" }) {
+  return (
+    <span className="sb__vs-team" data-align={align}>
+      <b>{s.name}</b>
+      <span className="num">{fmt1(s.points)}</span>
+    </span>
+  );
+}
+
+function VsPlayer({ p, now, align }: { p?: ScoreStarter; now: number; align: "start" | "end" }) {
+  if (!p) return <span className="sb__vs-cell" data-align={align} />;
+  const mark = gameMark(p, now);
+  return (
+    <div className="sb__vs-cell" data-align={align} data-final={p.final} data-bye={p.on_bye}>
+      <PlayerBadge
+        id={p.player_id}
+        name={p.full_name}
+        displayName={vsDisplayName(p)}
+        position={p.position}
+        team={p.nfl_team}
+        espnId={p.espn_id}
+        size={24}
+        sub={
+          <span className="sb__mark" data-state={mark.state}>
+            {mark.state === "live" && <i className="sb__pip" aria-hidden />}
+            {mark.label}
+            {p.severity === "out" && <b className="sb__hurt"> · OUT</b>}
+          </span>
+        }
+      />
+      <span className="sb__vs-pts">
+        <b className="num">{fmt1(p.points)}</b>
+        {p.projection != null && <span className="num">{fmt1(p.projection)}</span>}
+      </span>
+    </div>
+  );
+}
+
+/**
+ * "J. Taylor", not "Jonathan Taylor" cut off mid-word — a row this narrow
+ * needs the same trick a stadium scoreboard uses, first initial and the
+ * surname that actually identifies him. Defenses keep their own name; "NE"
+ * off a scoreboard reads as the opponent, not the guy on your bench.
+ */
+function vsDisplayName(p: ScoreStarter): string {
+  if (p.position === "DST") return p.full_name;
+  const parts = p.full_name.trim().split(/\s+/);
+  return parts.length < 2 ? p.full_name : `${parts[0][0]}. ${parts.slice(1).join(" ")}`;
 }
