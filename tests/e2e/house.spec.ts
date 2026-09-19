@@ -143,3 +143,52 @@ test("a poll is talk, not a move", async ({ page }) => {
   await page.getByRole("button", { name: "Moves" }).click();
   await expect(page.getByText("Who wins the Chase trade?")).toHaveCount(0);
 });
+
+test("a weekly award reads as a record of the week, like a trade or a waiver", async ({ page }) => {
+  await page.goto("/preview/house");
+  await expect(page.getByText("Player of the week: Ja'Marr Chase")).toBeVisible();
+  await expect(page.getByText("38.4 for Chuck Wagon · Week 2")).toBeVisible();
+
+  // It is a "move", not "talk" — nobody said it, the house recorded it, same
+  // as a trade or a settled waiver.
+  await page.getByRole("button", { name: "Moves" }).click();
+  await expect(page.getByText("Player of the week: Ja'Marr Chase")).toBeVisible();
+  await page.getByRole("button", { name: "Talk" }).click();
+  await expect(page.getByText("Player of the week: Ja'Marr Chase")).toHaveCount(0);
+});
+
+test("a thread starts collapsed into a count, and opens to the argument", async ({ page }) => {
+  await page.goto("/preview/house");
+
+  // Closed by default: a full thread under every line would be noise, same
+  // reasoning as a reaction row that starts as one quiet button.
+  const opener = page.getByRole("button", { name: "2 replies" });
+  await expect(opener).toBeVisible();
+  await expect(page.getByText("it really is not, you got two firsts")).toHaveCount(0);
+
+  await opener.click();
+  await expect(page.getByText("it really is not, you got two firsts")).toBeVisible();
+  await expect(page.getByText("counterpoint: it is")).toBeVisible();
+
+  await opener.click();
+  await expect(page.getByText("it really is not, you got two firsts")).toHaveCount(0);
+});
+
+test("an item nobody has replied to offers a plain invitation, not a zero", async ({ page }) => {
+  await page.goto("/preview/house");
+  // "0 replies" reads as a scoreboard nobody is on; "Reply" reads as an offer.
+  await expect(page.getByRole("button", { name: "Reply" }).first()).toBeVisible();
+  await expect(page.getByRole("button", { name: "0 replies" })).toHaveCount(0);
+});
+
+test("sending a reply adds it to the thread and clears the box", async ({ page }) => {
+  await page.goto("/preview/house");
+
+  await page.getByRole("button", { name: "Reply" }).first().click();
+  const box = page.getByLabel("Write a reply");
+  await box.fill("finally, somebody said it");
+  await page.getByRole("button", { name: "Send reply" }).first().click();
+
+  await expect(page.getByText("finally, somebody said it")).toBeVisible();
+  await expect(box).toHaveValue("");
+});

@@ -1,10 +1,12 @@
 "use client";
 
+import { FormEvent, ReactNode } from "react";
 import Link from "next/link";
-import { ArrowLeftRight, Gavel, MessageCircle, PinOff, PenLine, Trophy, Megaphone, Swords } from "lucide-react";
-import type { FeedItem } from "@/lib/types";
+import { ArrowLeftRight, Award, Gavel, MessageCircle, PinOff, PenLine, Trophy, Megaphone, Swords } from "lucide-react";
+import type { FeedItem, FeedReply } from "@/lib/types";
 import { Reactions } from "./Reactions";
 import { PollCard } from "./PollCard";
+import { Replies } from "./Replies";
 
 /**
  * The House: what the league said and what the league did, in one column.
@@ -26,6 +28,7 @@ const ICON: Record<string, typeof PenLine> = {
   trade: ArrowLeftRight,
   challenge: Swords,
   record: Trophy,
+  award: Award,
   announcement: Megaphone,
   deadline: Megaphone,
   draft: Swords,
@@ -43,8 +46,25 @@ export function stamp(iso: string, now = new Date()): string {
     : d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-function Said({ item, busy, onReact }: {
-  item: FeedItem; busy: boolean; onReact: (emoji: string) => void;
+/** The key a thread is stored under: the same pair a reaction targets. */
+export const threadKey = (item: Pick<FeedItem, "source" | "id">): string => `${item.source}:${item.id}`;
+
+/** What one thread looks like in the House's own state, before the page or
+ *  the preview has anything to say about it — closed, unloaded, untyped. */
+export const EMPTY_THREAD: ThreadState = { replies: null, open: false, loading: false, busy: false, draft: "" };
+
+export type ThreadState = {
+  /** Null until the thread has actually been opened once; `[]` after that if
+   *  nobody has replied — the two read differently to the component. */
+  replies: FeedReply[] | null;
+  open: boolean;
+  loading: boolean;
+  busy: boolean;
+  draft: string;
+};
+
+function Said({ item, busy, onReact, replies }: {
+  item: FeedItem; busy: boolean; onReact: (emoji: string) => void; replies: ReactNode;
 }) {
   const announcement = item.kind === "announcement";
   return (
@@ -62,6 +82,7 @@ function Said({ item, busy, onReact }: {
           </Link>
         )}
         <Reactions reactions={item.reactions ?? []} busy={busy} onPress={onReact} />
+        {replies}
       </div>
       <time className="num" suppressHydrationWarning style={{ color: "var(--dim)", fontSize: "var(--t-micro)" }}>
         {stamp(item.at)}
@@ -70,8 +91,8 @@ function Said({ item, busy, onReact }: {
   );
 }
 
-function Did({ item, busy, onReact }: {
-  item: FeedItem; busy: boolean; onReact: (emoji: string) => void;
+function Did({ item, busy, onReact, replies }: {
+  item: FeedItem; busy: boolean; onReact: (emoji: string) => void; replies: ReactNode;
 }) {
   const Icon = ICON[item.kind] ?? Megaphone;
   return (
@@ -83,6 +104,7 @@ function Did({ item, busy, onReact }: {
           <div className="eyebrow" style={{ marginTop: 3, color: "var(--faint)" }}>{item.detail}</div>
         )}
         <Reactions reactions={item.reactions ?? []} busy={busy} onPress={onReact} />
+        {replies}
       </div>
       <time className="num" suppressHydrationWarning style={{ color: "var(--dim)", fontSize: "var(--t-micro)" }}>
         {stamp(item.at)}
@@ -93,9 +115,9 @@ function Did({ item, busy, onReact }: {
 
 /** A question, with its answers under it. Reads as speech — somebody asked it —
  *  rather than as a record of something the league did. */
-function Asked({ item, busy, voting, onReact, onVote }: {
+function Asked({ item, busy, voting, onReact, onVote, replies }: {
   item: FeedItem; busy: boolean; voting: boolean;
-  onReact: (emoji: string) => void; onVote: (optionId: string) => void;
+  onReact: (emoji: string) => void; onVote: (optionId: string) => void; replies: ReactNode;
 }) {
   return (
     <div className="row" data-mine={item.mine} data-kind="poll" style={{ alignItems: "flex-start" }}>
@@ -106,6 +128,7 @@ function Asked({ item, busy, voting, onReact, onVote }: {
         <div className="chat__body">{item.body}</div>
         {item.poll && <PollCard poll={item.poll} busy={voting} onVote={onVote} />}
         <Reactions reactions={item.reactions ?? []} busy={busy} onPress={onReact} />
+        {replies}
       </div>
       <time className="num" suppressHydrationWarning style={{ color: "var(--dim)", fontSize: "var(--t-micro)" }}>
         {stamp(item.at)}
@@ -132,6 +155,8 @@ function Pinned({ items, canPin, unpinning, onUnpin }: {
               Pinned · {item.mine ? "You" : item.author ?? "The Commissioner"}
             </div>
             <div className="chat__body">{item.body}</div>
+            {/* Reactions and replies live once, on this item's ordinary row
+                below — the rail is a "look here", not a second place to act. */}
           </div>
           {canPin && (
             <button
@@ -156,6 +181,7 @@ export type HouseFilter = "all" | "talk" | "moves";
 export function House({
   items, pinned = [], filter, onFilter, hasMore, loadingMore, onMore, reacting, onReact, voting, onVote,
   canPin = false, unpinning = null, onUnpin,
+  threads = {}, onToggleThread, onDraftChange, onReply,
 }: {
   items: FeedItem[];
   /** Currently-pinned announcements, shown above the filtered feed regardless
@@ -177,6 +203,12 @@ export function House({
   /** The message id mid-flight, so only its own row goes quiet. */
   unpinning?: string | null;
   onUnpin?: (item: FeedItem) => void;
+  /** One thread per `threadKey(item)`. An item with no entry reads as closed
+   *  and unopened — see EMPTY_THREAD. */
+  threads?: Record<string, ThreadState>;
+  onToggleThread?: (item: FeedItem) => void;
+  onDraftChange?: (item: FeedItem, value: string) => void;
+  onReply?: (item: FeedItem, event: FormEvent) => void;
 }) {
   // A poll is talk: somebody asked it. Without this it belongs to neither
   // filter and disappears from both, which is the quiet kind of wrong.
@@ -184,6 +216,23 @@ export function House({
     filter === "all" ? true
     : filter === "talk" ? i.source === "message" || i.source === "poll"
     : i.source === "event");
+
+  const repliesFor = (item: FeedItem): ReactNode => {
+    const t = threads[threadKey(item)] ?? EMPTY_THREAD;
+    return (
+      <Replies
+        count={item.reply_count}
+        replies={t.replies}
+        open={t.open}
+        loading={t.loading}
+        busy={t.busy}
+        draft={t.draft}
+        onToggle={() => onToggleThread?.(item)}
+        onDraftChange={(value) => onDraftChange?.(item, value)}
+        onSubmit={(e) => { e.preventDefault(); onReply?.(item, e); }}
+      />
+    );
+  };
 
   return (
     <section className="card">
@@ -227,12 +276,13 @@ export function House({
                 voting={voting === item.id}
                 onReact={react}
                 onVote={(optionId) => onVote(item, optionId)}
+                replies={repliesFor(item)}
               />
             );
           }
           return item.source === "message"
-            ? <Said key={`m-${item.id}`} item={item} busy={busy} onReact={react} />
-            : <Did key={`e-${item.id}`} item={item} busy={busy} onReact={react} />;
+            ? <Said key={`m-${item.id}`} item={item} busy={busy} onReact={react} replies={repliesFor(item)} />
+            : <Did key={`e-${item.id}`} item={item} busy={busy} onReact={react} replies={repliesFor(item)} />;
         })}
       </div>
 

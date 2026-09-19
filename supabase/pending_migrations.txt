@@ -48,3 +48,6 @@
 #
 # One name per line.
 pinned_announcements
+feed_replies
+weekly_awards
+feed_unread

@@ -3604,6 +3604,16 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
 .chat__on:hover { color: var(--wine); text-decoration: underline; text-underline-offset: 2px; }
 .chat__on svg { color: var(--gold); flex-shrink: 0; }
 
+/* A reply thread, indented under the item it answers rather than sitting flush
+   with it — the rule is the same visual move .talk__msg makes for a side. */
+.replies {
+  margin-top: 8px; padding-left: 12px;
+  border-left: 2px solid var(--rule);
+  display: grid; gap: 7px;
+}
+.replies__row { font-size: var(--t-small); line-height: 1.5; overflow-wrap: anywhere; }
+.replies__who { font-weight: 600; color: var(--dim); }
+
 /* ============================================================================
    THE ROOM — the clubhouse, under the card
 

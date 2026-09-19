@@ -12,8 +12,8 @@
 
 import { useState } from "react";
 import { TopBar } from "@/components/Shell";
-import { House, type HouseFilter } from "@/components/house/House";
-import type { FeedItem, Poll, Reaction } from "@/lib/types";
+import { EMPTY_THREAD, House, threadKey, type HouseFilter, type ThreadState } from "@/components/house/House";
+import type { FeedItem, FeedReply, Poll, Reaction } from "@/lib/types";
 
 const NOW = new Date();
 const MIDNIGHT = new Date(NOW.getFullYear(), NOW.getMonth(), NOW.getDate()).getTime();
@@ -25,31 +25,35 @@ const today = (minutesAgo: number) =>
 const ITEMS: FeedItem[] = [
   { id: "1", at: today(4), source: "message", kind: "manager", body: "that trade is a robbery and you all know it",
     detail: null, author: "Bo", author_team_id: "t2", mine: false, source_type: null, source_id: null, matchup: null,
-    reactions: [{ emoji: "💀", count: 3, mine: false }], poll: null },
+    reactions: [{ emoji: "💀", count: 3, mine: false }], poll: null, reply_count: 2 },
   { id: "2", at: today(9), source: "event", kind: "trade",
     body: "Chuck Wagon and Gridiron Butchers made a trade", detail: "Ja'Marr Chase, Bijan Robinson",
     author: null, author_team_id: null, mine: false, source_type: "trade", source_id: null, matchup: null,
-    reactions: [{ emoji: "🔥", count: 5, mine: true }, { emoji: "👀", count: 2, mine: false }], poll: null },
+    reactions: [{ emoji: "🔥", count: 5, mine: true }, { emoji: "👀", count: 2, mine: false }], poll: null, reply_count: 0 },
   { id: "3", at: today(40), source: "message", kind: "manager", body: "anyone else still missing a kicker",
     detail: null, author: "You", author_team_id: "t1", mine: true, source_type: null, source_id: null, reactions: [], poll: null,
-    matchup: { id: "m1", week: 3, home: "Prime Cut", away: "Gridiron Butchers", mine: true } },
+    matchup: { id: "m1", week: 3, home: "Prime Cut", away: "Gridiron Butchers", mine: true }, reply_count: 0 },
   { id: "4", at: today(180), source: "event", kind: "waiver",
     body: "Waivers cleared: 4 of 7 claims awarded", detail: "Week 3",
     author: null, author_team_id: null, mine: false, source_type: "waiver_run", source_id: null, matchup: null,
-    reactions: [], poll: null },
+    reactions: [], poll: null, reply_count: 0 },
   { id: "5", at: today(400), source: "event", kind: "transaction",
     body: "Brisket Brigade signed Rome Odunze and let Roschon Johnson go", detail: "Week 3",
     author: "Brisket Brigade", author_team_id: "t3", mine: false, source_type: "transaction", source_id: null, matchup: null,
-    reactions: [], poll: null },
+    reactions: [], poll: null, reply_count: 0 },
+  { id: "10", at: today(910), source: "event", kind: "award",
+    body: "Player of the week: Ja'Marr Chase", detail: "38.4 for Chuck Wagon · Week 2",
+    author: null, author_team_id: null, mine: false, source_type: "recap", source_id: null, matchup: null,
+    reactions: [], poll: null, reply_count: 0 },
   { id: "6", at: today(900), source: "message", kind: "house",
     body: "Week 2 is written up. Somebody left 34 points on their bench.",
     detail: null, author: "The House", author_team_id: null, mine: false,
     source_type: null, source_id: null, matchup: null, poll: null,
-    reactions: [{ emoji: "🥩", count: 8, mine: false }] },
+    reactions: [{ emoji: "🥩", count: 8, mine: false }], reply_count: 0 },
   { id: "7", at: today(20), source: "poll", kind: "poll",
     body: "Who wins the Chase trade?",
     detail: null, author: "Bo", author_team_id: "t2", mine: false,
-    source_type: null, source_id: null, matchup: null, reactions: [],
+    source_type: null, source_id: null, matchup: null, reactions: [], reply_count: 1,
     poll: {
       poll_id: "7", question: "Who wins the Chase trade?", closes_at: null, closed: false,
       votes: 7, my_option: null, revealed: false,
@@ -63,11 +67,11 @@ const ITEMS: FeedItem[] = [
     body: "Draft moves to Thursday at 8pm — same slots, new night.",
     detail: null, author: "Ada", author_team_id: "t1", mine: false,
     source_type: null, source_id: null, matchup: null, poll: null,
-    reactions: [] },
+    reactions: [], reply_count: 0 },
   { id: "8", at: today(300), source: "poll", kind: "poll",
     body: "Move the draft to Thursday?",
     detail: null, author: "You", author_team_id: "t1", mine: true,
-    source_type: null, source_id: null, matchup: null, reactions: [],
+    source_type: null, source_id: null, matchup: null, reactions: [], reply_count: 0,
     poll: {
       poll_id: "8", question: "Move the draft to Thursday?", closes_at: null, closed: false,
       votes: 9, my_option: "y", revealed: true,
@@ -78,11 +82,54 @@ const ITEMS: FeedItem[] = [
     } },
 ];
 
+/** Canned threads, keyed like the real page keys them — present only for the
+ *  items worth showing a thread already in progress. */
+const REPLIES: Record<string, FeedReply[]> = {
+  "message:1": [
+    { id: "r1", at: today(3), body: "it really is not, you got two firsts", author: "Ada", author_team_id: "t1", mine: false },
+    { id: "r2", at: today(2), body: "counterpoint: it is", author: "You", author_team_id: "t1", mine: true },
+  ],
+  "poll:7": [
+    { id: "r3", at: today(15), body: "Chuck Wagon, not close", author: "Cy", author_team_id: "t4", mine: false },
+  ],
+};
+
 export default function PreviewHouse() {
   const [filter, setFilter] = useState<HouseFilter>("all");
   const [empty, setEmpty] = useState(false);
   const [commissioner, setCommissioner] = useState(true);
   const [items, setItems] = useState<FeedItem[]>(ITEMS);
+  const [threads, setThreads] = useState<Record<string, ThreadState>>({});
+
+  /* Opening a thread for the first time loads the canned replies, exactly the
+     one-round-trip shape the real page's fetch has; opening it again does not
+     re-"fetch". */
+  function toggleThread(item: FeedItem) {
+    const key = threadKey(item);
+    setThreads((prev) => {
+      const current = prev[key] ?? EMPTY_THREAD;
+      if (current.open) return { ...prev, [key]: { ...current, open: false } };
+      return { ...prev, [key]: { ...current, open: true, replies: current.replies ?? REPLIES[key] ?? [] } };
+    });
+  }
+
+  function draftReply(target: FeedItem, value: string) {
+    const key = threadKey(target);
+    setThreads((prev) => ({ ...prev, [key]: { ...(prev[key] ?? EMPTY_THREAD), draft: value } }));
+  }
+
+  function addReply(target: FeedItem) {
+    const key = threadKey(target);
+    setThreads((prev) => {
+      const current = prev[key] ?? EMPTY_THREAD;
+      const value = current.draft.trim();
+      if (!value) return prev;
+      const mine: FeedReply = { id: `local-${Date.now()}`, at: new Date().toISOString(), body: value, author: "You", author_team_id: "t1", mine: true };
+      return { ...prev, [key]: { ...current, draft: "", replies: [...(current.replies ?? []), mine] } };
+    });
+    setItems((list) => list.map((f) => (f.id === target.id && f.source === target.source
+      ? { ...f, reply_count: f.reply_count + 1 } : f)));
+  }
 
   function unpin(target: FeedItem) {
     setItems((list) => list.map((f) => (f.id === target.id ? { ...f, pinned: false } : f)));
@@ -162,6 +209,10 @@ export default function PreviewHouse() {
           canPin={commissioner}
           unpinning={null}
           onUnpin={unpin}
+          threads={threads}
+          onToggleThread={toggleThread}
+          onDraftChange={draftReply}
+          onReply={addReply}
         />
       </main>
     </>

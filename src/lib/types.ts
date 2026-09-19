@@ -472,6 +472,19 @@ export type FeedItem = {
   /** True while this announcement holds a place on the pinned rail. Only ever
    *  true for kind === "announcement"; absent or `false` for everything else. */
   pinned?: boolean;
+  /** How many replies this item has. The replies themselves are fetched on
+   *  demand, by (source, id), only once a manager opens the thread. */
+  reply_count: number;
+};
+
+/** One line in a feed item's thread, as ff_feed_replies returns it. */
+export type FeedReply = {
+  id: string;
+  at: string;
+  body: string;
+  author: string | null;
+  author_team_id: string | null;
+  mine: boolean;
 };
 
 /** One answer. `count` is NULL until the reader has voted or the poll closes —

@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useState } from "react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
 import { BarChart3, Megaphone, Plus, Send, X } from "lucide-react";
 import { TopBar } from "@/components/Shell";
 import { SkeletonRows } from "@/components/ui";
@@ -8,8 +8,8 @@ import { LEAGUE_ID } from "@/lib/config";
 import { useLive } from "@/lib/live";
 import { useSession } from "@/lib/session";
 import { supabaseBrowser } from "@/lib/supabase/client";
-import type { FeedItem, HouseFeed } from "@/lib/types";
-import { House, type HouseFilter } from "@/components/house/House";
+import type { FeedItem, FeedReply, HouseFeed } from "@/lib/types";
+import { EMPTY_THREAD, House, threadKey, type HouseFilter, type ThreadState } from "@/components/house/House";
 
 /**
  * The House.
@@ -51,6 +51,7 @@ export default function HousePage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [reacting, setReacting] = useState<string | null>(null);
   const [voting, setVoting] = useState<string | null>(null);
+  const [threads, setThreads] = useState<Record<string, ThreadState>>({});
 
   // The poll composer, closed by default. A question is a deliberate thing to
   // ask, so it costs one tap to open rather than sitting on screen competing
@@ -67,11 +68,67 @@ export default function HousePage() {
   }, []);
 
   const { data, status, error: feedError, refetch, mutate } = useLive<HouseFeed>(fetcher, {
-    tables: ["league_messages", "activity_events", "reactions", "polls", "poll_votes"],
+    tables: ["league_messages", "activity_events", "reactions", "polls", "poll_votes", "feed_replies"],
     channel: "house",
     pollMs: 30000,
     enabled: ready,
   });
+
+  // How far behind a manager was the moment he opened the House — read first,
+  // then immediately marked seen, so the number on screen is "how much you
+  // missed" rather than a count that has already zeroed itself out under him.
+  const [caughtUpOn, setCaughtUpOn] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!ready) return;
+    void (async () => {
+      const { data } = await supabaseBrowser().rpc("ff_feed_unread_count", { p_league_id: LEAGUE_ID });
+      if (typeof data === "number") setCaughtUpOn(data);
+      await supabaseBrowser().rpc("ff_feed_mark_seen", { p_league_id: LEAGUE_ID });
+    })();
+  }, [ready]);
+
+  /** Open or close one item's thread, fetching it the first time it opens. */
+  async function toggleThread(item: FeedItem) {
+    const key = threadKey(item);
+    const current = threads[key] ?? EMPTY_THREAD;
+    if (current.open) {
+      setThreads((prev) => ({ ...prev, [key]: { ...current, open: false } }));
+      return;
+    }
+    setThreads((prev) => ({ ...prev, [key]: { ...current, open: true, loading: current.replies === null } }));
+    if (current.replies !== null) return;
+    const { data: rows, error: rpcError } = await supabaseBrowser()
+      .rpc("ff_feed_replies", { p_source: item.source, p_target_id: item.id });
+    setThreads((prev) => ({
+      ...prev,
+      [key]: { ...(prev[key] ?? current), loading: false, replies: rpcError ? [] : (rows as FeedReply[]) },
+    }));
+    if (rpcError) setError(rpcError.message);
+  }
+
+  function draftReply(item: FeedItem, value: string) {
+    const key = threadKey(item);
+    setThreads((prev) => ({ ...prev, [key]: { ...(prev[key] ?? EMPTY_THREAD), draft: value } }));
+  }
+
+  async function reply(item: FeedItem) {
+    const key = threadKey(item);
+    const current = threads[key] ?? EMPTY_THREAD;
+    const value = current.draft.trim();
+    if (!value || current.busy) return;
+    setThreads((prev) => ({ ...prev, [key]: { ...current, busy: true } }));
+    const { data: rows, error: rpcError } = await supabaseBrowser()
+      .rpc("ff_reply", { p_league_id: LEAGUE_ID, p_source: item.source, p_target_id: item.id, p_body: value });
+    setThreads((prev) => ({
+      ...prev,
+      [key]: rpcError
+        ? { ...(prev[key] ?? current), busy: false }
+        : { open: true, loading: false, busy: false, draft: "", replies: rows as FeedReply[] },
+    }));
+    if (rpcError) setError(rpcError.message);
+    else await refetch();
+  }
 
   async function loadMore() {
     const from = cursor ?? data?.next_before ?? null;
@@ -206,6 +263,13 @@ export default function HousePage() {
             whatever the league has to say about them. Anything said on a matchup
             card shows up too, with the game it was said about.
           </p>
+          {/* What you missed, stated once as you walk in — not a badge that
+              keeps counting after you have, in fact, caught up. */}
+          {!!caughtUpOn && (
+            <div className="eyebrow" style={{ marginTop: "var(--s2)", color: "var(--gold)" }}>
+              {caughtUpOn === 1 ? "1 thing" : `${caughtUpOn} things`} happened since you were last here.
+            </div>
+          )}
         </header>
 
         {/* The composer sits above the feed because the feed is newest-first:
@@ -327,6 +391,10 @@ export default function HousePage() {
             canPin={isCommissioner}
             unpinning={unpinning}
             onUnpin={(item) => void unpin(item)}
+            threads={threads}
+            onToggleThread={(item) => void toggleThread(item)}
+            onDraftChange={draftReply}
+            onReply={(item) => void reply(item)}
           />
         )}
       </main>
