@@ -351,13 +351,12 @@ begin
   end if;
   v_checks := v_checks + 1;
 
-  -- The House saw the week too, once each. Both screens read everything, so if
-  -- one of them is wrong about a week like this, it is wrong about every week.
+  -- The League Feed saw the week too, once each.
   perform set_config('request.jwt.claims', json_build_object('sub', v_uid_a)::text, true);
-  v_j := ff_house_feed(v_league, null, 100);
+  v_j := ff_league_feed(v_league, null, 100);
   if jsonb_array_length(v_j->'items') <>
      (select count(*) from activity_events where league_id = v_league) then
-    raise exception 'the House shows % items for % events',
+    raise exception 'the League Feed shows % items for % events',
       jsonb_array_length(v_j->'items'),
       (select count(*) from activity_events where league_id = v_league);
   end if;
@@ -366,7 +365,7 @@ begin
   select count(*) into v_n from (
     select (x->>'id')::uuid as id from jsonb_array_elements(v_j->'items') x
     group by 1 having count(*) > 1) y;
-  if v_n <> 0 then raise exception 'the House repeated % item(s)', v_n; end if;
+  if v_n <> 0 then raise exception 'the League Feed repeated % item(s)', v_n; end if;
   v_checks := v_checks + 1;
 
   -- It is in order, newest first. A feed that merges two tables is exactly
@@ -378,7 +377,7 @@ begin
         from jsonb_array_elements(v_j->'items') with ordinality t(x, i)
     ) s where s.prev is not null and s.at > s.prev
   ) then
-    raise exception 'the House is out of order';
+    raise exception 'the League Feed is out of order';
   end if;
   v_checks := v_checks + 1;
 

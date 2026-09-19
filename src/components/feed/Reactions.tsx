@@ -13,7 +13,8 @@ import { EMOJI, type Reaction } from "@/lib/types";
  * the tally itself becomes the control — you press what is already there, or
  * open the palette for something else.
  *
- * Presentation only; the page owns the RPC.
+ * Shared by Chat, the League Feed and the weekly recap — presentation only;
+ * the page owns the RPC.
  */
 export function Reactions({
   reactions, busy, onPress,

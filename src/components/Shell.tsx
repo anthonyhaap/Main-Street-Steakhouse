@@ -4,11 +4,12 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useRouter } from "next/navigation";
-import { ArrowLeftRight, BarChart3, ChevronDown, CircleDollarSign, Crown, Landmark, LogOut, MessageCircle, MoreHorizontal, Newspaper, Radio, Shield, Smartphone, Swords, Target, UtensilsCrossed, X } from "lucide-react";
+import { ArrowLeftRight, BarChart3, ChevronDown, CircleDollarSign, Crown, Landmark, LogOut, Megaphone, MessageCircle, MoreHorizontal, Newspaper, Radio, Shield, Smartphone, Swords, Target, UtensilsCrossed, X } from "lucide-react";
 import { useStandalone } from "@/lib/install";
 import { useCrests, useSession } from "@/lib/session";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import type { WireStatus } from "@/lib/live";
+import { useUnreadCounts } from "@/lib/unread";
 import { Seal } from "@/components/ui";
 
 /**
@@ -25,14 +26,16 @@ import { Seal } from "@/components/ui";
  * four views of one question — how a roster changes — so they are one
  * destination, Transactions, and the tabs inside it.
  *
- * Draft, History, The House and Recap used to be four more entries here.
- * Unlike Transactions they are not one question — a live draft board, a
- * standings archive, the clubhouse chat and a weekly recap have nothing in
- * common structurally — so they stay four separate pages rather than
- * merging into one. What they share is that none of them is a destination
- * you reach for outside league business, so they hang off the League page
- * as a dropdown (desktop) or a grouped section of the More sheet (phone)
- * instead of each claiming a slot of their own in the bar.
+ * Draft, History, Chat, the League Feed and Recap used to be four more
+ * entries here (Chat and the League Feed were one, "The House", until it
+ * split — see git history). Unlike Transactions they are not one question —
+ * a live draft board, a standings archive, the room people talk in, the
+ * record of what happened, and a weekly recap have nothing in common
+ * structurally — so they stay separate pages rather than merging into one.
+ * What they share is that none of them is a destination you reach for
+ * outside league business, so they hang off the League page as a dropdown
+ * (desktop) or a grouped section of the More sheet (phone) instead of each
+ * claiming a slot of their own in the bar.
  */
 type NavItem = {
   href: string;
@@ -40,6 +43,8 @@ type NavItem = {
   Icon: typeof UtensilsCrossed;
   /** Set apart in the bar: the commissioner's room, not a manager's. */
   commish?: boolean;
+  /** Which of ff_unread_counts' fields this item's badge reads, if any. */
+  badge?: "chat" | "league_feed";
 };
 
 const NAV: NavItem[] = [
@@ -54,10 +59,11 @@ const NAV: NavItem[] = [
 
 /** The league's own history and rituals, grouped under the League page. */
 const LEAGUE_PAGES: NavItem[] = [
-  { href: "/draft",   label: "Draft",     Icon: Swords },
-  { href: "/history", label: "History",   Icon: Landmark },
-  { href: "/chat",    label: "The House", Icon: MessageCircle },
-  { href: "/recap",   label: "Recap",     Icon: Newspaper },
+  { href: "/draft",       label: "Draft",       Icon: Swords },
+  { href: "/history",     label: "History",     Icon: Landmark },
+  { href: "/chat",        label: "Chat",        Icon: MessageCircle, badge: "chat" },
+  { href: "/league-feed", label: "League Feed", Icon: Megaphone,     badge: "league_feed" },
+  { href: "/recap",       label: "Recap",       Icon: Newspaper },
 ];
 
 /** Four thumb-reachable tabs; everything else lives behind More. */
@@ -99,7 +105,13 @@ export function Crest({ size = 38 }: { size?: number }) {
  * The links inside are ordinary tab stops, and Escape both closes the panel
  * and gives focus back to the trigger that opened it.
  */
-function LeagueMenu({ path }: { path: string }) {
+/** A small red count, capped at 99+, for a nav item that tracks unread. */
+function Badge({ n }: { n?: number }) {
+  if (!n) return null;
+  return <span className="nav__badge">{n > 99 ? "99+" : n}</span>;
+}
+
+function LeagueMenu({ path, counts }: { path: string; counts?: { chat: number; league_feed: number } }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -146,10 +158,11 @@ function LeagueMenu({ path }: { path: string }) {
             <Crown size={14} strokeWidth={1.75} aria-hidden />
             League Home
           </Link>
-          {LEAGUE_PAGES.map(({ href, label, Icon }) => (
+          {LEAGUE_PAGES.map(({ href, label, Icon, badge }) => (
             <Link key={href} href={href} className="nav__dropdown-item" data-on={isOn(path, href)} onClick={close}>
               <Icon size={14} strokeWidth={1.75} aria-hidden />
               {label}
+              {badge && <Badge n={counts?.[badge]} />}
             </Link>
           ))}
         </div>
@@ -161,11 +174,12 @@ function LeagueMenu({ path }: { path: string }) {
 export function TopBar({ status }: { status?: WireStatus }) {
   const path = usePathname();
   const router = useRouter();
-  const { team, league, isCommissioner } = useSession();
+  const { team, league, isCommissioner, ready } = useSession();
   const crestOf = useCrests();
   const [more, setMore] = useState(false);
   const standalone = useStandalone();
   const close = () => setMore(false);
+  const counts = useUnreadCounts(ready);
 
   // Commish tools are not an everyday manager destination, and sitting them at
   // the same weight as My Team told eleven people to read past that whole end
@@ -198,7 +212,7 @@ export function TopBar({ status }: { status?: WireStatus }) {
         <nav className="nav" aria-label="Primary">
           {items.map(({ href, label, commish }) =>
             href === "/league" ? (
-              <LeagueMenu key={href} path={path} />
+              <LeagueMenu key={href} path={path} counts={counts ?? undefined} />
             ) : (
               <Link
                 key={href}
@@ -291,10 +305,11 @@ export function TopBar({ status }: { status?: WireStatus }) {
                   <Crown strokeWidth={1.75} />
                   League Home
                 </Link>
-                {LEAGUE_PAGES.map(({ href, label, Icon }) => (
+                {LEAGUE_PAGES.map(({ href, label, Icon, badge }) => (
                   <Link key={href} href={href} className="qa__btn" data-on={isOn(path, href)} onClick={close}>
                     <Icon strokeWidth={1.75} />
                     {label}
+                    {badge && <Badge n={counts?.[badge]} />}
                   </Link>
                 ))}
               </div>
@@ -350,6 +365,17 @@ export function TopBar({ status }: { status?: WireStatus }) {
           white-space: nowrap;
         }
         .nav__dropdown-item svg { color: var(--wine); flex-shrink: 0; }
+
+        /* Unread count on a League Feed / Chat entry, wherever it appears —
+           the dropdown, the phone sheet. */
+        .nav__badge {
+          margin-left: auto;
+          padding: 1px 6px;
+          border-radius: 999px;
+          background: var(--wine);
+          color: var(--cream);
+          font: 700 var(--t-nano)/1.6 var(--sans);
+        }
         .nav__dropdown-item:hover { color: var(--cream); background: #1b18140a; }
         .nav__dropdown-item[data-on="true"] { color: var(--wine); background: var(--wine-wash); }
         @keyframes dropdown-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }

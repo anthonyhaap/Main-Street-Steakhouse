@@ -3604,6 +3604,15 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
 .chat__on:hover { color: var(--wine); text-decoration: underline; text-underline-offset: 2px; }
 .chat__on svg { color: var(--gold); flex-shrink: 0; }
 
+/* A reply carries a quoted sliver of the line it answers, one level deep. */
+.chat__reply-to {
+  display: flex; align-items: baseline; gap: 5px;
+  margin-bottom: 3px;
+  font-size: var(--t-small); color: var(--faint);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.chat__reply-to svg { flex-shrink: 0; color: var(--dim); }
+
 /* ============================================================================
    THE ROOM — the clubhouse, under the card
 
@@ -3629,6 +3638,26 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
 .club__mine:hover { border-color: var(--gold-lit); }
 .club__mine svg { color: var(--gold); flex-shrink: 0; }
 .club__mine b { font-weight: 600; flex-shrink: 0; }
+
+/* "N new since your last visit" — the homepage's own unread badge, reusing
+   ff_unread_counts rather than keeping a second idea of what's new. */
+.club__unread {
+  display: flex; align-items: baseline; gap: 6px;
+  padding: var(--s2) var(--s4);
+  background: var(--wine-wash, color-mix(in oklab, var(--wine) 10%, transparent));
+  border: 1px solid var(--rule);
+  border-radius: var(--r);
+  color: inherit; text-decoration: none;
+  font-size: var(--t-small);
+  overflow: hidden;
+}
+.club__unread svg { color: var(--wine); flex-shrink: 0; align-self: center; }
+.club__unread b { font-weight: 700; flex-shrink: 0; }
+.club__unread span {
+  min-width: 0; color: var(--dim);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.club__unread:hover { border-color: var(--gold-dim); }
 .club__quote {
   min-width: 0; color: var(--dim); font-style: italic;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;

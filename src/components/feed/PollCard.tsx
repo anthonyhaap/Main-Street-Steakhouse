@@ -4,7 +4,7 @@ import { BarChart3, Check } from "lucide-react";
 import type { Poll } from "@/lib/types";
 
 /**
- * A poll, in the feed.
+ * A poll, in Chat.
  *
  * The design job is the withheld split. Before you answer, the options are
  * buttons and there are no bars — showing a running score first is what turns a
