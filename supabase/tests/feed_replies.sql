@@ -144,6 +144,19 @@ begin
   end;
   v_checks := v_checks + 1;
 
+  -- ff_feed_replies is SECURITY DEFINER and bypasses feed_replies_read, so it
+  -- has to refuse a stranger on its own — an outsider who merely knows a
+  -- target_id must not be able to read the thread on it.
+  begin
+    perform ff_feed_replies('message', v_msg);
+    raise exception 'an outsider read a thread in a league he is not in';
+  exception when others then
+    get stacked diagnostics v_err = message_text;
+    if v_err = 'an outsider read a thread in a league he is not in' then raise; end if;
+    if v_err not like '%not a member%' then raise exception 'wrong refusal: %', v_err; end if;
+  end;
+  v_checks := v_checks + 1;
+
   -- ---------------------------------------------------------- who may write --
   if has_table_privilege('authenticated', 'public.feed_replies', 'insert') then
     raise exception 'a manager can insert replies directly, bypassing every check';

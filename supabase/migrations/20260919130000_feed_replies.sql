@@ -43,7 +43,7 @@ alter table public.feed_replies enable row level security;
 
 drop policy if exists feed_replies_read on public.feed_replies;
 create policy feed_replies_read on public.feed_replies
-  for select to authenticated using (public.ff_is_member());
+  for select to authenticated using (public.ff_is_member(league_id));
 
 -- Read only. Every write goes through ff_reply, which is what checks the
 -- target actually exists in the league it claims to be in.
@@ -93,23 +93,46 @@ end $$;
 
 -- ------------------------------------------------------------ reading a thread --
 
+-- SECURITY DEFINER, so it bypasses feed_replies_read and has to spell out its
+-- own membership check rather than lean on the policy that guards a direct
+-- table read — the gap a caller who only knows a target_id would otherwise
+-- walk straight through.
 create or replace function public.ff_feed_replies(p_source text, p_target_id uuid)
 returns jsonb
-language sql
+language plpgsql
 stable
 security definer
 set search_path = public
 as $$
-  select coalesce(jsonb_agg(jsonb_build_object(
-           'id', fr.id, 'at', fr.created_at, 'body', fr.body,
-           'author', coalesce(t.manager_name, t.name, 'League manager'),
-           'author_team_id', t.id,
-           'mine', coalesce(fr.author_id = auth.uid(), false)
-         ) order by fr.created_at), '[]'::jsonb)
-    from feed_replies fr
-    left join teams t on t.id = public.ff_seat_team(fr.league_id, fr.author_id)
-   where fr.source = p_source and fr.target_id = p_target_id
-$$;
+declare v_uid uuid := auth.uid(); v_league uuid;
+begin
+  if v_uid is null then raise exception 'sign in required'; end if;
+  if p_source not in ('message','event','poll') then raise exception 'no such feed'; end if;
+
+  v_league := case p_source
+    when 'message' then (select league_id from league_messages where id = p_target_id)
+    when 'event'   then (select league_id from activity_events where id = p_target_id)
+    when 'poll'    then (select league_id from polls           where id = p_target_id)
+  end;
+  if v_league is null then raise exception 'no such line'; end if;
+
+  if not exists (select 1 from teams where id = public.ff_seat_team(v_league, v_uid))
+     and (select commissioner_id from leagues where id = v_league) is distinct from v_uid then
+    raise exception 'not a member of this league';
+  end if;
+
+  return coalesce((
+    select jsonb_agg(jsonb_build_object(
+             'id', fr.id, 'at', fr.created_at, 'body', fr.body,
+             'author', coalesce(t.manager_name, t.name, 'League manager'),
+             'author_team_id', t.id,
+             'mine', coalesce(fr.author_id = v_uid, false)
+           ) order by fr.created_at)
+      from feed_replies fr
+      left join teams t on t.id = public.ff_seat_team(fr.league_id, fr.author_id)
+     where fr.source = p_source and fr.target_id = p_target_id
+  ), '[]'::jsonb);
+end $$;
 
 revoke execute on function public.ff_reply(uuid,text,uuid,text) from public, anon;
 revoke execute on function public.ff_feed_replies(text,uuid)    from public, anon;

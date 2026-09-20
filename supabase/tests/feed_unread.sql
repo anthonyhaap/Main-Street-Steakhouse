@@ -117,6 +117,19 @@ begin
   end;
   v_checks := v_checks + 1;
 
+  -- Marking a league seen is the same door: a stranger must not be able to
+  -- plant a read-marker in a league he never joined.
+  begin
+    perform ff_feed_mark_seen(v_league);
+    raise exception 'an outsider marked a league he is not in as seen';
+  exception when others then
+    if sqlerrm not like '%not a member%' then raise; end if;
+  end;
+  if exists (select 1 from feed_reads where user_id = v_uid_out) then
+    raise exception 'an outsider''s read-marker was written despite the refusal';
+  end if;
+  v_checks := v_checks + 2;
+
   -- ---------------------------------------------------------- who may call --
   if has_function_privilege('anon', 'public.ff_feed_mark_seen(uuid)', 'execute') then
     raise exception 'anon can mark the House seen';

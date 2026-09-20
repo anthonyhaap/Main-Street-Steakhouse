@@ -48,6 +48,12 @@ as $$
 declare v_uid uuid := auth.uid(); v_now timestamptz := now();
 begin
   if v_uid is null then raise exception 'sign in first'; end if;
+
+  if not exists (select 1 from teams where id = public.ff_seat_team(p_league_id, v_uid))
+     and (select commissioner_id from leagues where id = p_league_id) is distinct from v_uid then
+    raise exception 'not a member of this league';
+  end if;
+
   insert into feed_reads (user_id, league_id, last_seen_at)
   values (v_uid, p_league_id, v_now)
   on conflict (user_id, league_id) do update set last_seen_at = excluded.last_seen_at;

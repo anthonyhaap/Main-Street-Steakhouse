@@ -35,7 +35,7 @@ declare
     'activity_events', 'challenges', 'drafts', 'historical_standings',
     'league_history', 'league_messages', 'league_recaps',
     'league_scoring_rules', 'matchups', 'polls', 'reactions', 'teams',
-    'transactions', 'waiver_runs'
+    'transactions', 'waiver_runs', 'feed_replies'
   ];
   t text;
 begin
@@ -75,6 +75,8 @@ begin
   insert into poll_options (poll_id, label, seq) values (v_poll_a, 'Yes', 1);
   insert into reactions (league_id, source, target_id, user_id, emoji)
     values (v_a, 'message', v_poll_a, v_ada, '🔥');
+  insert into feed_replies (league_id, source, target_id, author_id, body)
+    values (v_a, 'poll', v_poll_a, v_ada, 'a reply private to league A');
   insert into transactions (league_id, kind, week, actor_id)
     values (v_a, 'add', 1, v_ada) returning id into v_txn_a;
   insert into waiver_runs (league_id, week) values (v_a, 1);

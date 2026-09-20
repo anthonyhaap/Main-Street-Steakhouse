@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { BarChart3, Megaphone, Plus, Send, X } from "lucide-react";
 import { TopBar } from "@/components/Shell";
 import { SkeletonRows } from "@/components/ui";
@@ -88,6 +88,31 @@ export default function HousePage() {
     })();
   }, [ready]);
 
+  // A ref rather than a dependency: reading it from the effect below must not
+  // re-run that effect on every keystroke of a reply draft, only when the
+  // feed itself refetches.
+  const threadsRef = useRef(threads);
+  useEffect(() => { threadsRef.current = threads; }, [threads]);
+
+  // `feed_replies` is one of the tables the feed already refetches on, so a
+  // reply from someone else lands here as an ordinary refetch of `data` — but
+  // an open thread's replies were fetched once, on demand, and cached in
+  // `threads`, and refetching the feed does not touch that cache. Re-pull any
+  // thread that is currently open so a reply posted while you are reading one
+  // actually shows up in it, instead of waiting for you to close and reopen.
+  useEffect(() => {
+    if (!data) return;
+    for (const [key, t] of Object.entries(threadsRef.current)) {
+      if (!t.open) continue;
+      const [source, id] = key.split(":") as [FeedItem["source"], string];
+      void supabaseBrowser().rpc("ff_feed_replies", { p_source: source, p_target_id: id })
+        .then(({ data: rows, error: rpcError }) => {
+          if (rpcError) return;
+          setThreads((prev) => (prev[key]?.open ? { ...prev, [key]: { ...prev[key], replies: rows as FeedReply[] } } : prev));
+        });
+    }
+  }, [data]);
+
   /** Open or close one item's thread, fetching it the first time it opens. */
   async function toggleThread(item: FeedItem) {
     const key = threadKey(item);
@@ -126,8 +151,14 @@ export default function HousePage() {
         ? { ...(prev[key] ?? current), busy: false }
         : { open: true, loading: false, busy: false, draft: "", replies: rows as FeedReply[] },
     }));
-    if (rpcError) setError(rpcError.message);
-    else await refetch();
+    if (rpcError) return setError(rpcError.message);
+    // `refetch` re-reads the live page, which fixes up `data` on its own —
+    // but an item paged into `older` by "Earlier" is never part of that
+    // fetch, so its reply_count would otherwise sit stale until a hard
+    // reload the next time this same item's thread is closed and reopened.
+    setOlder((list) => list.map((f) =>
+      f.id === item.id && f.source === item.source ? { ...f, reply_count: f.reply_count + 1 } : f));
+    await refetch();
   }
 
   async function loadMore() {
