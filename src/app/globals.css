@@ -3051,25 +3051,28 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
    not mirrored halves of one row. The position pill is the one thing they
    still share, centered between the two boxes it names. */
 .sb__vs-row {
-  display: flex; flex-direction: column; align-items: stretch; gap: 2px;
-  padding: var(--s2) var(--s3);
+  display: flex; flex-direction: column; align-items: stretch; gap: 1px;
+  padding: var(--s1) var(--s2);
 }
 .sb__vs-row + .sb__vs-row { border-top: 1px solid var(--rule-soft); }
-.sb__vs-row > .pos { align-self: center; margin: 1px 0; }
+.sb__vs-row > .pos { align-self: center; margin: 0; }
 
 /* The box: name and score share a top line, read together as "who and how
    much"; the schedule or box score drops to a second line that has the
-   box's full width to wrap in, not just whatever the score column left. */
+   box's full width to wrap in, not just whatever the score column left.
+   Padding is deliberately tight — the row above it already frames the
+   group, so the box itself only needs enough to keep a tap target and to
+   stop the "final" background tint from touching the text it tints. */
 .sb__pbox {
   display: block; text-decoration: none; color: inherit;
-  border-radius: var(--r-sm); padding: 6px 8px;
+  border-radius: var(--r-sm); padding: 3px 6px;
   transition: background 0.15s var(--ease);
 }
 a.sb__pbox:hover { background: var(--ink-2); }
 .sb__pbox[data-final="true"] { opacity: 0.72; }
 .sb__pbox[data-bye="true"] { background: #b3341f08; }
 
-.sb__pbox-top { display: flex; align-items: center; gap: 8px; }
+.sb__pbox-top { display: flex; align-items: center; gap: 7px; }
 .sb__pbox-name {
   flex: 1 1 auto; min-width: 0;
   font-weight: 600; font-size: var(--t-small);
@@ -3085,7 +3088,7 @@ a.sb__pbox:hover { background: var(--ink-2); }
    a box that grows a line. */
 .sb__pbox-bottom {
   display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
-  margin: 2px 0 0 34px; line-height: 1.45;
+  margin: 1px 0 0 33px; line-height: 1.4;
 }
 
 .sb__mark { display: inline-flex; align-items: center; gap: 5px; font-size: var(--t-nano); color: var(--dim); }
