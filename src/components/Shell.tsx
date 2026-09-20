@@ -174,12 +174,12 @@ function LeagueMenu({ path, counts }: { path: string; counts?: { chat: number; l
 export function TopBar({ status }: { status?: WireStatus }) {
   const path = usePathname();
   const router = useRouter();
-  const { team, league, isCommissioner, ready } = useSession();
+  const { team, league, isCommissioner } = useSession();
   const crestOf = useCrests();
   const [more, setMore] = useState(false);
   const standalone = useStandalone();
   const close = () => setMore(false);
-  const counts = useUnreadCounts(ready);
+  const counts = useUnreadCounts();
 
   // Commish tools are not an everyday manager destination, and sitting them at
   // the same weight as My Team told eleven people to read past that whole end
