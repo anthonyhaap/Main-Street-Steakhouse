@@ -10,9 +10,19 @@
 -- total it already computed, so a lineup row can say "18/24, 245 YD, 2 TD"
 -- rather than making a manager tap through to the player page to find out.
 --
--- Additive only: one new key on a starter that already existed, sourced from
--- a table and a filter this function already joins. Nothing about scoring,
--- membership or the grant changes.
+-- Additive only on the box score itself: one new key on a starter that
+-- already existed, sourced from a table and a filter this function already
+-- joins. Scoring and the grant do not change.
+--
+-- The membership guard and the team lookup DO change, from the copy this
+-- function had on disk to the one 20260909194727 already put live: that
+-- migration rewrote `ff_scoreboard`'s `owner_id = v_uid` checks to
+-- `id = public.ff_seat_team(p_league_id, v_uid)` directly against the
+-- catalogue, by name, specifically so a co-owner is seated on this screen —
+-- and specifically warned that restating the function from an older copy of
+-- its body would put the old check back. Restating from the migration FILE
+-- (last edited 20260904020439, before that rewrite) is exactly that mistake;
+-- this restates from what is actually live instead.
 --
 -- Restated in full, as always.
 --
@@ -44,7 +54,7 @@ begin
   select * into v_league from leagues where id = p_league_id;
   if not found then raise exception 'league not found'; end if;
 
-  if not exists (select 1 from teams where league_id = p_league_id and owner_id = v_uid)
+  if not exists (select 1 from teams where id = public.ff_seat_team(p_league_id, v_uid))
      and v_league.commissioner_id is distinct from v_uid then
     raise exception 'not a member of this league';
   end if;
@@ -52,7 +62,7 @@ begin
   v_week  := greatest(1, coalesce(p_week, public.ff_current_week()));
   v_rules := public.ff_rules_for_week(p_league_id, v_week);
 
-  select * into v_team from teams where league_id = p_league_id and owner_id = v_uid limit 1;
+  select * into v_team from teams where id = public.ff_seat_team(p_league_id, v_uid) limit 1;
 
   -- ------------------------------------------------------------- the slate --
   -- The NFL's week, not the league's: what has kicked, what is on now, when
@@ -202,7 +212,7 @@ begin
                 'mine', (lm.author_id = v_uid))
               order by lm.created_at desc))[1] as last
         from league_messages lm
-        left join teams t on t.owner_id = lm.author_id and t.league_id = p_league_id
+        left join teams t on t.id = public.ff_seat_team(p_league_id, lm.author_id)
        where lm.matchup_id = m.id
     ) talk on true
     where m.league_id = p_league_id and m.week = v_week
