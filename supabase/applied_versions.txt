@@ -104,3 +104,9 @@
 20260917025200 nfl_game_scores
 20260917025956 pickem
 20260917181220 pickem_week_activity
+20260920012645 pinned_announcements
+20260920012713 league_specific_reactions
+20260920014333 feed_read_state
+20260920014513 chat_threads_and_mentions
+20260920014549 chat_and_league_feed
+20260920014619 scheduled_league_feed_posts
