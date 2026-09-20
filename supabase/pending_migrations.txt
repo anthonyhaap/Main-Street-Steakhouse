@@ -53,3 +53,4 @@ feed_read_state
 chat_threads_and_mentions
 chat_and_league_feed
 scheduled_league_feed_posts
+weekly_awards
