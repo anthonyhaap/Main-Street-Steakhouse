@@ -64,3 +64,9 @@ test("unpinning takes an announcement off the rail without deleting it", async (
   await expect(page.getByText(/^Pinned · Ada$/)).toHaveCount(0);
   await expect(page.getByText("Draft moves to Thursday at 8pm — same slots, new night.")).toBeVisible();
 });
+
+test("a weekly award reads as a record of the week, like a trade or a waiver", async ({ page }) => {
+  await page.goto("/preview/league-feed");
+  await expect(page.getByText("Player of the week: Ja'Marr Chase")).toBeVisible();
+  await expect(page.getByText("38.4 for Chuck Wagon · Week 2")).toBeVisible();
+});

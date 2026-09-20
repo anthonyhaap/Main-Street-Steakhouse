@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeftRight, Gavel, PinOff, PenLine, Trophy, Megaphone, Swords, Radio } from "lucide-react";
+import { ArrowLeftRight, Award, Gavel, PinOff, PenLine, Trophy, Megaphone, Swords, Radio } from "lucide-react";
 import type { LeagueFeedItem } from "@/lib/types";
 import { Reactions } from "@/components/feed/Reactions";
 
@@ -22,6 +22,7 @@ const ICON: Record<string, typeof PenLine> = {
   trade: ArrowLeftRight,
   challenge: Swords,
   record: Trophy,
+  award: Award,
   announcement: Megaphone,
   deadline: Megaphone,
   draft: Swords,
