@@ -460,14 +460,45 @@ export function boxScoreLine(p: ScoreStarter): string | null {
     if (n("sack")) bits.push(`${n("sack")} SACK`);
     if (n("int")) bits.push(`${n("int")} INT`);
     if (n("fum_rec")) bits.push(`${n("fum_rec")} FR`);
-    if (n("def_td")) bits.push(`${n("def_td")} TD`);
+    // `ff_score` reads def_st_td first — the one Sleeper actually populates —
+    // and falls back to def_td only when that is absent, plus a fumble
+    // recovered in the end zone, which is its own key. The same read here,
+    // or a defensive score can show its points with no TD in the line.
+    const td = n("def_st_td") || n("def_td");
+    const tds = td + n("fum_rec_ez_tds");
+    if (tds) bits.push(`${tds} TD`);
     if (n("safe")) bits.push(`${n("safe")} SFTY`);
     if (n("blk_kick")) bits.push(`${n("blk_kick")} BLK`);
     if (bits.length) parts.push(bits.join(", "));
-    if (s["pts_allow"] != null) parts.push(`${n("pts_allow")} PA`);
+    const pa = pointsAllowedLine(s);
+    if (pa) parts.push(pa);
   }
 
   return parts.length ? parts.join(" · ") : null;
+}
+
+/**
+ * Sleeper sends the exact number allowed most weeks, but on a shutout it
+ * omits `pts_allow` entirely and sends a tier flag instead — the bug
+ * `20260826030012_fix_dst_shutout_scoring` found in `ff_score` itself. Read
+ * the same fallback here, or a shutout defense shows every other stat with
+ * no "0 PA" to explain the biggest bonus in the line.
+ */
+function pointsAllowedLine(s: Record<string, number>): string | null {
+  if (s["pts_allow"] != null) return `${Number(s["pts_allow"])} PA`;
+  const tiers: [string, string][] = [
+    ["pts_allow_0", "0 PA"],
+    ["pts_allow_1_6", "1–6 PA"],
+    ["pts_allow_7_13", "7–13 PA"],
+    ["pts_allow_14_20", "14–20 PA"],
+    ["pts_allow_21_27", "21–27 PA"],
+    ["pts_allow_28_34", "28–34 PA"],
+    ["pts_allow_35p", "35+ PA"],
+  ];
+  for (const [key, label] of tiers) {
+    if (Number(s[key] ?? 0) > 0) return label;
+  }
+  return null;
 }
 
 /** "Sun 1:00", or "in 42m" once it is close enough to matter. */

@@ -108,9 +108,11 @@ function boxStats(position: string, points: number, status: string): Record<stri
     return { fgm: Math.round(p / 3.5), fgmiss: 0, xpm: Math.round(p % 3), xpmiss: 0 };
   }
   if (position === "DST") {
+    // Sleeper's real key names, `def_st_td` and `pts_allow`, not the legacy
+    // `def_td` fallback — the fixture should exercise what production sends.
     return {
       sack: Math.round(p * 0.4), int: p > 10 ? 1 : 0, fum_rec: p > 16 ? 1 : 0,
-      def_td: p > 18 ? 1 : 0, pts_allow: Math.max(0, Math.round(24 - p)),
+      def_st_td: p > 18 ? 1 : 0, pts_allow: Math.max(0, Math.round(24 - p)),
     };
   }
   return null;
