@@ -59,6 +59,14 @@ declare
   v_nail   jsonb;
   v_bench  jsonb;
   v_top    jsonb;
+  -- Every row this call writes gets its own tick off this clock, one
+  -- millisecond apart, rather than sharing transaction-stable now() with
+  -- everything else this function inserts. ff_league_feed pages strictly by
+  -- created_at (`< p_before`), and a page boundary landing inside a batch
+  -- that all shares one instant would drop whichever rows fell on the far
+  -- side of it — permanently, since a strict "<" never reconsiders a
+  -- timestamp once a page has moved past it.
+  v_clock  timestamptz := now();
 begin
   perform public.ff_assert_commissioner(p_league_id);
 
@@ -86,8 +94,8 @@ begin
               from league_recaps where league_id = p_league_id and week = p_week);
   end if;
 
-  insert into league_messages(league_id, author_id, kind, body)
-  values (p_league_id, null, 'house', v_body)
+  insert into league_messages(league_id, author_id, kind, body, created_at)
+  values (p_league_id, null, 'house', v_body, v_clock)
   returning id into v_msg;
 
   update league_recaps set message_id = v_msg
@@ -104,31 +112,34 @@ begin
     v_top   := v_facts->'top_player';
 
     if v_hi is not null and v_hi <> 'null'::jsonb then
-      insert into activity_events (league_id, event_type, headline, detail, source_type, source_id)
+      v_clock := v_clock + interval '1 millisecond';
+      insert into activity_events (league_id, event_type, headline, detail, source_type, source_id, created_at)
       values (p_league_id, 'award',
-        format('%s put up the week''s best score', v_hi->>'who'),
-        format('%s points · Week %s', to_char((v_hi->>'points')::numeric, 'FM999990.0'), p_week),
-        'recap', v_msg);
+        left(format('%s put up the week''s best score', v_hi->>'who'), 140),
+        left(format('%s points · Week %s', to_char((v_hi->>'points')::numeric, 'FM999990.0'), p_week), 1000),
+        'recap', v_msg, v_clock);
       v_awards := v_awards + 1;
     end if;
 
     if v_lo is not null and v_lo <> 'null'::jsonb
        and coalesce((v_facts->>'games')::int, 0) >= 3 then
-      insert into activity_events (league_id, event_type, headline, detail, source_type, source_id)
+      v_clock := v_clock + interval '1 millisecond';
+      insert into activity_events (league_id, event_type, headline, detail, source_type, source_id, created_at)
       values (p_league_id, 'award',
-        format('%s had the week''s low score', v_lo->>'who'),
-        format('%s points · Week %s', to_char((v_lo->>'points')::numeric, 'FM999990.0'), p_week),
-        'recap', v_msg);
+        left(format('%s had the week''s low score', v_lo->>'who'), 140),
+        left(format('%s points · Week %s', to_char((v_lo->>'points')::numeric, 'FM999990.0'), p_week), 1000),
+        'recap', v_msg, v_clock);
       v_awards := v_awards + 1;
     end if;
 
     if v_blow is not null and v_blow <> 'null'::jsonb
        and (v_blow->>'margin')::numeric >= 25 then
-      insert into activity_events (league_id, event_type, headline, detail, source_type, source_id)
+      v_clock := v_clock + interval '1 millisecond';
+      insert into activity_events (league_id, event_type, headline, detail, source_type, source_id, created_at)
       values (p_league_id, 'award',
-        format('%s blew out %s', v_blow->>'winner', v_blow->>'loser'),
-        format('By %s · Week %s', to_char((v_blow->>'margin')::numeric, 'FM999990.0'), p_week),
-        'recap', v_msg);
+        left(format('%s blew out %s', v_blow->>'winner', v_blow->>'loser'), 140),
+        left(format('By %s · Week %s', to_char((v_blow->>'margin')::numeric, 'FM999990.0'), p_week), 1000),
+        'recap', v_msg, v_clock);
       v_awards := v_awards + 1;
     end if;
 
@@ -136,34 +147,40 @@ begin
        and (v_nail->>'margin')::numeric <= 5
        and (v_blow is null or v_blow = 'null'::jsonb
             or (v_nail->>'winner') is distinct from (v_blow->>'winner')) then
-      insert into activity_events (league_id, event_type, headline, detail, source_type, source_id)
+      v_clock := v_clock + interval '1 millisecond';
+      insert into activity_events (league_id, event_type, headline, detail, source_type, source_id, created_at)
       values (p_league_id, 'award',
-        format('%s escaped %s', v_nail->>'winner', v_nail->>'loser'),
-        format('By %s · Week %s', to_char((v_nail->>'margin')::numeric, 'FM999990.0'), p_week),
-        'recap', v_msg);
+        left(format('%s escaped %s', v_nail->>'winner', v_nail->>'loser'), 140),
+        left(format('By %s · Week %s', to_char((v_nail->>'margin')::numeric, 'FM999990.0'), p_week), 1000),
+        'recap', v_msg, v_clock);
       v_awards := v_awards + 1;
     end if;
 
     if v_bench is not null and v_bench <> 'null'::jsonb then
-      insert into activity_events (league_id, event_type, headline, detail, source_type, source_id)
+      v_clock := v_clock + interval '1 millisecond';
+      insert into activity_events (league_id, event_type, headline, detail, source_type, source_id, created_at)
       values (p_league_id, 'award',
-        format('%s left %s on the bench', v_bench->>'who', v_bench->>'full_name'),
-        format('%s unused points · Week %s', to_char((v_bench->>'points')::numeric, 'FM999990.0'), p_week),
-        'recap', v_msg);
+        left(format('%s left %s on the bench', v_bench->>'who', v_bench->>'full_name'), 140),
+        left(format('%s unused points · Week %s', to_char((v_bench->>'points')::numeric, 'FM999990.0'), p_week), 1000),
+        'recap', v_msg, v_clock);
       v_awards := v_awards + 1;
     end if;
 
     if v_top is not null and v_top <> 'null'::jsonb then
-      insert into activity_events (league_id, event_type, headline, detail, source_type, source_id)
+      v_clock := v_clock + interval '1 millisecond';
+      insert into activity_events (league_id, event_type, headline, detail, source_type, source_id, created_at)
       values (p_league_id, 'award',
-        format('Player of the week: %s', v_top->>'full_name'),
-        format('%s for %s · Week %s', to_char((v_top->>'points')::numeric, 'FM999990.0'), v_top->>'who', p_week),
-        'recap', v_msg);
+        left(format('Player of the week: %s', v_top->>'full_name'), 140),
+        left(format('%s for %s · Week %s', to_char((v_top->>'points')::numeric, 'FM999990.0'), v_top->>'who', p_week), 1000),
+        'recap', v_msg, v_clock);
       v_awards := v_awards + 1;
     end if;
   exception when others then
     -- Same rule ff_recap_notify already follows just below: a bad award card
-    -- can never un-post the Special itself.
+    -- can never un-post the Special itself. The two failures this used to
+    -- catch — a headline or detail over its length limit — can no longer
+    -- happen, now that both are truncated before the insert; what is left is
+    -- a genuine backstop for anything else unexpected.
     raise notice 'award cards for week % not posted: %', p_week, sqlerrm;
   end;
 

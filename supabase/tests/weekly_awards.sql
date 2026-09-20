@@ -106,6 +106,16 @@ begin
   end if;
   v_checks := v_checks + 1;
 
+  -- Card, not batch: a page boundary that lands inside this group of equal-
+  -- instant rows would otherwise drop whichever fell on the far side of it,
+  -- permanently, since ff_league_feed's cursor is a strict "<". Distinct
+  -- ticks close that off.
+  if (select count(distinct created_at) from activity_events
+       where league_id = v_league and event_type = 'award') <> 4 then
+    raise exception 'award cards from the same publish shared a timestamp';
+  end if;
+  v_checks := v_checks + 1;
+
   -- ------------------------------------------------------- twice is once --
   v_out := ff_publish_recap(v_league, 1);
   if (v_out->>'posted')::boolean then raise exception 'the Special was posted twice'; end if;
@@ -113,6 +123,34 @@ begin
     raise exception 'a second publish added a second set of award cards';
   end if;
   v_checks := v_checks + 2;
+
+  -- --------------------------------------------- a name with no length cap --
+  -- Nothing bounds a manager's name, and ff_who() can hand a headline back a
+  -- string long enough alone to blow past activity_events' 140-character
+  -- check. That used to leave league_recaps holding a row for a week whose
+  -- awards could never be generated again — "already written" forever, with
+  -- nothing to write. Truncating the headline before the insert means the
+  -- publish just succeeds instead.
+  declare
+    v_long uuid;
+    v_out2 jsonb;
+    v_headline text;
+  begin
+    insert into teams (league_id, name, manager_name) values (v_league, 'Team H', repeat('A', 200)) returning id into v_long;
+    insert into matchups (league_id, week, home_team_id, away_team_id, home_points, away_points)
+      values (v_league, 2, v_long, v_e, 200.0, 188.0); -- margin 12: neither blowout nor nailbiter
+
+    v_out2 := ff_publish_recap(v_league, 2);
+    if not (v_out2->>'posted')::boolean then raise exception 'the Special was not posted for the long-named week: %', v_out2; end if;
+    v_checks := v_checks + 1;
+
+    select headline into v_headline from activity_events
+     where league_id = v_league and event_type = 'award'
+       and source_id = (v_out2->>'message_id')::uuid;
+    if v_headline is null then raise exception 'no award card was posted for the long-named week'; end if;
+    if char_length(v_headline) > 140 then raise exception 'a headline of length % was inserted', char_length(v_headline); end if;
+    v_checks := v_checks + 2;
+  end;
 
   raise notice 'weekly awards: % checks passed', v_checks;
 end $$;
