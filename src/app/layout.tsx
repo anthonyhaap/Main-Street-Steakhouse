@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Fraunces, Inter } from "next/font/google";
 import { SessionProvider } from "@/lib/session";
+import { UnreadProvider } from "@/lib/unread";
 import { ToastHost } from "@/components/ui";
 import { CURTAIN_SCRIPT } from "@/components/Curtain";
 import { DoorsHost } from "@/components/Doors";
@@ -82,9 +83,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       </head>
       <body>
         <SessionProvider>
-          <ToastHost>
-            <div className="shell">{children}</div>
-          </ToastHost>
+          <UnreadProvider>
+            <ToastHost>
+              <div className="shell">{children}</div>
+            </ToastHost>
+          </UnreadProvider>
         </SessionProvider>
         {/* The way in from /login and /join. Mounted here, above the router,
             because it has to outlive the screen that opens it. */}

@@ -116,7 +116,7 @@ export function Room({ now, enabled }: { now: number; enabled: boolean }) {
     pollMs: 60000,
     enabled,
   });
-  const unread = useUnreadCounts(enabled);
+  const unread = useUnreadCounts();
 
   // No skeleton: the room is below the card and arrives when it arrives. A
   // shimmering box under a finished card is a worse lie than an empty space.
