@@ -27,6 +27,8 @@ export type ScoreStarter = {
   espn_id: string | null;
   points: number;
   projection: number | null;
+  /** The line `points` was scored from — Sleeper's own stat keys. Null until he has one. */
+  stats: Record<string, number> | null;
   kickoff_at: string | null;
   /** ESPN's: "pre" | "in" | "post". Null when he has no game this week. */
   game_status: string | null;
@@ -416,6 +418,56 @@ export function gameMark(s: ScoreStarter, now: number): { label: string; state: 
   if (s.game_status === "post") return { label: "Final", state: "final" };
   const vs = s.opponent ? `${s.at_home ? "vs" : "@"} ${s.opponent} · ` : "";
   return { label: `${vs}${kickLabel(s.kickoff_at, now)}`, state: "pre" };
+}
+
+/**
+ * What he actually did, not just what it was worth. `gameMark` says when;
+ * this says what — the same stat line `points` was scored from, read back in
+ * the shorthand a box score uses. Null before he has one, which is exactly
+ * when there is nothing yet to say.
+ */
+export function boxScoreLine(p: ScoreStarter): string | null {
+  const s = p.stats;
+  if (!s) return null;
+  const n = (k: string) => Number(s[k] ?? 0);
+  const parts: string[] = [];
+
+  if (p.position === "QB") {
+    if (n("pass_att") > 0) {
+      parts.push(`${n("pass_cmp")}/${n("pass_att")}, ${n("pass_yd")} YD${n("pass_td") ? `, ${n("pass_td")} TD` : ""}`);
+    }
+    if (n("pass_int") > 0) parts.push(`${n("pass_int")} INT`);
+    if (n("rush_att") > 0) {
+      parts.push(`${n("rush_yd")} rush YD${n("rush_td") ? `, ${n("rush_td")} TD` : ""}`);
+    }
+  } else if (p.position === "RB") {
+    if (n("rush_att") > 0) {
+      parts.push(`${n("rush_att")} CAR, ${n("rush_yd")} YD${n("rush_td") ? `, ${n("rush_td")} TD` : ""}`);
+    }
+    if (n("rec") > 0) {
+      parts.push(`${n("rec")} REC, ${n("rec_yd")} YD${n("rec_td") ? `, ${n("rec_td")} TD` : ""}`);
+    }
+  } else if (p.position === "WR" || p.position === "TE") {
+    if (n("rec") > 0 || n("rec_tgt") > 0) {
+      parts.push(`${n("rec")} REC, ${n("rec_yd")} YD${n("rec_td") ? `, ${n("rec_td")} TD` : ""}`);
+    }
+    if (n("rush_att") > 0) parts.push(`${n("rush_att")} CAR, ${n("rush_yd")} YD`);
+  } else if (p.position === "K") {
+    if (n("fgm") > 0 || n("fgmiss") > 0) parts.push(`${n("fgm")}/${n("fgm") + n("fgmiss")} FG`);
+    if (n("xpm") > 0 || n("xpmiss") > 0) parts.push(`${n("xpm")}/${n("xpm") + n("xpmiss")} XP`);
+  } else if (p.position === "DST") {
+    const bits: string[] = [];
+    if (n("sack")) bits.push(`${n("sack")} SACK`);
+    if (n("int")) bits.push(`${n("int")} INT`);
+    if (n("fum_rec")) bits.push(`${n("fum_rec")} FR`);
+    if (n("def_td")) bits.push(`${n("def_td")} TD`);
+    if (n("safe")) bits.push(`${n("safe")} SFTY`);
+    if (n("blk_kick")) bits.push(`${n("blk_kick")} BLK`);
+    if (bits.length) parts.push(bits.join(", "));
+    if (s["pts_allow"] != null) parts.push(`${n("pts_allow")} PA`);
+  }
+
+  return parts.length ? parts.join(" · ") : null;
 }
 
 /** "Sun 1:00", or "in 42m" once it is close enough to matter. */

@@ -3081,6 +3081,11 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
 .sb__mark[data-state="live"] { color: var(--wine); font-weight: 600; }
 .sb__mark[data-state="final"] { color: var(--faint); }
 .sb__hurt { color: var(--lose); font-weight: 700; }
+/* What he did, under when he did it. Wraps rather than truncates — a box
+   score cut off mid-number ("18/24, 245 Y…") is worse than a row that grows
+   a line, and `.pbadge__sub` already wraps its children onto a line of their
+   own when the first one leaves no room. */
+.sb__box { font-size: var(--t-nano); color: var(--muted); }
 .sb__pip {
   width: 6px; height: 6px; border-radius: 50%; background: var(--wine);
   animation: sb-pip 1.6s ease-in-out infinite;
@@ -3099,20 +3104,13 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
   .sb__odds-src { display: none; }
   .sb__tops > :last-child { justify-self: start; text-align: left; }
 
-  /* Side by side, a phone gives each player about 150px — not enough for a
-     name and the line under it, so both got clipped to a sliver next to the
-     score. Stacked instead, each player gets the row's full width, which is
-     the difference between a game-status line that is actually there and one
-     that is actually readable. */
-  .sb__vs-row { grid-template-columns: 1fr; padding: var(--s3) var(--s2); gap: 4px; }
-  .sb__vs-cell { min-height: 0; justify-content: space-between; }
-  /* Mirroring the far side only made sense when the two sat across from each
-     other in one row; stacked, both read the same way, face and name on the
-     left, score pinned to the right. */
-  .sb__vs-cell[data-align="end"] { flex-direction: row; text-align: left; }
-  .sb__vs-cell[data-align="end"] .pbadge { flex-direction: row; }
-  .sb__vs-cell[data-align="end"] .pbadge__sub { justify-content: flex-start; }
-  .sb__vs-cell[data-align="end"] .sb__vs-pts { justify-items: end; }
+  /* Side by side stays side by side down to a phone — the box score line
+     below makes the row taller instead, wrapping rather than truncating, so
+     the two totals a manager is actually comparing still land across from
+     each other rather than one above the other. The position pill gives up
+     what width it can so the players either side of it keep theirs. */
+  .sb__vs-row { grid-template-columns: minmax(0, 1fr) 30px minmax(0, 1fr); padding: 6px var(--s2); gap: 4px; }
+  .sb__vs-row > .pos { min-width: 30px; padding: 0 5px; font-size: 9px; }
   .sb__vs-head { padding: var(--s3) var(--s2); }
   /* The "Both lineups" toggle right above already says what this table is;
      the label in its own header just eats the width the team names and

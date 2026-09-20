@@ -25,7 +25,7 @@ import { PlayerBadge } from "@/components/PlayerBadge";
 import { crestUrl } from "@/lib/crest";
 import { Seal, useCountUp } from "@/components/ui";
 import {
-  cardLine, cardState, gameMark, hasProblem, kickLabel, pctLabel, projectedFinal,
+  boxScoreLine, cardLine, cardState, gameMark, hasProblem, kickLabel, pctLabel, projectedFinal,
   stillToPlay, topPerformer, versusProjection, winOdds, fmt1,
   type ScoreCard, type ScoreSide, type ScoreStarter, type Scoreboard as Board,
   type WinOdds,
@@ -356,6 +356,7 @@ function VsTeam({ s, align = "start" }: { s: ScoreSide; align?: "start" | "end" 
 function VsPlayer({ p, now, align }: { p?: ScoreStarter; now: number; align: "start" | "end" }) {
   if (!p) return <span className="sb__vs-cell" data-align={align} />;
   const mark = gameMark(p, now);
+  const box = boxScoreLine(p);
   return (
     <div className="sb__vs-cell" data-align={align} data-final={p.final} data-bye={p.on_bye}>
       <PlayerBadge
@@ -367,11 +368,17 @@ function VsPlayer({ p, now, align }: { p?: ScoreStarter; now: number; align: "st
         espnId={p.espn_id}
         size={24}
         sub={
-          <span className="sb__mark" data-state={mark.state}>
-            {mark.state === "live" && <i className="sb__pip" aria-hidden />}
-            {mark.label}
-            {p.severity === "out" && <b className="sb__hurt"> · OUT</b>}
-          </span>
+          <>
+            <span className="sb__mark" data-state={mark.state}>
+              {mark.state === "live" && <i className="sb__pip" aria-hidden />}
+              {mark.label}
+              {p.severity === "out" && <b className="sb__hurt"> · OUT</b>}
+            </span>
+            {/* What he actually did, not just when — printed only once there is
+                a stat line to print, which is exactly when the clock above
+                stops being the only news on the row. */}
+            {box && <span className="sb__box">{box}</span>}
+          </>
         }
       />
       <span className="sb__vs-pts">

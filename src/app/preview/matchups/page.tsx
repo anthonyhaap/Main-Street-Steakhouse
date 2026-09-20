@@ -76,6 +76,46 @@ const CLOCK: Record<Stage, { done: number[]; on: number[] }> = {
   monday: { done: [0, 3], on: [] },
 };
 
+/**
+ * A plausible box score for the points already invented above — not a real
+ * one, just proportioned so the fixture's stat lines read like a Sunday
+ * instead of like round numbers. Null before kickoff: there is no line to
+ * have yet.
+ */
+function boxStats(position: string, points: number, status: string): Record<string, number> | null {
+  if (status === "pre" || points <= 0) return null;
+  const p = Math.max(0.1, points);
+  if (position === "QB") {
+    return {
+      pass_att: Math.round(18 + p), pass_cmp: Math.round(12 + p * 0.6),
+      pass_yd: Math.round(p * 14), pass_td: p > 14 ? 2 : p > 6 ? 1 : 0,
+      rush_att: 2, rush_yd: Math.round(p * 0.6),
+    };
+  }
+  if (position === "RB") {
+    return {
+      rush_att: Math.round(6 + p * 0.7), rush_yd: Math.round(p * 6.5),
+      rush_td: p > 15 ? 1 : 0, rec: Math.round(p * 0.15), rec_yd: Math.round(p * 0.8),
+    };
+  }
+  if (position === "WR" || position === "TE") {
+    return {
+      rec: Math.round(2 + p * 0.35), rec_yd: Math.round(p * 8),
+      rec_td: p > 15 ? 1 : 0,
+    };
+  }
+  if (position === "K") {
+    return { fgm: Math.round(p / 3.5), fgmiss: 0, xpm: Math.round(p % 3), xpmiss: 0 };
+  }
+  if (position === "DST") {
+    return {
+      sack: Math.round(p * 0.4), int: p > 10 ? 1 : 0, fum_rec: p > 16 ? 1 : 0,
+      def_td: p > 18 ? 1 : 0, pts_allow: Math.max(0, Math.round(24 - p)),
+    };
+  }
+  return null;
+}
+
 function starter(
   slot: string, i: number, offset: number, stage: Stage, soloWindow: boolean,
   used: Set<string>,
@@ -105,7 +145,7 @@ function starter(
 
   return {
     player_id: `p-${offset}-${i}`, full_name, position, nfl_team, slot, espn_id,
-    points, projection: proj,
+    points, projection: proj, stats: boxStats(position, points, status),
     // Sunday morning's kickoffs are all ahead of the clock; every later stage
     // has the one o'clock window already behind it.
     kickoff_at: new Date(NOW + (window + (stage === "pre" ? 3 : -1)) * H).toISOString(),
