@@ -3099,7 +3099,20 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
   .sb__odds-src { display: none; }
   .sb__tops > :last-child { justify-self: start; text-align: left; }
 
-  .sb__vs-row { padding: 6px var(--s2); gap: 4px; }
+  /* Side by side, a phone gives each player about 150px — not enough for a
+     name and the line under it, so both got clipped to a sliver next to the
+     score. Stacked instead, each player gets the row's full width, which is
+     the difference between a game-status line that is actually there and one
+     that is actually readable. */
+  .sb__vs-row { grid-template-columns: 1fr; padding: var(--s3) var(--s2); gap: 4px; }
+  .sb__vs-cell { min-height: 0; justify-content: space-between; }
+  /* Mirroring the far side only made sense when the two sat across from each
+     other in one row; stacked, both read the same way, face and name on the
+     left, score pinned to the right. */
+  .sb__vs-cell[data-align="end"] { flex-direction: row; text-align: left; }
+  .sb__vs-cell[data-align="end"] .pbadge { flex-direction: row; }
+  .sb__vs-cell[data-align="end"] .pbadge__sub { justify-content: flex-start; }
+  .sb__vs-cell[data-align="end"] .sb__vs-pts { justify-items: end; }
   .sb__vs-head { padding: var(--s3) var(--s2); }
   /* The "Both lineups" toggle right above already says what this table is;
      the label in its own header just eats the width the team names and
