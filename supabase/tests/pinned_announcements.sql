@@ -75,7 +75,7 @@ begin
   v_checks := v_checks + 2;
 
   -- ------------------------------------------------------------- the feed --
-  v_feed := ff_house_feed(v_league, null, 40);
+  v_feed := ff_league_feed(v_league, null, 40);
 
   -- It is a line in the ordinary stream, like anything else said.
   if not exists (select 1 from jsonb_array_elements(v_feed->'items') x where (x->>'id')::uuid = v_msg) then
@@ -121,7 +121,7 @@ begin
   if (v_j->>'pinned')::boolean then raise exception 'unpinning left it pinned'; end if;
   v_checks := v_checks + 1;
 
-  v_feed := ff_house_feed(v_league, null, 40);
+  v_feed := ff_league_feed(v_league, null, 40);
   if jsonb_array_length(v_feed->'pinned') <> 0 then
     raise exception 'the rail still carried an unpinned announcement';
   end if;

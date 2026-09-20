@@ -209,13 +209,17 @@ export type Matchup = {
 export type LeagueMessage = {
   id: string;
   league_id: string;
-  /** Null on a house post: the league wrote it, not a manager. */
+  /** Null on a house post or a system-authored Sunday Live thread: the league
+   *  wrote it, not a manager. */
   author_id: string | null;
-  kind: "manager" | "house";
+  kind: "manager" | "house" | "announcement";
   matchup_id: string | null;
+  /** The manager message this one replies to, one level deep only. */
+  parent_id: string | null;
   body: string;
   created_at: string;
   edited_at: string | null;
+  pinned: boolean;
 };
 
 export type Challenge = {
@@ -449,31 +453,6 @@ export type LedgerEntry = {
   items: LedgerItem[];
 };
 
-/** One line in the House feed. `source` says which stream it came from: a
- *  manager's message, or something the league did. An event has no `author`
- *  when the league did it to itself — a settlement or a recap — because
- *  attributing that to anybody would misstate who acted. */
-export type FeedItem = {
-  id: string;
-  at: string;
-  source: "message" | "event" | "poll";
-  /** message kind ('manager' | 'house' | 'announcement') or activity_events.event_type */
-  kind: string;
-  body: string;
-  detail: string | null;
-  author: string | null;
-  author_team_id: string | null;
-  mine: boolean;
-  source_type: string | null;
-  source_id: string | null;
-  reactions: Reaction[];
-  poll: Poll | null;
-  matchup: { id: string; week: number; home: string; away: string; mine: boolean } | null;
-  /** True while this announcement holds a place on the pinned rail. Only ever
-   *  true for kind === "announcement"; absent or `false` for everything else. */
-  pinned?: boolean;
-};
-
 /** One answer. `count` is NULL until the reader has voted or the poll closes —
  *  deliberately null rather than 0, because a reader takes a 0 for a number. */
 export type PollOption = { option_id: string; label: string; count: number | null; mine: boolean };
@@ -496,16 +475,84 @@ export type Poll = {
 export type Reaction = { emoji: string; count: number; mine: boolean };
 
 /** The palette, fixed in the database by a check constraint. Anything a manager
- *  can type is something a manager can type AT somebody. */
-export const EMOJI = ["🔥", "😂", "💀", "👀", "🫡", "🥩"] as const;
+ *  can type is something a manager can type AT somebody. Five of these are
+ *  words rather than glyphs, and render exactly the same way: the reaction
+ *  button never looks at the string beyond putting it on screen. */
+export const EMOJI = ["🔥", "😂", "💀", "👀", "🫡", "🥩", "🗑️", "🧂", "🤡", "COOKED", "FRAUD"] as const;
 
-/** One page of ff_house_feed. `next_before` is the cursor for the next call,
- *  and null when this page was the end. `pinned` is every announcement
- *  currently held to the rail, independent of which page is loaded — it does
- *  not shrink as `items` pages back through history, only when one is unpinned. */
-export type HouseFeed = {
-  items: FeedItem[];
-  pinned: FeedItem[];
+/** A one-level-deep reply's pointer back to the message it answers. */
+export type MessageParent = { id: string; author: string; body: string };
+
+/** Somebody @mentioned in a chat message. */
+export type Mention = { user_id: string; author: string };
+
+/** One line in Chat: a manager's message (with its reply and @mentions, if
+ *  any) or a poll somebody asked. Read-mostly league news lives in
+ *  LeagueFeedItem instead — see ff_league_feed / ff_chat_feed. */
+export type ChatItem = {
+  id: string;
+  at: string;
+  source: "message" | "poll";
+  /** message kind ('manager') or the literal 'poll'. */
+  kind: string;
+  body: string;
+  detail: string | null;
+  author: string | null;
+  author_team_id: string | null;
+  mine: boolean;
+  source_type: string | null;
+  source_id: string | null;
+  reactions: Reaction[];
+  poll: Poll | null;
+  matchup: { id: string; week: number; home: string; away: string; mine: boolean } | null;
+  parent: MessageParent | null;
+  mentions: Mention[];
+};
+
+/** One page of ff_chat_feed. `next_before` is the cursor for the next call,
+ *  null when this page was the end. */
+export type ChatFeed = {
+  items: ChatItem[];
   next_before: string | null;
   now: string;
+};
+
+/** One line in the League Feed: something the league did, or news from the
+ *  house/commissioner. `author` is null when the league did it to itself — a
+ *  settlement or a recap — because attributing that to anybody would misstate
+ *  who acted. */
+export type LeagueFeedItem = {
+  id: string;
+  at: string;
+  source: "message" | "event";
+  /** message kind ('house' | 'announcement') or activity_events.event_type */
+  kind: string;
+  body: string;
+  detail: string | null;
+  author: string | null;
+  author_team_id: string | null;
+  mine: boolean;
+  source_type: string | null;
+  source_id: string | null;
+  reactions: Reaction[];
+  /** True while this line holds a place on the pinned rail. */
+  pinned?: boolean;
+};
+
+/** One page of ff_league_feed. `pinned` is every currently-pinned line,
+ *  independent of which page is loaded — it does not shrink as `items` pages
+ *  back through history, only when one is unpinned or closed. */
+export type LeagueFeed = {
+  items: LeagueFeedItem[];
+  pinned: LeagueFeedItem[];
+  next_before: string | null;
+  now: string;
+};
+
+/** ff_unread_counts: how much has happened on each surface since this manager
+ *  last looked, plus a one-line teaser of the newest thing said in Chat. */
+export type UnreadCounts = {
+  chat: number;
+  league_feed: number;
+  teaser: { body: string; author: string } | null;
 };

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Newspaper, Share2 } from "lucide-react";
 import { PowerRankings } from "@/components/standings/PowerRankings";
-import { Reactions } from "@/components/house/Reactions";
+import { Reactions } from "@/components/feed/Reactions";
 import { recapHeading, type RecapLine, type RecapRow, type SettledBet, type WireCount } from "@/lib/recap";
 import type { Outlook, Reaction } from "@/lib/types";
 

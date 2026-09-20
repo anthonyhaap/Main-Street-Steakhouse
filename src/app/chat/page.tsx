@@ -1,75 +1,69 @@
 "use client";
 
-import { FormEvent, useCallback, useState } from "react";
-import { BarChart3, Megaphone, Plus, Send, X } from "lucide-react";
+import Link from "next/link";
+import { FormEvent, useCallback, useEffect, useState } from "react";
+import { AtSign, BarChart3, Plus, Send, X } from "lucide-react";
 import { TopBar } from "@/components/Shell";
 import { SkeletonRows } from "@/components/ui";
 import { LEAGUE_ID } from "@/lib/config";
 import { useLive } from "@/lib/live";
 import { useSession } from "@/lib/session";
+import { markSeen } from "@/lib/unread";
 import { supabaseBrowser } from "@/lib/supabase/client";
-import type { FeedItem, HouseFeed } from "@/lib/types";
-import { House, type HouseFilter } from "@/components/house/House";
+import type { ChatFeed, ChatItem } from "@/lib/types";
+import { Chat } from "@/components/chat/Chat";
 
 /**
- * The House.
+ * Chat.
  *
- * This was the clubhouse, and it read `league_messages` directly. It is now one
- * merged stream: what managers said and what the league did, newest first.
- *
- * The merge is the point. `activity_events` had been written by four migrations
- * — every signing, every settled waiver, every accepted trade — and rendered
- * nowhere except a four-item summary on the front page. A trade going through
- * is the most talked-about thing that happens in a fantasy league, and it was
- * happening somewhere nobody was looking, while the room where everyone talks
- * had no idea it had occurred.
- *
- * It stays at /chat and keeps its place in the nav rather than becoming a
- * thirteenth destination. The old file's own comment argued that a league of
- * twelve cannot afford a conversation only two people ever see; a separate feed
- * screen would have split the room in exactly that way.
+ * The room: manager messages, one level of reply, @mentions, and the polls
+ * people ask each other. It used to be merged with league news in one stream
+ * ("The House") — see git history for that argument — but a manager mid-
+ * conversation kept getting trades and waiver runs breaking up the thread,
+ * and a manager checking what happened kept getting an argument in the way.
+ * League news moved to /league-feed; this stayed the room.
  */
-export default function HousePage() {
-  const { ready, isCommissioner } = useSession();
+export default function ChatPage() {
+  const { ready, team, teams } = useSession();
   const [body, setBody] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<HouseFilter>("all");
-  const [unpinning, setUnpinning] = useState<string | null>(null);
 
-  // The announcement composer, closed by default and separate from the
-  // ordinary "say something" box — a rule change or a deadline is a deliberate
-  // thing to post, not a line typed in passing, and it costs one tap to reach.
-  const [announcing, setAnnouncing] = useState(false);
-  const [announcement, setAnnouncement] = useState("");
+  // Who this message replies to, if anyone — one level deep, so replying to a
+  // reply is refused server-side and this UI never offers the button for one.
+  const [replyTo, setReplyTo] = useState<ChatItem | null>(null);
 
-  // Pages fetched beyond the first. Kept apart from the live head so that a
-  // refetch — a poll, a realtime nudge — refreshes the top of the feed without
-  // throwing away what the manager has already scrolled past.
-  const [older, setOlder] = useState<FeedItem[]>([]);
+  // @mentions: picked from the roster rather than typed, so a name always
+  // resolves to a real seat instead of a string that merely looks like one.
+  const [mentionPicker, setMentionPicker] = useState(false);
+  const [mentioned, setMentioned] = useState<{ user_id: string; name: string }[]>([]);
+
+  const [older, setOlder] = useState<ChatItem[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [reacting, setReacting] = useState<string | null>(null);
   const [voting, setVoting] = useState<string | null>(null);
 
-  // The poll composer, closed by default. A question is a deliberate thing to
-  // ask, so it costs one tap to open rather than sitting on screen competing
-  // with the ordinary "say something" box.
+  // The poll composer, closed by default.
   const [asking, setAsking] = useState(false);
   const [question, setQuestion] = useState("");
   const [options, setOptions] = useState<string[]>(["", ""]);
 
-  const fetcher = useCallback(async (): Promise<HouseFeed> => {
+  useEffect(() => {
+    if (ready) void markSeen("chat");
+  }, [ready]);
+
+  const fetcher = useCallback(async (): Promise<ChatFeed> => {
     const { data, error: rpcError } = await supabaseBrowser()
-      .rpc("ff_house_feed", { p_league_id: LEAGUE_ID, p_limit: 40 });
+      .rpc("ff_chat_feed", { p_league_id: LEAGUE_ID, p_limit: 40 });
     if (rpcError) throw new Error(rpcError.message);
-    return data as HouseFeed;
+    return data as ChatFeed;
   }, []);
 
-  const { data, status, error: feedError, refetch, mutate } = useLive<HouseFeed>(fetcher, {
-    tables: ["league_messages", "activity_events", "reactions", "polls", "poll_votes"],
-    channel: "house",
-    pollMs: 30000,
+  const { data, status, error: feedError, refetch, mutate } = useLive<ChatFeed>(fetcher, {
+    tables: ["league_messages", "activity_events", "reactions", "polls", "poll_votes", "message_mentions"],
+    channel: "chat",
+    pollMs: 20000,
     enabled: ready,
   });
 
@@ -78,27 +72,21 @@ export default function HousePage() {
     if (!from || loadingMore) return;
     setLoadingMore(true);
     const { data: page } = await supabaseBrowser()
-      .rpc("ff_house_feed", { p_league_id: LEAGUE_ID, p_before: from, p_limit: 40 });
+      .rpc("ff_chat_feed", { p_league_id: LEAGUE_ID, p_before: from, p_limit: 40 });
     setLoadingMore(false);
     if (!page) return;
-    const next = page as HouseFeed;
+    const next = page as ChatFeed;
     setOlder((prev) => [...prev, ...next.items]);
     setCursor(next.next_before);
   }
 
-  /**
-   * Press a reaction.
-   *
-   * Optimistic, because the whole value of a reaction is that it costs nothing
-   * — a tally that waits for a round trip before moving feels broken, and the
-   * server's answer is the same shape either way. The refetch afterwards
-   * reconciles, and a failure puts the row back.
-   */
-  async function react(item: FeedItem, emoji: string) {
+  /** Optimistic, same as the old House: the tally moves on press, and the
+   *  refetch afterwards reconciles. */
+  async function react(item: ChatItem, emoji: string) {
     const key = `${item.source}:${item.id}`;
     setReacting(key);
 
-    const bump = (list: FeedItem[]) => list.map((f) => {
+    const bump = (list: ChatItem[]) => list.map((f) => {
       if (f.id !== item.id || f.source !== item.source) return f;
       const existing = (f.reactions ?? []).find((r) => r.emoji === emoji);
       const next = existing
@@ -121,15 +109,13 @@ export default function HousePage() {
     await refetch();
   }
 
-  async function vote(item: FeedItem, optionId: string) {
+  async function vote(item: ChatItem, optionId: string) {
     if (!item.poll) return;
     setVoting(item.poll.poll_id);
     const { error: rpcError } = await supabaseBrowser().rpc("ff_vote", {
       p_poll_id: item.poll.poll_id, p_option_id: optionId,
     });
     setVoting(null);
-    // Not optimistic, unlike a reaction: voting REVEALS the split, and guessing
-    // at numbers we have never been allowed to see would be inventing them.
     if (rpcError) setError(rpcError.message);
     await refetch();
   }
@@ -151,121 +137,123 @@ export default function HousePage() {
     await refetch();
   }
 
+  function toggleMention(user_id: string, name: string) {
+    setMentioned((cur) => cur.some((m) => m.user_id === user_id)
+      ? cur.filter((m) => m.user_id !== user_id)
+      : [...cur, { user_id, name }]);
+  }
+
   async function send(event: FormEvent) {
     event.preventDefault();
     const value = body.trim();
     if (!value || busy) return;
     setBusy(true);
     setError(null);
-    const { error: sendError } = await supabaseBrowser()
-      .rpc("ff_send_message", { p_league_id: LEAGUE_ID, p_body: value });
+    const { error: sendError } = await supabaseBrowser().rpc("ff_send_message", {
+      p_league_id: LEAGUE_ID, p_body: value,
+      p_parent_id: replyTo?.id ?? null,
+      p_mentions: mentioned.length ? mentioned.map((m) => m.user_id) : null,
+    });
     setBusy(false);
     if (sendError) return setError(sendError.message);
     setBody("");
-    await refetch();
-  }
-
-  async function announce(event: FormEvent) {
-    event.preventDefault();
-    const value = announcement.trim();
-    if (!value || busy) return;
-    setBusy(true);
-    setError(null);
-    const { error: rpcError } = await supabaseBrowser()
-      .rpc("ff_post_announcement", { p_league_id: LEAGUE_ID, p_body: value });
-    setBusy(false);
-    if (rpcError) return setError(rpcError.message);
-    setAnnouncement("");
-    setAnnouncing(false);
-    await refetch();
-  }
-
-  async function unpin(item: FeedItem) {
-    setUnpinning(item.id);
-    const { error: rpcError } = await supabaseBrowser()
-      .rpc("ff_set_announcement_pinned", { p_message_id: item.id, p_pinned: false });
-    setUnpinning(null);
-    if (rpcError) setError(rpcError.message);
+    setReplyTo(null);
+    setMentioned([]);
+    setMentionPicker(false);
     await refetch();
   }
 
   const items = [...(data?.items ?? []), ...older];
   const hasMore = (cursor ?? data?.next_before ?? null) !== null;
+  const teammates = (teams ?? []).filter((t) => t.owner_id && t.id !== team?.id);
 
   return (
     <>
       <TopBar status={status} />
       <main className="page">
         <header style={{ marginBottom: "var(--s5)" }}>
-          <div className="eyebrow" data-tone="gold">The House</div>
+          <div className="eyebrow" data-tone="gold">Chat</div>
           <h1 className="display" style={{ fontSize: "var(--t-title)", margin: "var(--s2) 0" }}>
-            Everything, as it happens.
+            The room.
           </h1>
           <p className="prose">
-            Signings, waiver results and trades land here on their own, next to
-            whatever the league has to say about them. Anything said on a matchup
-            card shows up too, with the game it was said about.
+            Say something, reply, @mention a manager, or ask the room a
+            question. League news — trades, waivers, announcements — lives on
+            the <Link href="/league-feed">League Feed</Link> instead.
           </p>
         </header>
 
-        {/* The composer sits above the feed because the feed is newest-first:
-            what you write appears where you are already looking. */}
-        <form
-          onSubmit={send}
-          style={{ display: "flex", gap: "var(--s2)", marginBottom: "var(--s4)" }}
-        >
-          <input
-            className="field"
-            maxLength={1000}
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            placeholder="Say something to the league…"
-            aria-label="Say something to the league"
-          />
-          <button
-            className="btn"
-            data-v="primary"
-            data-size="icon"
-            disabled={busy || !body.trim()}
-            aria-label="Send message"
-          >
-            <Send size={16} />
-          </button>
-        </form>
+        {replyTo && (
+          <div className="note" style={{ marginBottom: "var(--s2)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+            <span>Replying to {replyTo.author ?? "League manager"}: {replyTo.body.slice(0, 80)}</span>
+            <button type="button" className="btn" data-size="icon" aria-label="Cancel reply" onClick={() => setReplyTo(null)}>
+              <X size={14} />
+            </button>
+          </div>
+        )}
 
-        {isCommissioner && (announcing ? (
-          <form onSubmit={announce} className="card" style={{ marginBottom: "var(--s4)" }}>
-            <div className="card__head">
-              <h2>Post an announcement</h2>
-              <button type="button" className="btn" data-size="icon" aria-label="Cancel"
-                onClick={() => setAnnouncing(false)}>
-                <X size={15} />
-              </button>
+        <form onSubmit={send} style={{ marginBottom: "var(--s2)" }}>
+          <div style={{ display: "flex", gap: "var(--s2)" }}>
+            <input
+              className="field"
+              maxLength={1000}
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              placeholder={replyTo ? "Write your reply…" : "Say something to the league…"}
+              aria-label="Say something to the league"
+            />
+            <button
+              type="button"
+              className="btn"
+              data-size="icon"
+              data-v={mentionPicker ? "primary" : undefined}
+              aria-label="Mention a manager"
+              title="Mention a manager"
+              onClick={() => setMentionPicker((v) => !v)}
+            >
+              <AtSign size={16} />
+            </button>
+            <button
+              className="btn"
+              data-v="primary"
+              data-size="icon"
+              disabled={busy || !body.trim()}
+              aria-label="Send message"
+            >
+              <Send size={16} />
+            </button>
+          </div>
+
+          {mentionPicker && (
+            <div className="card" style={{ marginTop: 8, padding: "var(--s3)" }}>
+              {teammates.length === 0 ? (
+                <span className="eyebrow" style={{ color: "var(--faint)" }}>No other managers yet.</span>
+              ) : teammates.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  className="segmented__opt"
+                  data-on={mentioned.some((m) => m.user_id === t.owner_id)}
+                  style={{ marginRight: 6, marginBottom: 6 }}
+                  onClick={() => toggleMention(t.owner_id as string, t.manager_name ?? t.name)}
+                >
+                  {t.manager_name ?? t.name}
+                </button>
+              ))}
             </div>
-            <div className="card__body" style={{ display: "grid", gap: 8 }}>
-              <input className="field" maxLength={500} value={announcement} autoFocus
-                placeholder="The draft moves to Thursday at 8pm." aria-label="Your announcement"
-                onChange={(e) => setAnnouncement(e.target.value)} />
-              <button className="btn" data-v="primary" style={{ marginLeft: "auto" }}
-                disabled={busy || !announcement.trim()}>
-                {busy ? "…" : "Pin it"}
-              </button>
-              <span className="eyebrow" style={{ color: "var(--faint)" }}>
-                Held above the feed for every manager, with a push to anyone who
-                has notifications on, until you unpin it.
-              </span>
+          )}
+
+          {mentioned.length > 0 && (
+            <div className="eyebrow" style={{ marginTop: 6, color: "var(--faint)" }}>
+              Mentioning: {mentioned.map((m) => `@${m.name}`).join(" ")}
             </div>
-          </form>
-        ) : (
-          <button className="btn" style={{ marginBottom: "var(--s4)" }} onClick={() => setAnnouncing(true)}>
-            <Megaphone size={14} /> Post an announcement
-          </button>
-        ))}
+          )}
+        </form>
 
         {asking ? (
           <form onSubmit={ask} className="card" style={{ marginBottom: "var(--s4)" }}>
             <div className="card__head">
-              <h2>Ask the house</h2>
+              <h2>Ask the room</h2>
               <button type="button" className="btn" data-size="icon" aria-label="Cancel"
                 onClick={() => setAsking(false)}>
                 <X size={15} />
@@ -299,7 +287,7 @@ export default function HousePage() {
           </form>
         ) : (
           <button className="btn" style={{ marginBottom: "var(--s4)" }} onClick={() => setAsking(true)}>
-            <BarChart3 size={14} /> Ask the house a question
+            <BarChart3 size={14} /> Ask the room a question
           </button>
         )}
 
@@ -307,16 +295,13 @@ export default function HousePage() {
 
         {feedError ? (
           <div className="card">
-            <div className="note" data-kind="error">Couldn&apos;t load the House: {feedError}</div>
+            <div className="note" data-kind="error">Couldn&apos;t load Chat: {feedError}</div>
           </div>
         ) : !data ? (
           <div className="card"><SkeletonRows n={6} /></div>
         ) : (
-          <House
+          <Chat
             items={items}
-            pinned={data.pinned}
-            filter={filter}
-            onFilter={setFilter}
             hasMore={hasMore}
             loadingMore={loadingMore}
             onMore={() => void loadMore()}
@@ -324,9 +309,7 @@ export default function HousePage() {
             onReact={(item, emoji) => void react(item, emoji)}
             voting={voting}
             onVote={(item, optionId) => void vote(item, optionId)}
-            canPin={isCommissioner}
-            unpinning={unpinning}
-            onUnpin={(item) => void unpin(item)}
+            onReply={(item) => setReplyTo(item)}
           />
         )}
       </main>

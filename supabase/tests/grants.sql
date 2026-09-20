@@ -66,7 +66,11 @@ declare
     -- The bet's own trigger, its daily reminder, and the name lookup they share.
     'ff_on_challenge_changed', 'ff_remind_overdue_challenges', 'ff_challenge_who',
     -- The Special's lines go out from the publisher, never from a manager.
-    'ff_recap_notify'
+    'ff_recap_notify',
+    -- The reply guard fires as a trigger, never called directly. The three
+    -- scheduled League Feed posts run from pg_cron, never from a manager.
+    'ff_validate_message_parent', 'ff_open_sunday_live', 'ff_close_sunday_live',
+    'ff_post_weekly_prediction'
   ];
 
   -- A representative handful the screens really do call. Asserted so that a

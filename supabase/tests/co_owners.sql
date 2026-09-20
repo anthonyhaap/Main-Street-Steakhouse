@@ -232,13 +232,13 @@ begin
   if not (select auto_draft from teams where id = v_t1) then raise exception 'a co-owner could not switch on auto draft'; end if;
   v_checks := v_checks + 3;
 
-  -- The house: a rewritten guard, and a rewritten "which team wrote this".
+  -- Chat: a rewritten guard, and a rewritten "which team wrote this".
   perform ff_send_message(v_league, 'hello from the co-owner');
-  v_j := ff_house_feed(v_league, null, 20);
+  v_j := ff_chat_feed(v_league, null, 20);
   if v_j->'items'->0->>'author_team_id' is distinct from v_t1::text then
-    raise exception 'the house did not attribute a co-owner''s line to his team: %', v_j->'items'->0;
+    raise exception 'chat did not attribute a co-owner''s line to his team: %', v_j->'items'->0;
   end if;
-  if not (v_j->'items'->0->>'mine')::boolean then raise exception 'the house did not mark a co-owner''s own line as his'; end if;
+  if not (v_j->'items'->0->>'mine')::boolean then raise exception 'chat did not mark a co-owner''s own line as his'; end if;
   v_checks := v_checks + 2;
 
   -- The private board, through the policy rather than a function: a row on
