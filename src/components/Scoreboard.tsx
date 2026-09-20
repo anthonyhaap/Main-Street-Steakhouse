@@ -20,9 +20,8 @@
  */
 
 import { useState } from "react";
-import Link from "next/link";
 import { ChevronDown, ChevronRight, Flame, Share2, TriangleAlert } from "lucide-react";
-import { PlayerFace } from "@/components/PlayerBadge";
+import { PlayerBadge } from "@/components/PlayerBadge";
 import { crestUrl } from "@/lib/crest";
 import { Seal, useCountUp } from "@/components/ui";
 import {
@@ -307,17 +306,15 @@ function TopLine({ s }: { s: ScoreSide }) {
 /**
  * Both lineups, one slot at a time.
  *
- * Each player used to be half a row, mirrored against his opposite number so
- * their scores landed either side of one shared position pill. That earned
- * its keep while a name and a kickoff time were the only things under it —
- * once a box score joined them, half a row was no longer enough width for
- * either side to read on a phone, and no amount of squeezing the pill or the
- * face fixed that, because the problem was the width itself. So each player
- * is a full-width box now, away then home, with the pill still shared and
- * centered between them: the name and his score share the top line — read
- * together, "who and how much" — and the schedule or box score underneath
- * gets the whole box to wrap in rather than whatever the score column left
- * over.
+ * Away and home go side by side again, mirrored against each other so their
+ * scores land either side of one shared position pill — the ESPN matchup
+ * screen this whole table takes its shape from. A full-width box per player
+ * (stacked away-then-home) had a turn: it solved the squeeze by refusing it,
+ * but it also meant reading one whole side of a slot before the other, which
+ * is not how a manager compares two players in the same spot. Mirrored back
+ * side by side, with the fixes the full-width version paid to learn — a
+ * schedule line that wraps instead of overflowing, and padding sized for
+ * what the content needs rather than for half a row that used to hold less.
  */
 function VsLineups({ away, home, now }: { away: ScoreSide; home: ScoreSide; now: number }) {
   if (away.starters.length === 0 && home.starters.length === 0) {
@@ -336,9 +333,9 @@ function VsLineups({ away, home, now }: { away: ScoreSide; home: ScoreSide; now:
         const a = away.starters[i], h = home.starters[i];
         return (
           <div className="sb__vs-row" key={a?.player_id ?? h?.player_id ?? i}>
-            <VsPlayer p={a} now={now} />
+            <VsPlayer p={a} now={now} align="start" />
             <span className="pos" data-p={a?.slot ?? h?.slot}>{a?.slot ?? h?.slot}</span>
-            <VsPlayer p={h} now={now} />
+            <VsPlayer p={h} now={now} align="end" />
           </div>
         );
       })}
@@ -355,38 +352,39 @@ function VsTeam({ s, align = "start" }: { s: ScoreSide; align?: "start" | "end" 
   );
 }
 
-function VsPlayer({ p, now }: { p?: ScoreStarter; now: number }) {
-  if (!p) return null;
+function VsPlayer({ p, now, align }: { p?: ScoreStarter; now: number; align: "start" | "end" }) {
+  if (!p) return <span className="sb__vs-cell" data-align={align} />;
   const mark = gameMark(p, now);
   const box = boxScoreLine(p);
   return (
-    <Link
-      href={`/player/${p.player_id}`}
-      className="sb__pbox"
-      title={`Open ${p.full_name}`}
-      data-final={p.final}
-      data-bye={p.on_bye}
-    >
-      <div className="sb__pbox-top">
-        <PlayerFace id={p.player_id} name={p.full_name} position={p.position} team={p.nfl_team} espnId={p.espn_id} size={26} />
-        <span className="sb__pbox-name">{vsDisplayName(p)}</span>
-        <span className="sb__pbox-pts">
-          <b className="num">{fmt1(p.points)}</b>
-          {p.projection != null && <span className="num">{fmt1(p.projection)}</span>}
-        </span>
-      </div>
-      <div className="sb__pbox-bottom">
-        <span className="sb__mark" data-state={mark.state}>
-          {mark.state === "live" && <i className="sb__pip" aria-hidden />}
-          {mark.label}
-          {p.severity === "out" && <b className="sb__hurt"> · OUT</b>}
-        </span>
-        {/* What he actually did, not just when — printed only once there is
-            a stat line to print, which is exactly when the clock above
-            stops being the only news on the row. */}
-        {box && <span className="sb__box">{box}</span>}
-      </div>
-    </Link>
+    <div className="sb__vs-cell" data-align={align} data-final={p.final} data-bye={p.on_bye}>
+      <PlayerBadge
+        id={p.player_id}
+        name={p.full_name}
+        displayName={vsDisplayName(p)}
+        position={p.position}
+        team={p.nfl_team}
+        espnId={p.espn_id}
+        size={24}
+        sub={
+          <>
+            <span className="sb__mark" data-state={mark.state}>
+              {mark.state === "live" && <i className="sb__pip" aria-hidden />}
+              {mark.label}
+              {p.severity === "out" && <b className="sb__hurt"> · OUT</b>}
+            </span>
+            {/* What he actually did, not just when — printed only once there is
+                a stat line to print, which is exactly when the clock above
+                stops being the only news on the row. */}
+            {box && <span className="sb__box">{box}</span>}
+          </>
+        }
+      />
+      <span className="sb__vs-pts">
+        <b className="num">{fmt1(p.points)}</b>
+        {p.projection != null && <span className="num">{fmt1(p.projection)}</span>}
+      </span>
+    </div>
   );
 }
 
