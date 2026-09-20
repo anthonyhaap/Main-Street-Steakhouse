@@ -27,6 +27,8 @@ export type ScoreStarter = {
   espn_id: string | null;
   points: number;
   projection: number | null;
+  /** The line `points` was scored from — Sleeper's own stat keys. Null until he has one. */
+  stats: Record<string, number> | null;
   kickoff_at: string | null;
   /** ESPN's: "pre" | "in" | "post". Null when he has no game this week. */
   game_status: string | null;
@@ -416,6 +418,87 @@ export function gameMark(s: ScoreStarter, now: number): { label: string; state: 
   if (s.game_status === "post") return { label: "Final", state: "final" };
   const vs = s.opponent ? `${s.at_home ? "vs" : "@"} ${s.opponent} · ` : "";
   return { label: `${vs}${kickLabel(s.kickoff_at, now)}`, state: "pre" };
+}
+
+/**
+ * What he actually did, not just what it was worth. `gameMark` says when;
+ * this says what — the same stat line `points` was scored from, read back in
+ * the shorthand a box score uses. Null before he has one, which is exactly
+ * when there is nothing yet to say.
+ */
+export function boxScoreLine(p: ScoreStarter): string | null {
+  const s = p.stats;
+  if (!s) return null;
+  const n = (k: string) => Number(s[k] ?? 0);
+  const parts: string[] = [];
+
+  if (p.position === "QB") {
+    if (n("pass_att") > 0) {
+      parts.push(`${n("pass_cmp")}/${n("pass_att")}, ${n("pass_yd")} YD${n("pass_td") ? `, ${n("pass_td")} TD` : ""}`);
+    }
+    if (n("pass_int") > 0) parts.push(`${n("pass_int")} INT`);
+    if (n("rush_att") > 0) {
+      parts.push(`${n("rush_yd")} rush YD${n("rush_td") ? `, ${n("rush_td")} TD` : ""}`);
+    }
+  } else if (p.position === "RB") {
+    if (n("rush_att") > 0) {
+      parts.push(`${n("rush_att")} CAR, ${n("rush_yd")} YD${n("rush_td") ? `, ${n("rush_td")} TD` : ""}`);
+    }
+    if (n("rec") > 0) {
+      parts.push(`${n("rec")} REC, ${n("rec_yd")} YD${n("rec_td") ? `, ${n("rec_td")} TD` : ""}`);
+    }
+  } else if (p.position === "WR" || p.position === "TE") {
+    if (n("rec") > 0 || n("rec_tgt") > 0) {
+      parts.push(`${n("rec")} REC, ${n("rec_yd")} YD${n("rec_td") ? `, ${n("rec_td")} TD` : ""}`);
+    }
+    if (n("rush_att") > 0) parts.push(`${n("rush_att")} CAR, ${n("rush_yd")} YD`);
+  } else if (p.position === "K") {
+    if (n("fgm") > 0 || n("fgmiss") > 0) parts.push(`${n("fgm")}/${n("fgm") + n("fgmiss")} FG`);
+    if (n("xpm") > 0 || n("xpmiss") > 0) parts.push(`${n("xpm")}/${n("xpm") + n("xpmiss")} XP`);
+  } else if (p.position === "DST") {
+    const bits: string[] = [];
+    if (n("sack")) bits.push(`${n("sack")} SACK`);
+    if (n("int")) bits.push(`${n("int")} INT`);
+    if (n("fum_rec")) bits.push(`${n("fum_rec")} FR`);
+    // `ff_score` reads def_st_td first — the one Sleeper actually populates —
+    // and falls back to def_td only when that is absent, plus a fumble
+    // recovered in the end zone, which is its own key. The same read here,
+    // or a defensive score can show its points with no TD in the line.
+    const td = n("def_st_td") || n("def_td");
+    const tds = td + n("fum_rec_ez_tds");
+    if (tds) bits.push(`${tds} TD`);
+    if (n("safe")) bits.push(`${n("safe")} SFTY`);
+    if (n("blk_kick")) bits.push(`${n("blk_kick")} BLK`);
+    if (bits.length) parts.push(bits.join(", "));
+    const pa = pointsAllowedLine(s);
+    if (pa) parts.push(pa);
+  }
+
+  return parts.length ? parts.join(" · ") : null;
+}
+
+/**
+ * Sleeper sends the exact number allowed most weeks, but on a shutout it
+ * omits `pts_allow` entirely and sends a tier flag instead — the bug
+ * `20260826030012_fix_dst_shutout_scoring` found in `ff_score` itself. Read
+ * the same fallback here, or a shutout defense shows every other stat with
+ * no "0 PA" to explain the biggest bonus in the line.
+ */
+function pointsAllowedLine(s: Record<string, number>): string | null {
+  if (s["pts_allow"] != null) return `${Number(s["pts_allow"])} PA`;
+  const tiers: [string, string][] = [
+    ["pts_allow_0", "0 PA"],
+    ["pts_allow_1_6", "1–6 PA"],
+    ["pts_allow_7_13", "7–13 PA"],
+    ["pts_allow_14_20", "14–20 PA"],
+    ["pts_allow_21_27", "21–27 PA"],
+    ["pts_allow_28_34", "28–34 PA"],
+    ["pts_allow_35p", "35+ PA"],
+  ];
+  for (const [key, label] of tiers) {
+    if (Number(s[key] ?? 0) > 0) return label;
+  }
+  return null;
 }
 
 /** "Sun 1:00", or "in 42m" once it is close enough to matter. */
