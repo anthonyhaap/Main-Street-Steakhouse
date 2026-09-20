@@ -3020,13 +3020,11 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
 }
 .sb__toggle:hover { color: var(--wine); }
 
-/* One slot, one row, both players in it — the pill goes in the middle once
-   instead of twice, and each side's score sits hard against that middle
-   pill rather than out at the row's own outer edge. That's the thing worth
-   taking from a scoreboard app's matchup screen: the two numbers you are
-   actually weighing against each other land side by side, not a whole row
-   apart, and a slot lines up with the same slot on the other roster because
-   they now share one row instead of independently stacking. */
+/* One slot, one row, both players in it, sharing a single position pill —
+   but each player gets a full-width box of his own rather than half a row
+   mirrored against the other side. Half a row was fine while a name and a
+   kickoff time were the only things under it; once a box score joined them,
+   the fix was width, not a smarter squeeze. See VsLineups. */
 .sb__vs-lineup {
   display: grid;
   border: 1px solid var(--rule); border-radius: var(--r-sm);
@@ -3049,48 +3047,51 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
 .sb__vs-team .num { font-size: var(--t-small); font-weight: 600; color: var(--muted); flex-shrink: 0; }
 .sb__vs-team[data-align="end"] { flex-direction: row-reverse; justify-self: end; }
 
+/* One box per player, stacked away then home, full width on any screen —
+   not mirrored halves of one row. The position pill is the one thing they
+   still share, centered between the two boxes it names. */
 .sb__vs-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 40px minmax(0, 1fr);
-  align-items: center; gap: 6px;
-  padding: 6px var(--s3);
+  display: flex; flex-direction: column; align-items: stretch; gap: 2px;
+  padding: var(--s2) var(--s3);
 }
 .sb__vs-row + .sb__vs-row { border-top: 1px solid var(--rule-soft); }
-.sb__vs-row > .pos { justify-self: center; }
+.sb__vs-row > .pos { align-self: center; margin: 1px 0; }
 
-.sb__vs-cell {
-  display: flex; align-items: center; gap: 8px; min-width: 0;
-  min-height: 40px;
+/* The box: name and score share a top line, read together as "who and how
+   much"; the schedule or box score drops to a second line that has the
+   box's full width to wrap in, not just whatever the score column left. */
+.sb__pbox {
+  display: block; text-decoration: none; color: inherit;
+  border-radius: var(--r-sm); padding: 6px 8px;
+  transition: background 0.15s var(--ease);
 }
-.sb__vs-cell[data-final="true"] { opacity: 0.72; }
-.sb__vs-cell[data-bye="true"] { background: #b3341f08; }
-/* The far side, mirrored: the score moves first in source order so it lands
-   next to the pill, which pushes the face and name out to the row's own
-   outer edge instead — the same left/right mirroring `.sb__sides` already
-   does for the team row above this one. */
-.sb__vs-cell[data-align="end"] { flex-direction: row-reverse; text-align: right; }
-.sb__vs-cell[data-align="end"] .pbadge { flex-direction: row-reverse; }
-.sb__vs-cell[data-align="end"] .pbadge__sub { justify-content: flex-end; }
+a.sb__pbox:hover { background: var(--ink-2); }
+.sb__pbox[data-final="true"] { opacity: 0.72; }
+.sb__pbox[data-bye="true"] { background: #b3341f08; }
 
-.sb__vs-pts { display: grid; justify-items: end; gap: 0; min-width: 30px; flex-shrink: 0; }
-.sb__vs-cell[data-align="end"] .sb__vs-pts { justify-items: start; }
-.sb__vs-pts b { font-family: var(--sans); font-weight: 600; font-size: var(--t-body); }
-.sb__vs-pts span:not(b) { font-size: var(--t-nano); color: var(--dim); }
+.sb__pbox-top { display: flex; align-items: center; gap: 8px; }
+.sb__pbox-name {
+  flex: 1 1 auto; min-width: 0;
+  font-weight: 600; font-size: var(--t-small);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.sb__pbox-pts { display: flex; align-items: baseline; gap: 6px; flex-shrink: 0; }
+.sb__pbox-pts b { font-family: var(--sans); font-weight: 700; font-size: var(--t-body); }
+.sb__pbox-pts span:not(b) { font-size: var(--t-nano); color: var(--dim); }
 
-/* Not `nowrap`: "vs NYG · Mon 8:15 PM" fits a desktop column with room to
-   spare, but on a phone's narrow half of a side-by-side row it is wider than
-   the column itself — and text that cannot wrap does not shrink, it spills
-   over the edge and into whatever sits next to it. Letting it break at a
-   space costs a second line; overflowing into the other side's score costs
-   the row's legibility entirely. */
+/* Indented to clear the face above it rather than start back at the box's
+   own edge — it reads as belonging to the name it sits under. Wraps, never
+   truncates: a box score cut off mid-number ("18/24, 245 Y…") is worse than
+   a box that grows a line. */
+.sb__pbox-bottom {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  margin: 2px 0 0 34px; line-height: 1.45;
+}
+
 .sb__mark { display: inline-flex; align-items: center; gap: 5px; font-size: var(--t-nano); color: var(--dim); }
 .sb__mark[data-state="live"] { color: var(--wine); font-weight: 600; }
 .sb__mark[data-state="final"] { color: var(--faint); }
 .sb__hurt { color: var(--lose); font-weight: 700; }
-/* What he did, under when he did it. Wraps rather than truncates — a box
-   score cut off mid-number ("18/24, 245 Y…") is worse than a row that grows
-   a line, and `.pbadge__sub` already wraps its children onto a line of their
-   own when the first one leaves no room. */
 .sb__box { font-size: var(--t-nano); color: var(--muted); }
 .sb__pip {
   width: 6px; height: 6px; border-radius: 50%; background: var(--wine);
@@ -3110,17 +3111,6 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
   .sb__odds-src { display: none; }
   .sb__tops > :last-child { justify-self: start; text-align: left; }
 
-  /* Side by side stays side by side down to a phone — the box score line
-     below makes the row taller instead, wrapping rather than truncating, so
-     the two totals a manager is actually comparing still land across from
-     each other rather than one above the other. The position pill gives up
-     what width it can so the players either side of it keep theirs. */
-  .sb__vs-row { grid-template-columns: minmax(0, 1fr) 30px minmax(0, 1fr); padding: 10px var(--s2); gap: 4px; }
-  .sb__vs-row > .pos { min-width: 30px; padding: 0 5px; font-size: 9px; }
-  /* A box score line wraps here more often than anywhere else this component
-     is used, so it gets its own breathing room rather than the tighter
-     line-height a one-line sub elsewhere can get away with. */
-  .sb__vs-cell .pbadge__sub { line-height: 1.45; row-gap: 2px; }
   .sb__vs-head { padding: var(--s3) var(--s2); }
   /* The "Both lineups" toggle right above already says what this table is;
      the label in its own header just eats the width the team names and
