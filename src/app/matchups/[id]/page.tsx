@@ -172,7 +172,13 @@ export default function MatchupRoute({ params }: PageProps<"/matchups/[id]">) {
 
         {shown && card && (
           <>
-            <MatchupHead c={card} now={clock} />
+            {/* Keyed for the same reason the thread below is: `useCountUp`
+                tweens from the score it last showed, so without this the
+                new game's header spends half a second counting from the old
+                game's total — a number belonging to neither, under the new
+                game's name. Within a matchup the key holds, so a real live
+                score still counts up the way it should. */}
+            <MatchupHead key={card.id} c={card} now={clock} />
             <div ref={belowHead} aria-hidden />
             {/* Where the game stands, in one sentence, written from the
                 reader's side of it — the same line the card on the list page
@@ -183,8 +189,19 @@ export default function MatchupRoute({ params }: PageProps<"/matchups/[id]">) {
 
             {/* Last, because it is the one thing on the screen that grows —
                 and because the loop this page is built for ends here: see
-                somebody losing, say so. */}
-            <MatchupTalk card={card} now={clock} onPosted={refetch} />
+                somebody losing, say so.
+
+                Keyed by the matchup, which the rail made necessary. Switching
+                games used to be a route change that remounted everything;
+                now it is a state change, so without a key React keeps this
+                instance and its open thread across the switch. `useLive`
+                holds the last thread it fetched and its `refetch` keeps one
+                identity across a fetcher change, so the old game's messages
+                would sit under the new game's header until the resubscribed
+                channel refetched — or, with realtime down, until the
+                thirty-second poll. The wrong argument attributed to the
+                wrong table is the one thing this screen must never do. */}
+            <MatchupTalk key={card.id} card={card} now={clock} onPosted={refetch} />
           </>
         )}
       </main>
