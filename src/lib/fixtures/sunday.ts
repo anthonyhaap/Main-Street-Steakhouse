@@ -1,0 +1,337 @@
+/**
+ * A Sunday, invented — the fixture every matchup screen is judged against.
+ *
+ * The live pages need a session, a completed draft, a week with rosters in it
+ * and, on top of all that, football actually happening: a scoreboard whose
+ * whole point is what is going on right now can only be judged mid-afternoon.
+ * So the afternoon is invented here, once, and both preview routes read it —
+ * `/preview/matchups` for the board and `/preview/matchup` for one game on its
+ * own screen. One fixture rather than two, because two would drift and the
+ * whole value of the thing is that a test can hold it still.
+ *
+ * `board(stage)` runs the day forward: the preseason with no rosters at all,
+ * nothing kicked, the one o'clock games on, the late window, and Monday with
+ * one man left.
+ *
+ * The players and their ESPN ids are real. The teams, scores, projections and
+ * lineups are invented, and the managers are not real people.
+ */
+
+import type { WeekRivalries } from "@/lib/history";
+import type {
+  ScoreCard, ScoreSide, ScoreStarter, Scoreboard as Board, Talk, ThreadMessage,
+} from "@/lib/scoreboard";
+
+/** Sunday of week 11, 1:07pm Eastern, as a fixed clock. */
+export const NOW = Date.parse("2026-11-22T18:07:00Z");
+const H = 3600_000;
+
+const LEAGUE = "11111111-1111-1111-1111-111111111111";
+export const MY_TEAM = "t3";
+
+/** name, position, club, ESPN id, kickoff window — all but the window real. */
+const POOL: [string, string, string, string, number][] = [
+  ["Patrick Mahomes", "QB", "KC", "3139477", 0],
+  ["Josh Allen", "QB", "BUF", "3918298", 3],
+  ["Jahmyr Gibbs", "RB", "DET", "4429795", 0],
+  ["Bijan Robinson", "RB", "ATL", "4430807", 0],
+  ["Christian McCaffrey", "RB", "SF", "3117251", 3],
+  ["Jonathan Taylor", "RB", "IND", "4242335", 0],
+  ["De'Von Achane", "RB", "MIA", "4429160", 3],
+  ["Puka Nacua", "WR", "LAR", "4426515", 3],
+  ["Ja'Marr Chase", "WR", "CIN", "4362628", 0],
+  ["Jaxon Smith-Njigba", "WR", "SEA", "4430878", 3],
+  ["Amon-Ra St. Brown", "WR", "DET", "4374302", 0],
+  ["Drake London", "WR", "ATL", "4426502", 0],
+  ["Trey McBride", "TE", "ARI", "4361307", 3],
+  ["Tucker Kraft", "TE", "GB", "4572680", 0],
+  ["Chris Boswell", "K", "PIT", "16339", 0],
+  ["Brandon Aubrey", "K", "DAL", "4249087", 3],
+];
+
+const SLOTS = ["QB", "RB", "RB", "WR", "WR", "TE", "FLEX", "K", "DST"];
+/**
+ * Who sat. Three deep, drawn from the same pool after the starters have taken
+ * their pick — which is what the live `ff_scoreboard` sends as `bench` since
+ * `20260921004635_scoreboard_carries_the_bench`. Deliberately uneven across
+ * the two sides of a card, because real benches are: a matchup row that
+ * assumes the fourth man on one side pairs with the fourth on the other has
+ * to look right when one side has fewer.
+ *
+ * Listed by the position each one is drawn from rather than by his slot,
+ * which is `BN` for all of them — `forSlot` reads a position, and "BN" as a
+ * position matches nobody, which is how a first draft of this ended up with a
+ * bench of three identical defenses.
+ */
+const BENCH_DRAW = ["RB", "WR", "TE"];
+const forSlot = (slot: string) => POOL.filter(([, pos]) => pos === (slot === "FLEX" ? "RB" : slot));
+
+export type Stage = "undrafted" | "pre" | "early" | "late" | "monday";
+
+export const STAGES: { key: Stage; label: string; note: string }[] = [
+  { key: "undrafted", label: "Before the draft", note: "No rosters, so no projections and no odds — the card says what it knows and nothing more." },
+  { key: "pre", label: "Nothing kicked", note: "Sunday morning. Projections are the only numbers there are, so they are the ones on the card." },
+  { key: "early", label: "One o'clock games on", note: "Six games in progress. Scores tick, the pip pulses, the odds move with the projected remainder." },
+  { key: "late", label: "Late window", note: "The one o'clock games are final and the four o'clocks are on. This is the hour the page exists for." },
+  { key: "monday", label: "Monday night", note: "One man left against an empty bench — the line people screenshot." },
+];
+
+/** Which windows have kicked, and which are on, at each stage. */
+const CLOCK: Record<Stage, { done: number[]; on: number[] }> = {
+  undrafted: { done: [], on: [] },
+  pre: { done: [], on: [] },
+  early: { done: [], on: [0] },
+  late: { done: [0], on: [3] },
+  monday: { done: [0, 3], on: [] },
+};
+
+/**
+ * A plausible box score for the points already invented above — not a real
+ * one, just proportioned so the fixture's stat lines read like a Sunday
+ * instead of like round numbers. Null before kickoff: there is no line to
+ * have yet.
+ */
+function boxStats(position: string, points: number, status: string): Record<string, number> | null {
+  if (status === "pre" || points <= 0) return null;
+  const p = Math.max(0.1, points);
+  if (position === "QB") {
+    return {
+      pass_att: Math.round(18 + p), pass_cmp: Math.round(12 + p * 0.6),
+      pass_yd: Math.round(p * 14), pass_td: p > 14 ? 2 : p > 6 ? 1 : 0,
+      rush_att: 2, rush_yd: Math.round(p * 0.6),
+    };
+  }
+  if (position === "RB") {
+    return {
+      rush_att: Math.round(6 + p * 0.7), rush_yd: Math.round(p * 6.5),
+      rush_td: p > 15 ? 1 : 0, rec: Math.round(p * 0.15), rec_yd: Math.round(p * 0.8),
+    };
+  }
+  if (position === "WR" || position === "TE") {
+    return {
+      rec: Math.round(2 + p * 0.35), rec_yd: Math.round(p * 8),
+      rec_td: p > 15 ? 1 : 0,
+    };
+  }
+  if (position === "K") {
+    return { fgm: Math.round(p / 3.5), fgmiss: 0, xpm: Math.round(p % 3), xpmiss: 0 };
+  }
+  if (position === "DST") {
+    // Sleeper's real key names, `def_st_td` and `pts_allow`, not the legacy
+    // `def_td` fallback — the fixture should exercise what production sends.
+    return {
+      sack: Math.round(p * 0.4), int: p > 10 ? 1 : 0, fum_rec: p > 16 ? 1 : 0,
+      def_st_td: p > 18 ? 1 : 0, pts_allow: Math.max(0, Math.round(24 - p)),
+    };
+  }
+  return null;
+}
+
+function starter(
+  slot: string, i: number, offset: number, stage: Stage, soloWindow: boolean,
+  used: Set<string>,
+): ScoreStarter {
+  // FLEX and RB draw from the same players, and a lineup starting one man in
+  // two slots is a fixture nobody believes.
+  const eligible = (slot === "DST" ? [] : forSlot(slot)).filter(([n]) => !used.has(n));
+  const pool = eligible.length ? eligible : (slot === "DST" ? [] : forSlot(slot));
+  const pick = pool.length
+    ? pool[(offset + i) % pool.length]
+    : (["Houston Texans", "DST", "HOU", "HOU", 0] as [string, string, string, string, number]);
+  used.add(pick[0]);
+  const [full_name, position, nfl_team, espn_id, win] = pick;
+  // Monday's last man: one starter is pushed into a window nobody else is in.
+  const window = soloWindow ? 26 : win;
+  const { done, on } = CLOCK[stage];
+  const status = done.includes(window) ? "post" : on.includes(window) ? "in" : "pre";
+
+  // Deterministic, so the fixture never flickers between renders. The swing
+  // is centred on 1 rather than on a half, so an invented afternoon lands
+  // around its projections the way a real one does.
+  const proj = Math.round((7 + ((offset * 5 + i * 11) % 15)) * 10) / 10;
+  const swing = 0.55 + ((offset * 7 + i * 13) % 10) / 11;
+  const points = status === "pre" ? 0
+    : status === "in" ? Math.round(proj * 0.55 * swing * 10) / 10
+    : Math.round(proj * swing * 10) / 10;
+
+  return {
+    player_id: `p-${offset}-${i}`, full_name, position, nfl_team, slot, espn_id,
+    points, projection: proj, stats: boxStats(position, points, status),
+    // Sunday morning's kickoffs are all ahead of the clock; every later stage
+    // has the one o'clock window already behind it.
+    kickoff_at: new Date(NOW + (window + (stage === "pre" ? 3 : -1)) * H).toISOString(),
+    game_status: status,
+    game_detail: status === "in" ? "Q2 8:41" : status === "post" ? "Final" : null,
+    opponent: "NYJ", at_home: i % 2 === 0, severity: null,
+    on_bye: false,
+    final: status === "post",
+  };
+}
+
+function side(
+  team_id: string, name: string, manager: string, offset: number, stage: Stage,
+  opts: { solo?: boolean; wins?: number; short?: boolean } = {},
+): ScoreSide {
+  const used = new Set<string>();
+  // Before the draft a team has no players at all — the one state the board
+  // spends its whole preseason in.
+  const starters = stage === "undrafted" ? [] : SLOTS.map((slot, i) =>
+    starter(slot, i, offset, stage, !!opts.solo && i === SLOTS.length - 3, used));
+  // The bench is built from the same pool with the same `used` set, so nobody
+  // is starting and sitting at once. `opts.short` takes a man off one side of
+  // one card, so the pairing in the bench rows is tested against a side that
+  // runs out first.
+  const bench = stage === "undrafted" ? [] :
+    BENCH_DRAW.slice(0, opts.short ? BENCH_DRAW.length - 1 : BENCH_DRAW.length)
+      .map((pos, i) => ({
+        ...starter(pos, i + SLOTS.length, offset + 4, stage, false, used),
+        slot: "BN",
+      }));
+  const sum = (f: (p: ScoreStarter) => number) =>
+    Math.round(starters.reduce((s, p) => s + f(p), 0) * 10) / 10;
+
+  return {
+    team_id, name, manager_name: manager, logo_path: null,
+    wins: stage === "undrafted" ? 0 : opts.wins ?? 6,
+    losses: stage === "undrafted" ? 0 : 10 - (opts.wins ?? 6),
+    ties: 0,
+    points: sum((p) => p.points),
+    proj: sum((p) => Number(p.projection ?? 0)),
+    proj_left: sum((p) => (p.game_status === "pre" ? Number(p.projection ?? 0) : 0)),
+    yet_to_play: starters.filter((p) => !p.final).length,
+    in_action: starters.filter((p) => p.game_status === "in").length,
+    empty_slots: stage === "undrafted" ? SLOTS.length : 0,
+    top: (() => {
+      const best = [...starters].sort((a, b) => b.points - a.points)[0];
+      return best ? {
+        full_name: best.full_name, position: best.position, nfl_team: best.nfl_team,
+        points: best.points, game_status: best.game_status,
+      } : null;
+    })(),
+    starters,
+    bench,
+    mine: team_id === MY_TEAM,
+  };
+}
+
+/**
+ * An argument, invented. Read-only here: `TalkThread` without an `onSend` is
+ * the thread a signed-out reader gets, which is also the one a fixture can
+ * render — the post itself needs a session and a database.
+ */
+export const THREAD: ThreadMessage[] = [
+  ["Ray", "The Porterhouse", "home", "Starting Robinson over Gibbs is a choice.", 52],
+  ["Dev", "Dry Aged Dynasty", "away", "It's called conviction. Look it up.", 41],
+  ["Marcus", "Prime Cut", null, "It's called being three points from last.", 12],
+  ["Ray", "The Porterhouse", "home", "Kicker's on bye, Dev. Check your K.", 3],
+].map(([manager, team, side, body, minsAgo], i) => ({
+  id: `msg-${i}`,
+  body: body as string,
+  created_at: new Date(NOW - (minsAgo as number) * 60_000).toISOString(),
+  edited_at: null,
+  author_id: `u-${i}`,
+  kind: "manager" as const,
+  mine: manager === "Ray",
+  author_team_id: `t-${i}`,
+  author_name: team as string,
+  author_manager: manager as string,
+  author_logo: null,
+  side: side as "home" | "away" | null,
+}));
+
+const TALK: Talk = {
+  count: THREAD.length,
+  last: {
+    body: THREAD[THREAD.length - 1].body,
+    created_at: THREAD[THREAD.length - 1].created_at,
+    author: "Ray",
+    mine: true,
+  },
+};
+
+const QUIET: Talk = { count: 0, last: null };
+
+/**
+ * Three records, one per card, keyed by matchup id the way
+ * `ff_rivalries_for_week` keys them. Points are from the HOME manager's side,
+ * which is what `a` means throughout.
+ *
+ * Deliberately three different shapes: one the reader is losing (the sentence
+ * the whole feature exists for), one between two other people, and one pair
+ * who have never met — which has to render nothing at all rather than a row
+ * saying there is nothing to say.
+ */
+export const RIVALRIES: WeekRivalries = {
+  m1: {
+    a: "Ray", b: "Dev",
+    games: 13, a_wins: 4, b_wins: 8, ties: 1,
+    playoff_games: 2, first_season: 2016,
+    streak_holder: "Dev", streak: 3,
+    last: { season: 2025, week: 16, round: "semifinal", a_points: 98.4, b_points: 121.2, winner: "Dev" },
+    biggest: { season: 2019, week: 7, winner: "Dev", margin: 71.5, a_points: 62.1, b_points: 133.6 },
+  },
+  m2: {
+    a: "Anthony", b: "Marcus",
+    games: 9, a_wins: 5, b_wins: 4, ties: 0,
+    playoff_games: 1, first_season: 2018,
+    streak_holder: "Anthony", streak: 1,
+    last: { season: 2025, week: 4, round: "regular", a_points: 110.7, b_points: 104.2, winner: "Anthony" },
+    biggest: { season: 2021, week: 12, winner: "Marcus", margin: 44.0, a_points: 71.0, b_points: 115.0 },
+  },
+  m3: {
+    a: "Nate", b: "Tom",
+    games: 0, a_wins: 0, b_wins: 0, ties: 0,
+    playoff_games: 0, first_season: null,
+    streak_holder: null, streak: 0,
+    last: null, biggest: null,
+  },
+};
+
+export function board(stage: Stage): Board {
+  // A league that has not drafted is in week one, whatever the rest of the
+  // fixture's Sunday says.
+  const wk = stage === "undrafted" ? 1 : 11;
+  const cards: ScoreCard[] = [
+    {
+      id: "m1", week: wk, mine: true, talk: TALK,
+      away: side("t4", "Dry Aged Dynasty", "Dev", 2, stage, { wins: 7 }),
+      home: side(MY_TEAM, "The Porterhouse", "Ray", 5, stage, { solo: stage === "monday", wins: 6, short: true }),
+    },
+    {
+      id: "m2", week: wk, mine: false, talk: QUIET,
+      away: side("t1", "Prime Cut", "Marcus", 1, stage, { wins: 9 }),
+      home: side("t2", "Gridiron Butchers", "Anthony", 8, stage, { wins: 4 }),
+    },
+    {
+      id: "m3", week: wk, mine: false, talk: QUIET,
+      away: side("t5", "Bone-In Bandits", "Tom", 3, stage, { wins: 5 }),
+      home: side("t6", "Wagyu Warriors", "Nate", 11, stage, { wins: 5 }),
+    },
+  ];
+
+  const done = CLOCK[stage].done.length, on = CLOCK[stage].on.length;
+  return {
+    league: {
+      id: LEAGUE, name: "Main Street Steakhouse", season: 2026,
+      team_count: 12, regular_season_weeks: 14, roster_slots: [...SLOTS, "BN", "BN", "BN"],
+    },
+    week: wk,
+    my_team_id: MY_TEAM,
+    games: {
+      week: wk,
+      first_kick: new Date(NOW - H).toISOString(),
+      last_kick: new Date(NOW + 26 * H).toISOString(),
+      total: 14,
+      final: done * 6,
+      in_progress: on * 6,
+      next_kickoff: stage === "monday" ? new Date(NOW + 2 * H).toISOString() : new Date(NOW + 3 * H).toISOString(),
+    },
+    matchups: cards,
+    // Nothing has been scored before the first kick, so nothing has a
+    // timestamp — the page has to read right in that state too.
+    stats_updated_at: done + on === 0 ? null : new Date(NOW - 90_000).toISOString(),
+    projections_updated_at: new Date(NOW - 5 * H).toISOString(),
+    now: new Date(NOW).toISOString(),
+    generated_at: new Date(NOW).toISOString(),
+  };
+}

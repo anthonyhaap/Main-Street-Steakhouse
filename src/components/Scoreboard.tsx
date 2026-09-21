@@ -19,15 +19,15 @@
  * whole invented Sunday through it without a session.
  */
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import Link from "next/link";
 import { ChevronDown, ChevronRight, Flame, Maximize2, Share2, TriangleAlert } from "lucide-react";
 import { PlayerBadge } from "@/components/PlayerBadge";
 import { crestUrl } from "@/lib/crest";
 import { Seal, useCountUp } from "@/components/ui";
 import {
-  boxScoreLine, cardLine, cardState, gameMark, hasProblem, kickLabel, pctLabel, projectedFinal,
-  stillToPlay, topPerformer, versusProjection, winOdds, fmt1,
+  benchOf, boxScoreLine, cardLine, cardState, gameMark, hasProblem, kickLabel, leader,
+  pctLabel, projectedFinal, stillToPlay, topPerformer, versusProjection, winOdds, fmt1,
   type ScoreCard, type ScoreSide, type ScoreStarter, type Scoreboard as Board,
   type WinOdds,
 } from "@/lib/scoreboard";
@@ -94,11 +94,10 @@ function Card({ c, now, myTeamId, talk, rivalry, onShare, hero = false }: {
   // An odds bar reading 50–50 over that is the standings' preseason mistake
   // in a different shape.
   const lineups = c.home.starters.length + c.away.starters.length > 0;
-  const hp = Number(c.home.points), ap = Number(c.away.points);
-  // Before anyone kicks, the projection is the only ranking there is.
-  const lead = state === "pre"
-    ? { home: c.home.proj > c.away.proj, away: c.away.proj > c.home.proj }
-    : { home: hp > ap, away: ap > hp };
+  // One answer, from the library, so this card and the full-screen matchup's
+  // header can never gild a different name.
+  const ahead = leader(c);
+  const lead = { home: ahead === "home", away: ahead === "away" };
 
   return (
     <article className="sb" data-hero={hero} data-mine={c.mine} data-state={state}>
@@ -241,7 +240,7 @@ function Side({ s, lead, hero, state, lineups }: {
  * split is also stated in text, so the card reads the same to someone who
  * cannot separate wine from gold.
  */
-function Odds({ c, odds, state }: { c: ScoreCard; odds: WinOdds; state: string }) {
+export function Odds({ c, odds, state }: { c: ScoreCard; odds: WinOdds; state: string }) {
   const label = state === "pre" ? "Projected to win" : odds.settled ? "Result" : "Win probability";
   return (
     <div className="sb__odds">
@@ -269,7 +268,7 @@ function Odds({ c, odds, state }: { c: ScoreCard; odds: WinOdds; state: string }
 
 /* ----------------------------------------------------------------- parts -- */
 
-function StateChip({ state, c, now }: { state: string; c: ScoreCard; now: number }) {
+export function StateChip({ state, c, now }: { state: string; c: ScoreCard; now: number }) {
   if (state === "live") {
     const on = c.home.in_action + c.away.in_action;
     return <span className="badge" data-tone="live">Live · {on} player{on === 1 ? "" : "s"} in action</span>;
@@ -320,24 +319,60 @@ function TopLine({ s }: { s: ScoreSide }) {
 /**
  * Both lineups, one slot at a time.
  *
- * Away and home go side by side again, mirrored against each other so their
- * scores land either side of one shared position pill — the ESPN matchup
- * screen this whole table takes its shape from. A full-width box per player
- * (stacked away-then-home) had a turn: it solved the squeeze by refusing it,
- * but it also meant reading one whole side of a slot before the other, which
- * is not how a manager compares two players in the same spot. Mirrored back
- * side by side, with the fixes the full-width version paid to learn — a
- * schedule line that wraps instead of overflowing, and padding sized for
- * what the content needs rather than for half a row that used to hold less.
+ * Away and home go side by side, mirrored against each other so their scores
+ * land either side of one shared position pill — the ESPN matchup screen this
+ * whole table takes its shape from. A full-width box per player (stacked
+ * away-then-home) had a turn: it solved the squeeze by refusing it, but it
+ * also meant reading one whole side of a slot before the other, which is not
+ * how a manager compares two players in the same spot.
+ *
+ * What changed for the full-screen matchup is what a row says without being
+ * asked. It used to print the box score under every name, always — nine slots
+ * times two sides times "18/24, 245 YD, 2 TD" is a row and a half apiece, and
+ * the matchup the screen exists for ended up below the fold. So the stat line
+ * moved behind a tap: the default row is a name, a game state, a score and a
+ * projection, and the line the score was made of arrives under the row when
+ * somebody asks for it.
+ *
+ * The tap is `PlayerBadge`'s own `onOpen`, which the draft room added for the
+ * same reason — a plain click does the thing that belongs on this screen, and
+ * a cmd-click, a middle click or "open in new tab" still reach the player's
+ * page, because that page is a location and losing it would be a regression
+ * dressed as a redesign.
  */
-export function VsLineups({ away, home, now, head }: {
+export function VsLineups({ away, home, now, head, bench = false }: {
   away: ScoreSide; home: ScoreSide; now: number;
-  /** What sits between the two team names — the "Lineups" label everywhere
-   * this table is one card among several, or the full-screen page's own
-   * matchup picker where this table is the whole screen and switching games
-   * happens right here rather than by leaving. */
+  /**
+   * What sits between the two team names: the "Lineups" label by default.
+   * `null` drops the whole header row, which is what the full-screen matchup
+   * wants — the scoreboard above it already names both teams and both
+   * scores, twice.
+   */
   head?: React.ReactNode;
+  /**
+   * Offer the benches under the starters, collapsed. Off on the list page,
+   * where a card is a comparison of two lineups and who sat is somebody
+   * else's question; on for the full-screen matchup, where "should he have
+   * started somebody else" is half of what the screen is read for.
+   */
+  bench?: boolean;
 }) {
+  // One set for both sides: a row is a slot, and the two men in it are read
+  // together, so asking for one man's line offers the other's in the same
+  // breath rather than making it two taps.
+  const [open, setOpen] = useState<ReadonlySet<string>>(() => new Set());
+  const toggle = useCallback((id: string) => {
+    setOpen((prev) => {
+      const next = new Set(prev);
+      if (!next.delete(id)) next.add(id);
+      return next;
+    });
+  }, []);
+
+  const [benchOpen, setBenchOpen] = useState(false);
+  const benches = { away: benchOf(away), home: benchOf(home) };
+  const benchRows = Math.max(benches.away.length, benches.home.length);
+
   if (away.starters.length === 0 && home.starters.length === 0) {
     return <div className="sb__vs-lineup"><div className="empty">No lineup set.</div></div>;
   }
@@ -345,21 +380,91 @@ export function VsLineups({ away, home, now, head }: {
 
   return (
     <div className="sb__vs-lineup">
-      <div className="sb__vs-head">
-        <VsTeam s={away} />
-        {head ?? <span className="eyebrow">Lineups</span>}
-        <VsTeam s={home} align="end" />
-      </div>
+      {/* `head === null` means "no header row at all" — the full-screen
+          matchup, where the scoreboard above this table and the sticky bar
+          above that have both already said which two teams these are and
+          what they are on. A third copy would cost a row of the one budget
+          that screen is short of. */}
+      {head !== null && (
+        <div className="sb__vs-head">
+          <VsTeam s={away} />
+          {head ?? <span className="eyebrow">Lineups</span>}
+          <VsTeam s={home} align="end" />
+        </div>
+      )}
       {Array.from({ length: rows }, (_, i) => {
         const a = away.starters[i], h = home.starters[i];
         return (
-          <div className="sb__vs-row" key={a?.player_id ?? h?.player_id ?? i}>
-            <VsPlayer p={a} now={now} align="start" />
-            <span className="pos" data-p={a?.slot ?? h?.slot}>{a?.slot ?? h?.slot}</span>
-            <VsPlayer p={h} now={now} align="end" />
-          </div>
+          <VsSlot
+            key={a?.player_id ?? h?.player_id ?? i}
+            a={a} h={h} now={now} slot={a?.slot ?? h?.slot} open={open} toggle={toggle}
+          />
         );
       })}
+
+      {bench && benchRows > 0 && (
+        <>
+          <button
+            className="sb__bench-toggle"
+            onClick={() => setBenchOpen((v) => !v)}
+            aria-expanded={benchOpen}
+          >
+            {benchOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+            Bench
+            <span className="num">{benches.away.length} · {benches.home.length}</span>
+          </button>
+          {benchOpen && Array.from({ length: benchRows }, (_, i) => {
+            const a = benches.away[i], h = benches.home[i];
+            return (
+              <VsSlot
+                key={a?.player_id ?? h?.player_id ?? `bn-${i}`}
+                a={a} h={h} now={now} open={open} toggle={toggle} bench
+              />
+            );
+          })}
+        </>
+      )}
+    </div>
+  );
+}
+
+/**
+ * One slot: the two men in it, and — only once somebody asks — what their
+ * scores were made of.
+ *
+ * The stat lines sit in their own row under the pair rather than inside each
+ * cell, so one side expanding cannot drag the shared position pill off the
+ * centre line of the other side's name.
+ */
+function VsSlot({ a, h, now, slot, open, toggle, bench = false }: {
+  a?: ScoreStarter; h?: ScoreStarter; now: number; slot?: string;
+  open: ReadonlySet<string>; toggle: (id: string) => void; bench?: boolean;
+}) {
+  const aOpen = !!a && open.has(a.player_id) && !!boxScoreLine(a);
+  const hOpen = !!h && open.has(h.player_id) && !!boxScoreLine(h);
+
+  return (
+    <div className="sb__vs-slot" data-bench={bench || undefined}>
+      <div className="sb__vs-row">
+        <VsPlayer p={a} now={now} align="start" bench={bench} open={open} toggle={toggle} />
+        {/* A starter's row is one slot with two men in it, so the pill in the
+            middle names the slot both of them are filling. The bench has no
+            such correspondence — index four on one side has nothing to do
+            with index four on the other — so it says nothing rather than
+            claiming a pairing that isn't there, and each cell carries its own
+            position instead. */}
+        {bench
+          ? <span className="sb__vs-spacer" aria-hidden />
+          : <span className="pos" data-p={slot}>{slot}</span>}
+        <VsPlayer p={h} now={now} align="end" bench={bench} open={open} toggle={toggle} />
+      </div>
+      {(aOpen || hOpen) && (
+        <div className="sb__vs-detail">
+          <span className="sb__box">{aOpen && boxScoreLine(a!)}</span>
+          <span />
+          <span className="sb__box" data-align="end">{hOpen && boxScoreLine(h!)}</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -373,10 +478,17 @@ function VsTeam({ s, align = "start" }: { s: ScoreSide; align?: "start" | "end" 
   );
 }
 
-function VsPlayer({ p, now, align }: { p?: ScoreStarter; now: number; align: "start" | "end" }) {
+function VsPlayer({ p, now, align, bench, open, toggle }: {
+  p?: ScoreStarter; now: number; align: "start" | "end"; bench: boolean;
+  open: ReadonlySet<string>; toggle: (id: string) => void;
+}) {
   if (!p) return <span className="sb__vs-cell" data-align={align} />;
   const mark = gameMark(p, now);
+  // Nothing to disclose until he has a stat line, and a control that does
+  // nothing is worse than no control.
   const box = boxScoreLine(p);
+  const shown = open.has(p.player_id);
+
   return (
     <div className="sb__vs-cell" data-align={align} data-final={p.final} data-bye={p.on_bye}>
       <PlayerBadge
@@ -387,24 +499,39 @@ function VsPlayer({ p, now, align }: { p?: ScoreStarter; now: number; align: "st
         team={p.nfl_team}
         espnId={p.espn_id}
         size={24}
+        onOpen={box ? () => toggle(p.player_id) : undefined}
         sub={
           <>
+            {/* On the bench the slot pill is gone from the middle of the row,
+                so the position comes back here, where it is the first thing
+                worth knowing about a man who did not play. */}
+            {bench && <b className="sb__vs-pos" data-p={p.position}>{p.position}</b>}
             <span className="sb__mark" data-state={mark.state}>
               {mark.state === "live" && <i className="sb__pip" aria-hidden />}
               {mark.label}
+              {mark.detail && <em className="sb__clock">{mark.detail}</em>}
               {p.severity === "out" && <b className="sb__hurt"> · OUT</b>}
             </span>
-            {/* What he actually did, not just when — printed only once there is
-                a stat line to print, which is exactly when the clock above
-                stops being the only news on the row. */}
-            {box && <span className="sb__box">{box}</span>}
           </>
         }
       />
-      <span className="sb__vs-pts">
+      {/* The score is the strongest thing in the row and also the second way
+          into the stat line behind it: a thumb aiming at a 24px face on a
+          moving bus will find this instead. */}
+      <button
+        type="button"
+        className="sb__vs-pts"
+        data-static={!box || undefined}
+        aria-expanded={box ? shown : undefined}
+        aria-label={box
+          ? `${shown ? "Hide" : "Show"} ${p.full_name}'s stat line`
+          : `${p.full_name}: ${fmt1(p.points)} points`}
+        onClick={box ? () => toggle(p.player_id) : undefined}
+        disabled={!box}
+      >
         <b className="num">{fmt1(p.points)}</b>
         {p.projection != null && <span className="num">{fmt1(p.projection)}</span>}
-      </span>
+      </button>
     </div>
   );
 }

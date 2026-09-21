@@ -5,12 +5,12 @@
  * scoreboard carries the rest of the day's games while you watch the one in
  * front of you. It never shows the game already on screen — only the ones
  * you'd otherwise have to scroll or switch for — and tapping any other one
- * opens its full-screen matchup, the same as picking it from the dropdown
- * there.
+ * opens its full-screen matchup, where the rail along the top does the same
+ * job without the page load.
  */
 
 import Link from "next/link";
-import { cardState, fmt1, type ScoreCard, type Scoreboard as Board } from "@/lib/scoreboard";
+import { abbr, cardState, fmt1, type ScoreCard, type Scoreboard as Board } from "@/lib/scoreboard";
 
 export function ScoreTicker({ board, currentId }: { board: Board; currentId?: string }) {
   const skip = currentId ?? board.matchups.find((m) => m.mine)?.id;
@@ -50,9 +50,4 @@ function TickerSide({ s, value, lead }: { s: ScoreCard["home"]; value: number; l
       <span className="num">{fmt1(value)}</span>
     </span>
   );
-}
-
-/** "DAL", not "Dallas Cowboys" — a scoreboard has three characters per team. */
-export function abbr(name: string): string {
-  return name.trim().slice(0, 3).toUpperCase();
 }
