@@ -68,6 +68,13 @@ export type ScoreSide = {
   empty_slots: number;
   top: ScoreTop;
   starters: ScoreStarter[];
+  /**
+   * Who sat. Optional because it arrives with
+   * `20260921004635_scoreboard_carries_the_bench` and the browser ships
+   * ahead of a migration being applied — every reader of it treats an absent
+   * bench and an empty one the same way, which is to render nothing.
+   */
+  bench?: ScoreStarter[];
   mine: boolean;
 };
 
@@ -172,6 +179,37 @@ export function cardState(c: ScoreCard): CardState {
 }
 
 const starters = (c: ScoreCard) => [...c.home.starters, ...c.away.starters];
+
+/** Who sat, whether or not the wire has learned to send them. */
+export const benchOf = (s: ScoreSide): ScoreStarter[] => s.bench ?? [];
+
+/**
+ * Which side is carrying the game — one answer, so the scoreboard, the sticky
+ * bar and the navigator pill for the same matchup can never disagree about it.
+ * Before anyone kicks, the projection is the only ranking there is; after that
+ * it is the score. Null for a dead heat and for a card with no lineups to
+ * rank.
+ */
+export function leader(c: ScoreCard): "home" | "away" | null {
+  if (c.home.starters.length + c.away.starters.length === 0) return null;
+  const [h, a] = cardState(c) === "pre"
+    ? [Number(c.home.proj), Number(c.away.proj)]
+    : [Number(c.home.points), Number(c.away.points)];
+  return h > a ? "home" : a > h ? "away" : null;
+}
+
+/** "DAL", not "Dallas Cowboys" — a scoreboard has three characters per team. */
+export const abbr = (name: string): string => name.trim().slice(0, 3).toUpperCase();
+
+/**
+ * The word for a card's state, for somewhere with room for one word: the
+ * navigator pill, the sticky bar. `cardLine` is the version with a sentence
+ * to spend.
+ */
+export function stateWord(state: CardState): string {
+  return state === "live" ? "live" : state === "settled" ? "final"
+    : state === "between" ? "in play" : "proj.";
+}
 
 /**
  * What a side has still to come.
@@ -411,13 +449,30 @@ export function freshness(iso: string | null | undefined, now: number): string {
  * The marker on a starter's row: where his real game is. ESPN's own words when
  * it has them, because "Q3 4:21" is worth more than anything paraphrased.
  */
-export function gameMark(s: ScoreStarter, now: number): { label: string; state: "live" | "final" | "pre" | "none" } {
-  if (s.on_bye) return { label: "BYE", state: "none" };
-  if (!s.kickoff_at && !s.game_status) return { label: "—", state: "none" };
-  if (s.game_status === "in") return { label: s.game_detail || "Live", state: "live" };
-  if (s.game_status === "post") return { label: "Final", state: "final" };
-  const vs = s.opponent ? `${s.at_home ? "vs" : "@"} ${s.opponent} · ` : "";
-  return { label: `${vs}${kickLabel(s.kickoff_at, now)}`, state: "pre" };
+export type GameMark = {
+  /** The state, in a word: LIVE, FINAL, BYE, or who he is playing. */
+  label: string;
+  /** The clock, when there is one — kept whole so it can wrap as a unit. */
+  detail: string | null;
+  state: "live" | "final" | "pre" | "none";
+};
+
+export function gameMark(s: ScoreStarter, now: number): GameMark {
+  if (s.on_bye) return { label: "BYE", detail: null, state: "none" };
+  if (!s.kickoff_at && !s.game_status) return { label: "—", detail: null, state: "none" };
+  // "Live" out loud, and not only as a colour and a pulsing dot: the one state
+  // on this row that changes what a manager does next is the one state that
+  // must survive being read in a screenshot, in sunlight, or by someone who
+  // cannot separate wine from grey.
+  if (s.game_status === "in") return { label: "Live", detail: s.game_detail, state: "live" };
+  if (s.game_status === "post") return { label: "Final", detail: null, state: "final" };
+  // Two pieces rather than one string, because half a lineup row on a phone is
+  // narrower than "vs NYG · Mon 8:15" and a single string breaks wherever the
+  // spaces fall — "LIVE · Q2" above "8:41". Kept apart, it breaks where it
+  // means something: the opponent on one line, the clock whole on the next.
+  const vs = s.opponent ? `${s.at_home ? "vs" : "@"} ${s.opponent}` : "";
+  const kick = kickLabel(s.kickoff_at, now);
+  return { label: vs || kick, detail: vs ? kick : null, state: "pre" };
 }
 
 /**

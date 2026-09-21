@@ -118,10 +118,6 @@
      exactly to line its wordmark up with the content below. */
   --gutter: clamp(var(--s4), 3vw, var(--s6));
   --bottom-nav: 0px;
-  /* The sticky score ticker's own height, so a full-screen layout below it
-     can size itself off the same number the ticker actually renders at
-     rather than guessing at a slightly different one. */
-  --ticker-h: 48px;
 }
 
 @media (max-width: 1180px) {
@@ -3052,56 +3048,144 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
 /* The score never truncates — only the name gives up room for it. */
 .sb__vs-team .num { font-size: var(--t-small); font-weight: 600; color: var(--muted); flex-shrink: 0; }
 /* `justify-self: end` opts the item out of the grid's default stretch, which
-   sizes it to its own content instead of the track — harmless while the
-   track was wide enough for any name, but the matchup picker's fixed-width
-   column made that column narrower than a long team name, and an item sized
-   to content just overflows past its track rather than shrinking into it.
-   `max-width: 100%` puts the item back under the track's control so its
-   `min-width: 0` and the name's own ellipsis can actually apply. */
+   sizes it to its own content instead of the track. `max-width: 100%` puts it
+   back under the track's control so its `min-width: 0` and the name's own
+   ellipsis can actually apply. */
 .sb__vs-team[data-align="end"] { flex-direction: row-reverse; justify-self: end; max-width: 100%; }
 
 /* Mirrored halves of one row, on any screen: the score moves first in
    source order on the far side so it lands next to the shared pill, which
    pushes the face and name out to the row's own outer edge instead — the
    two numbers a manager is actually comparing land right next to each
-   other, same as the team row above this one. Padding is tight throughout:
-   sized for what a name, a score and a wrapped stat line need, not for the
-   generous row this used to be when a kickoff time was the only thing
-   under a name. */
+   other.
+
+   Read as a grid rather than as a list of cards: one set of columns every
+   row keeps to, a hairline between rows, and alternating grounds so the eye
+   can run across a row without losing which one it is on. That striping is
+   most of what makes a table of eighteen names scannable, and it costs
+   nothing in height — which matters, because every row now carries its own
+   stat line. */
 .sb__vs-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 30px minmax(0, 1fr);
+  /* Wide enough for the widest pill there is. "FLEX" at nine pixels plus its
+     own padding is 40; a narrower track does not clip it — `.pos` is
+     centred, so it overflows both ways and lands on the projections either
+     side of it. */
+  grid-template-columns: minmax(0, 1fr) 40px minmax(0, 1fr);
   align-items: center; gap: 4px;
-  padding: 4px var(--s2);
+  padding: 5px var(--s2);
+  border-top: 1px solid var(--rule-soft);
 }
-.sb__vs-row + .sb__vs-row { border-top: 1px solid var(--rule-soft); }
-.sb__vs-row > .pos { justify-self: center; min-width: 30px; padding: 0 5px; font-size: 9px; }
+.sb__vs-row:first-child { border-top: 0; }
+.sb__vs-row[data-alt] { background: var(--ink-2); }
+.sb__vs-row[data-bench] { background: var(--gold-haze); }
+.sb__vs-row[data-bench][data-alt] { background: var(--gold-wash); }
+.sb__vs-row > .pos { justify-self: center; min-width: 40px; padding: 0 5px; font-size: 9px; }
+/* The bench has no slot for the two sides to share, so the middle column
+   holds a hairline instead of a pill that would claim one. */
+.sb__vs-spacer {
+  justify-self: center; width: 1px; height: 18px; background: var(--rule);
+}
 
-.sb__vs-cell {
-  display: flex; align-items: center; gap: 7px; min-width: 0;
-}
+/* Two rows: the man and his score, then the line the score was made of,
+   across the whole half rather than boxed into the badge's text column. */
+.sb__vs-cell { display: grid; gap: 1px; min-width: 0; }
+.sb__vs-main { display: flex; align-items: center; gap: 6px; min-width: 0; }
+/* The badge takes every spare pixel in its half, which pins the score to the
+   half's inner edge — right beside the shared pill, with the name pushed out
+   to the row's own outer edge. On a phone there is no spare pixel and this
+   changes nothing; on a laptop it is the difference between a scoreboard and
+   two lists facing away from each other across a foot of empty card, or two
+   huddled in the middle of one. */
+.sb__vs-cell .pbadge { flex: 1 1 auto; }
+/* And the text block takes it in turn. Without this the badge grows around a
+   text box still sized to the name, so the forty pixels it won sit between
+   the name and the score doing nothing — on a 390px phone that is a fifth of
+   the screen spent on air while "A. St. Brown" is being cut to "A. St.
+   Bro…". The name gets the room instead, and ellipses only when it has
+   genuinely run out. */
+.sb__vs-cell .pbadge__text { flex: 1 1 auto; }
+/* `text-overflow` needs a box with text directly in it, and `.pbadge__name`
+   is a flex container — its text is an anonymous flex item, so the ellipsis
+   never fires and the name is clipped mid-letter instead. Everywhere else
+   the column is wide enough that nobody noticed; in a row this narrow it is
+   the difference between "A. St. Brown" and "A. St. Browi". The badge prints
+   nothing beside the name here, so a block box loses nothing. */
+.sb__vs-cell .pbadge__name { display: block; }
 .sb__vs-cell[data-final="true"] { opacity: 0.72; }
 .sb__vs-cell[data-bye="true"] { background: #b3341f08; }
-.sb__vs-cell[data-align="end"] { flex-direction: row-reverse; text-align: right; }
+.sb__vs-cell[data-align="end"] { text-align: right; }
+.sb__vs-cell[data-align="end"] .sb__vs-main { flex-direction: row-reverse; }
 .sb__vs-cell[data-align="end"] .pbadge { flex-direction: row-reverse; }
 .sb__vs-cell[data-align="end"] .pbadge__sub { justify-content: flex-end; }
 
-.sb__vs-pts { display: grid; justify-items: end; gap: 0; min-width: 28px; flex-shrink: 0; }
-.sb__vs-cell[data-align="end"] .sb__vs-pts { justify-items: start; }
-.sb__vs-pts b { font-family: var(--sans); font-weight: 700; font-size: var(--t-body); }
-.sb__vs-pts span:not(b) { font-size: var(--t-nano); color: var(--dim); }
+/* The strongest thing in the row, with what he was projected under it in a
+   size that cannot compete. Aligned to the row's inner edge so the two
+   numbers being compared sit either side of the pill. */
+.sb__vs-pts {
+  display: grid; justify-items: end; gap: 0; min-width: 32px; flex-shrink: 0;
+  text-align: right;
+}
+.sb__vs-cell[data-align="end"] .sb__vs-pts { justify-items: start; text-align: left; }
+.sb__vs-pts b { font-family: var(--sans); font-weight: 700; font-size: 1.15rem; line-height: 1.15; }
+.sb__vs-pts span:not(b) { font-size: var(--t-micro); color: var(--dim); }
+
+/* The position, back on the row, for a bench player who has no slot pill in
+   the middle to tell you what he is. */
+.sb__vs-pos {
+  font-weight: 700; font-size: var(--t-nano); letter-spacing: 0.08em; color: var(--dim);
+}
+.sb__vs-pos[data-p="QB"]   { color: var(--qb); }
+.sb__vs-pos[data-p="RB"]   { color: var(--rb); }
+.sb__vs-pos[data-p="WR"]   { color: var(--wr); }
+.sb__vs-pos[data-p="TE"]   { color: var(--te); }
+.sb__vs-pos[data-p="K"]    { color: var(--k); }
+.sb__vs-pos[data-p="DST"]  { color: var(--dst); }
 
 /* Not `nowrap`: half a row on a phone is often narrower than a full kickoff
    line ("vs NYG · Mon 8:15 PM"), and text that cannot wrap does not shrink
-   to fit — it spills past the column edge into the other side's score. */
-.sb__mark { display: inline-flex; align-items: center; gap: 5px; font-size: var(--t-nano); color: var(--dim); }
-.sb__mark[data-state="live"] { color: var(--wine); font-weight: 600; }
+   to fit — it spills past the column edge into the other side's score.
+   Uppercased because that is how a scoreboard writes a game state, and
+   because "FINAL" and "LIVE · Q2 8:41" then read as tokens rather than as
+   two more words in a sentence about a player. */
+.sb__mark {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: var(--t-nano); font-weight: 600; letter-spacing: 0.03em;
+  text-transform: uppercase; color: var(--dim);
+}
+.sb__mark[data-state="live"] { color: var(--wine); font-weight: 700; }
 .sb__mark[data-state="final"] { color: var(--faint); }
+/* The clock never breaks in the middle of itself. See `gameMark`. */
+.sb__clock { font-style: normal; white-space: nowrap; }
+.sb__clock::before { content: "\00b7"; margin-right: 4px; }
 .sb__hurt { color: var(--lose); font-weight: 700; }
-/* Wraps rather than truncates — a box score cut off mid-number
-   ("18/24, 245 Y…") is worse than a row that grows a line. */
-.sb__box { font-size: var(--t-nano); color: var(--muted); }
-.sb__vs-cell .pbadge__sub { line-height: 1.4; row-gap: 2px; }
+
+/* What he actually did, not just what it was worth. `flex-basis: 100%` puts
+   it on its own line of the wrapping sub rather than trailing the game clock
+   — the row is a grid, and a stat line that sometimes shares a line and
+   sometimes doesn't is the one thing that would stop it reading as one.
+   Wraps rather than truncates: a box score cut off mid-number ("18/24,
+   245 Y…") is worse than a row that grows a line. */
+.sb__box { font-size: var(--t-nano); color: var(--muted); line-height: 1.45; }
+.sb__vs-cell .pbadge__sub { line-height: 1.4; row-gap: 1px; }
+
+/* --- the bench ---------------------------------------------------------- */
+/* Collapsed, and labelled with how many are under it, because "Bench" alone
+   does not say whether opening it is worth the tap. */
+.sb__bench-toggle {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; min-height: 44px; padding: 8px var(--s4);
+  border: 0; border-top: 1px solid var(--rule); background: var(--ink-2);
+  cursor: pointer; text-align: left;
+  font: 700 var(--t-micro) var(--sans); letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--muted);
+}
+.sb__bench-toggle:hover { color: var(--wine); }
+.sb__bench-toggle svg { flex-shrink: 0; }
+.sb__bench-toggle .num {
+  margin-left: auto; letter-spacing: 0; font-size: var(--t-small); color: var(--dim);
+}
+
 .sb__pip {
   width: 6px; height: 6px; border-radius: 50%; background: var(--wine);
   animation: sb-pip 1.6s ease-in-out infinite;
@@ -3125,6 +3209,222 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
      the label in its own header just eats the width the team names and
      totals need on a phone. */
   .sb__vs-head .eyebrow { display: none; }
+}
+
+/* ============================================================================
+   THE MATCHUP — one game, the whole screen
+   ----------------------------------------------------------------------------
+   A live scoreboard rather than a spreadsheet. The order down the page is the
+   order the questions are asked in: which two teams, what the score is, where
+   it is going, who is winning, how much football is left, then the lineups,
+   then — only if asked — what a man's score was made of.
+
+   The vertical budget is the whole design. A phone should get the header and
+   five or six lineup rows without scrolling; everything here is sized against
+   that, which is why the stat lines moved behind a tap and the header spends
+   its height on two names and two numbers rather than on padding.
+   ========================================================================== */
+
+/* Narrower than the shell. Every other screen is a grid of cards that gets
+   better with width; this one is two numbers a manager compares, and a
+   mirrored lineup row stretched across a 2000px monitor puts a name at one
+   edge of the glass and its own score a foot away in the middle. The cap is
+   the width the comparison stays a comparison at. */
+:root { --mv-max: 900px; }
+
+.mv { padding-top: var(--s3); gap: var(--s4); max-width: var(--mv-max); }
+
+.mv__back {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s3);
+  margin-bottom: calc(var(--s2) * -1);
+}
+
+/* The sentence, in the serif, the same one the card on the list page carries.
+   It is the only prose on the screen and it earns its line: it is the answer
+   to "who is winning" written out, for the reader who wants a sentence rather
+   than a bar. */
+.mv__line {
+  margin: 0;
+  font: 400 clamp(1rem, 0.94rem + 0.4vw, 1.2rem)/1.45 var(--serif);
+  color: var(--cream);
+  text-wrap: pretty;
+}
+
+/* --- the sticky stack --------------------------------------------------- */
+/* One sticky element under the top bar, not two: the rail lives here always
+   and the scoreline drops in under it once the header it belongs to has gone
+   past. Two separately sticky boxes would each claim `top: 68px` and overlap.
+   Dark rather than paper, borrowing the plaque surface, so the whole stack
+   reads as one piece of scoreboard furniture. */
+.mv-stick {
+  position: sticky;
+  top: 68px;
+  z-index: 40;
+  background:
+    radial-gradient(1200px 80px at 50% -60%, var(--ink-warm), transparent 70%),
+    var(--ink-deep);
+  border-bottom: 1px solid var(--rule-hard);
+}
+
+/* --- the pager: one game, and the way to the next ----------------------- */
+/* It never changes shape and it never leaves, so "which game is this and what
+   is the score" is answered in the same place at the top of the header and
+   nine rows into the lineup. That is the job the separate collapsed scoreline
+   used to do; folding it in here is a whole bar of height back. */
+.mpager {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) 38px;
+  align-items: stretch;
+  width: 100%; max-width: var(--mv-max); margin: 0 auto;
+  min-height: 46px;
+}
+.mpager__arrow {
+  display: grid; place-items: center;
+  border: 0; background: none; color: #cdbfa6; cursor: pointer;
+  transition: background 0.15s var(--ease), color 0.15s var(--ease);
+}
+.mpager__arrow:hover { background: #ffffff14; color: var(--ink-text); }
+/* An end of the week is a span, not a disabled button: nothing to tab to and
+   nothing to explain, but the column still holds so the scoreline stays
+   centred rather than sliding sideways on the first and last game. */
+.mpager__arrow:not(button) { pointer-events: none; }
+
+.mpager__game {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center; gap: var(--s3);
+  padding: 6px var(--s2);
+}
+.mpager__side {
+  display: inline-flex; align-items: baseline; gap: var(--s2); min-width: 0;
+  font-family: var(--mono);
+}
+.mpager__side[data-align="end"] { flex-direction: row-reverse; justify-self: end; }
+.mpager__side b { font-size: var(--t-micro); letter-spacing: 0.08em; color: #b6a992; }
+.mpager__side .num { font-size: var(--t-body); font-weight: 700; color: var(--ink-text); }
+.mpager__side[data-lead="true"] b,
+.mpager__side[data-lead="true"] .num { color: var(--gold-lit); }
+.mpager__state {
+  font-size: var(--t-nano); font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+  color: #7a6f5e; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;
+}
+.mpager__game[data-state="live"] .mpager__state { color: var(--wine-lit); }
+.mpager__game[data-state="live"] .sb__pip { background: var(--wine-lit); }
+
+/* --- the scoreboard header ---------------------------------------------- */
+.mhead {
+  display: grid; gap: var(--s3);
+  padding: var(--s4) clamp(var(--s4), 3vw, var(--s5));
+  background: var(--ink-1);
+  border: 1px solid var(--rule); border-radius: var(--r-lg);
+  box-shadow: var(--shadow-2);
+}
+.mhead[data-state="live"] { border-left: 3px solid var(--wine); }
+.mhead__chip { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); }
+
+/* Two sides, balanced, with the middle only as wide as the word in it. Each
+   side is its own grid so the crest, the name, the manager, the score and the
+   projection sit on five predictable lines — which is what lets the two
+   sides line up with each other across the gap. */
+.mhead__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: start; gap: var(--s3);
+}
+.mhead__side { display: grid; justify-items: start; gap: 2px; min-width: 0; width: 100%; }
+.mhead__side[data-align="end"] { justify-items: end; text-align: right; }
+
+.mhead__name {
+  font-weight: 600; font-size: var(--t-small); line-height: 1.25; max-width: 100%;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  margin-top: 4px;
+}
+.mhead__side[data-lead="false"] .mhead__name { color: var(--muted); font-weight: 500; }
+.mhead__who {
+  display: flex; align-items: baseline; gap: 6px; max-width: 100%;
+  font-size: var(--t-micro); color: var(--dim);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.mhead__who i { font-style: normal; font-variant-numeric: tabular-nums; color: var(--faint); }
+
+.mhead__pts {
+  font-family: var(--sans); font-weight: 500; line-height: 1;
+  font-size: clamp(2rem, 1.4rem + 2.6vw, 3.2rem); letter-spacing: -0.03em;
+  color: var(--muted); margin-top: 4px;
+}
+.mhead__side[data-lead="true"] .mhead__pts { color: var(--gold); }
+.mhead__proj { font-size: var(--t-small); color: var(--dim); }
+.mhead__flag {
+  display: inline-flex; align-items: center; gap: 4px; margin-top: 2px;
+  font-size: var(--t-micro); font-weight: 600; color: var(--lose);
+}
+.mhead__flag svg { flex-shrink: 0; }
+
+.mhead__vs {
+  align-self: center;
+  font: 700 var(--t-micro) var(--sans); letter-spacing: 0.2em; color: var(--faint);
+  text-transform: uppercase;
+}
+
+/* --- what is left to play ----------------------------------------------- */
+/* Directly under the odds, because it is the line that says whether the odds
+   are still a question. "2 left" against "nobody on" is a game that is over
+   with a bar on it still claiming 38%. */
+.mhead__left {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: baseline; gap: var(--s3);
+  padding-top: var(--s2); border-top: 1px solid var(--rule-soft);
+}
+.mhead__left-side {
+  display: flex; align-items: baseline; gap: 5px; flex-wrap: wrap; min-width: 0;
+  font-size: var(--t-micro); color: var(--muted);
+}
+.mhead__left-side[data-align="end"] { justify-content: flex-end; text-align: right; }
+.mhead__left-side b { font-size: var(--t-body); font-weight: 700; color: var(--cream); }
+.mhead__left-side i { font-style: normal; color: var(--faint); }
+.mhead__left-mid {
+  font: 700 var(--t-nano) var(--sans); letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--dim); white-space: nowrap;
+}
+
+/* --- the phone: the lineup takes the glass ------------------------------ */
+/* `.page`'s gutter is right for a column of cards and wrong for the one
+   element on this screen that is a table. Sixteen pixels either side of a
+   390px phone is eight percent of the width, spent on nothing, while the
+   stat line inside it is the thing that has to fit. So the page stops
+   insetting on a phone and hands the inset back to every child except the
+   lineup, which runs to the glass and drops the side border and the corners
+   it no longer has room to be rounded by. */
+@media (max-width: 560px) {
+  .mv { padding-left: 0; padding-right: 0; gap: var(--s2); }
+  /* Margin, not padding. Padding pads a child's inside, which on a bordered
+     card leaves the border itself sitting on the glass and only moves the
+     content in — the opposite of an inset. Prose and controls keep a thumb's
+     worth; the two slabs take the whole width. */
+  .mv > * { margin-left: var(--s3); margin-right: var(--s3); }
+  .mv > .mhead,
+  .mv > .sb__vs-lineup {
+    margin-left: 0; margin-right: 0;
+    border-left: 0; border-right: 0; border-radius: 0;
+  }
+  .sb__vs-row { padding: 4px 5px; gap: 2px; }
+  .sb__vs-cell { gap: 4px; }
+  .sb__vs-cell .sb__vs-main { gap: 5px; }
+}
+
+@media (max-width: 520px) {
+  .mhead { padding: var(--s3) var(--s4); gap: var(--s2); }
+  /* The "vs" is decoration a phone cannot afford: the two sides need every
+     pixel of the width for names that are already being ellipsed. */
+  .mhead__vs { display: none; }
+  .mhead__grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s2); }
+  /* Three tokens on one line is one too many at this width; the count of who
+     is on the field is already in the state chip at the top of the card. */
+  .mhead__left { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .mhead__left-mid { display: none; }
+  .mpager { grid-template-columns: 34px minmax(0, 1fr) 34px; }
+  .mpager__game { gap: var(--s2); }
 }
 
 /* --- table talk --------------------------------------------------------- */
@@ -3836,59 +4136,6 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
   min-height: 0;
 }
 
-/* One matchup, the whole screen — the frame is exactly as tall as the shell
-   leaves between the top bar, the ticker sitting under it on this page only,
-   and the tab bar; the lineup takes what's left and scrolls on its own
-   rather than the page growing past the viewport. */
-.page[data-layout="matchup"] {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s2);
-  flex: 0 0 auto;
-  height: calc(100dvh - 68px - var(--ticker-h) - var(--bottom-nav));
-}
-.matchup-full__back { flex: 0 0 auto; }
-/* Sits in `.sb__vs-head`'s own middle slot, in place of the "Lineups" label
-   this table shows everywhere else — the full screen's whole reason to
-   exist is that switching games doesn't cost leaving it. A button and a
-   menu, not a `<select>`: see the comment on MatchupPicker.
-
-   The bounded track is scoped to this page on purpose: `.sb__vs-head`'s
-   middle column is `auto` everywhere else, sized to the "Lineups" label
-   (or to nothing at all once that label hides below 520px) so the team
-   name columns either side of it get almost the whole row. Applying the
-   same fixed width there squeezed a narrow phone's ordinary card lineup
-   down to a track too narrow for its own team name. */
-.matchup-full__lineup .sb__vs-head { grid-template-columns: minmax(0, 1fr) minmax(0, 150px) minmax(0, 1fr); }
-.matchup-full__pick-wrap { position: relative; justify-self: center; }
-.matchup-full__pick {
-  display: inline-flex; align-items: center; gap: 4px; max-width: 100%;
-  font: 700 var(--t-nano) var(--sans); letter-spacing: 0.02em; color: var(--muted);
-  background: var(--ink-1); border: 1px solid var(--rule); border-radius: 999px;
-  padding: 6px 10px; cursor: pointer;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.matchup-full__pick:hover { color: var(--wine); border-color: var(--wine); }
-.matchup-full__menu {
-  position: absolute; top: calc(100% + 6px); left: 50%; transform: translateX(-50%);
-  z-index: 10; min-width: 180px; max-width: 70vw;
-  margin: 0; padding: 4px; list-style: none;
-  background: var(--ink-1); border: 1px solid var(--rule); border-radius: var(--r-sm);
-  box-shadow: var(--shadow-1);
-}
-.matchup-full__menu button {
-  display: block; width: 100%; text-align: left; border: 0; border-radius: 6px;
-  background: none; padding: 8px 10px; cursor: pointer;
-  font: 600 var(--t-small) var(--sans); color: var(--ink);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.matchup-full__menu button:hover { background: var(--ink-2); }
-.matchup-full__menu button[aria-current="true"] { color: var(--wine); font-weight: 700; }
-/* The lineup is the reason this screen exists, so it gets everything the
-   back link didn't need — and scrolls in place rather than taking the page
-   with it, which is the one thing "the entire screen" actually requires. */
-.matchup-full__lineup { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
-.matchup-full__lineup .sb__vs-lineup { border-radius: var(--r-sm); min-height: 100%; }
 
 /* A laptop in a short window gets a usable list rather than a sliver: below
    this the room stops shrinking and the page is allowed to scroll again. */
