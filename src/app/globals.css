@@ -3038,13 +3038,7 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
 }
 .sb__vs-head {
   display: grid;
-  /* Bounded, not `auto`: a native `<select>`'s intrinsic content width (its
-     widest option) wins over its own `max-width` when a grid track sizes
-     itself off it, so the matchup picker would blow this column out to
-     "away @ home" at full length regardless of what the select's CSS says.
-     A fixed track forces the select to actually be as wide as the column
-     and only then does its own overflow/ellipsis apply. */
-  grid-template-columns: minmax(0, 1fr) minmax(0, 150px) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: baseline; gap: var(--s2);
   padding: var(--s3) var(--s4);
   border-bottom: 1px solid var(--rule-soft);
@@ -3857,7 +3851,15 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
 /* Sits in `.sb__vs-head`'s own middle slot, in place of the "Lineups" label
    this table shows everywhere else — the full screen's whole reason to
    exist is that switching games doesn't cost leaving it. A button and a
-   menu, not a `<select>`: see the comment on MatchupPicker. */
+   menu, not a `<select>`: see the comment on MatchupPicker.
+
+   The bounded track is scoped to this page on purpose: `.sb__vs-head`'s
+   middle column is `auto` everywhere else, sized to the "Lineups" label
+   (or to nothing at all once that label hides below 520px) so the team
+   name columns either side of it get almost the whole row. Applying the
+   same fixed width there squeezed a narrow phone's ordinary card lineup
+   down to a track too narrow for its own team name. */
+.matchup-full__lineup .sb__vs-head { grid-template-columns: minmax(0, 1fr) minmax(0, 150px) minmax(0, 1fr); }
 .matchup-full__pick-wrap { position: relative; justify-self: center; }
 .matchup-full__pick {
   display: inline-flex; align-items: center; gap: 4px; max-width: 100%;
@@ -3881,7 +3883,7 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .matchup-full__menu button:hover { background: var(--ink-2); }
-.matchup-full__menu button[aria-selected="true"] { color: var(--wine); font-weight: 700; }
+.matchup-full__menu button[aria-current="true"] { color: var(--wine); font-weight: 700; }
 /* The lineup is the reason this screen exists, so it gets everything the
    back link didn't need — and scrolls in place rather than taking the page
    with it, which is the one thing "the entire screen" actually requires. */
