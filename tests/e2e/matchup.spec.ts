@@ -7,10 +7,10 @@ import { expect, test } from "@playwright/test";
  * football, so `/preview/matchup` — the same invented Sunday `/preview/matchups`
  * runs on, seen one game at a time — is what a test can hold still.
  *
- * The assertions are the promises the redesign made, in the order it made
- * them: that the matchup is readable at a glance, that switching games costs
- * nothing, that the stat lines stay out of the way until asked, that a live
- * player is obvious, and that the score follows you into the lineup.
+ * The assertions are the promises the screen makes: that exactly one matchup
+ * is on it, that stepping to another costs nothing, that every row says
+ * everything it knows, that a live player is obvious, and that the score is
+ * never off screen.
  */
 
 test("the matchup answers itself without a scroll", async ({ page }) => {
@@ -47,7 +47,27 @@ test("the matchup answers itself without a scroll", async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
-test("the header plus six lineup rows fit on a phone", async ({ page }, info) => {
+test("only one matchup is on the screen", async ({ page }) => {
+  await page.goto("/preview/matchup");
+
+  // One scoreline in the pager, and it is the game the header is about.
+  await expect(page.locator(".mpager__game")).toHaveCount(1);
+  await expect(page.locator(".mpager__side")).toHaveCount(2);
+
+  // No other game in the week appears anywhere — not as a score, not as a
+  // name. The place to find another game worth watching is /matchups; this
+  // screen is for watching one.
+  for (const other of ["Prime Cut", "Gridiron Butchers", "Bone-In Bandits", "Wagyu Warriors"]) {
+    await expect(page.getByText(other, { exact: true })).toHaveCount(0);
+  }
+
+  // Stepping to one puts it on the screen and takes the last one off.
+  await page.locator(".mpager__arrow[data-dir='next']").click();
+  await expect(page.locator(".mhead__name").first()).toHaveText("Prime Cut");
+  await expect(page.getByText("Dry Aged Dynasty", { exact: true })).toHaveCount(0);
+});
+
+test("the header and five lineup rows fit on a phone", async ({ page }, info) => {
   test.skip(info.project.name !== "mobile", "a density claim about a phone");
   await page.goto("/preview/matchup");
 
@@ -58,53 +78,72 @@ test("the header plus six lineup rows fit on a phone", async ({ page }, info) =>
   // The preview route carries a fixture banner and a stage switcher the live
   // route does not, so the budget is measured from the header down rather
   // than from the top of the document.
-  const rows = page.locator(".sb__vs-slot");
+  //
+  // Five, not the six an earlier version of this screen managed: a row that
+  // carries its own stat line is sixteen pixels taller than one that hides
+  // it behind a tap, and showing every one of them is the trade this design
+  // makes on purpose. The floor is here so the trade stays a trade — if a
+  // later change spends another row's worth of height, this says so.
+  const rows = page.locator(".sb__vs-row");
   await expect(rows).toHaveCount(9);
   let visible = 0;
   for (let i = 0; i < 9; i++) {
     const box = await rows.nth(i).boundingBox();
     if (box && box.y + box.height <= head!.y + fold) visible++;
   }
-  expect(visible).toBeGreaterThanOrEqual(6);
+  expect(visible).toBeGreaterThanOrEqual(5);
 });
 
-test("switching games is a state change, not a page load", async ({ page }) => {
+test("the lineup runs to the glass on a phone", async ({ page }, info) => {
+  test.skip(info.project.name !== "mobile", "a claim about a phone's width");
+  await page.goto("/preview/matchup");
+
+  const width = page.viewportSize()!.width;
+  const row = await page.locator(".sb__vs-row").first().boundingBox();
+  expect(row).not.toBeNull();
+  // The page's own gutter is right for a column of cards and wrong for the
+  // one element here that is a table: every pixel it gives back is a pixel
+  // the stat line inside it gets to use.
+  expect(row!.x).toBeLessThanOrEqual(1);
+  expect(row!.width).toBeGreaterThanOrEqual(width - 1);
+});
+
+test("stepping games is a state change, not a page load", async ({ page }) => {
   await page.goto("/preview/matchup");
   await expect(page.locator(".mhead__name").first()).toHaveText("Dry Aged Dynasty");
 
   // A mark on `window` that only survives if the document is never replaced.
   await page.evaluate(() => { (window as unknown as Record<string, number>).__stayed = 1; });
 
-  await page.locator(".mnav__game").nth(2).click();
+  await page.locator(".mpager__arrow[data-dir='next']").click();
+  await page.locator(".mpager__arrow[data-dir='next']").click();
 
   await expect(page.locator(".mhead__name").first()).toHaveText("Bone-In Bandits");
-  await expect(page.locator(".mnav__game[aria-current='true'] ")).toHaveCount(1);
   expect(await page.evaluate(() => (window as unknown as Record<string, number>).__stayed)).toBe(1);
 
-  // And every other game in the week is still one tap away from here.
-  await expect(page.locator(".mnav__game")).toHaveCount(3);
+  // The end of the week is a dead column, not a button that goes nowhere.
+  await expect(page.locator("button.mpager__arrow[data-dir='next']")).toHaveCount(0);
+  await expect(page.locator("button.mpager__arrow[data-dir='prev']")).toHaveCount(1);
 });
 
-test("the stat line waits to be asked for", async ({ page }) => {
+test("every row says everything it knows", async ({ page }) => {
   await page.goto("/preview/matchup");
 
-  // Nothing is disclosed by default — that is the whole reason the row is
-  // short enough to fit six of on a phone.
-  await expect(page.locator(".sb__box")).toHaveCount(0);
-
-  const first = page.locator(".sb__vs-slot").first();
-  await first.locator(".sb__vs-pts").first().click();
+  const first = page.locator(".sb__vs-row").first();
+  // Name, game state, score, projection and the line the score was made of —
+  // all of it, without being asked for any of it.
+  await expect(first.locator(".pbadge__name").first()).toHaveText("P. Mahomes");
+  await expect(first.locator(".sb__mark").first()).toHaveText(/FINAL|LIVE|BYE|VS|@/i);
+  await expect(first.locator(".sb__vs-pts b").first()).toHaveText(/^\d+\.\d$/);
+  await expect(first.locator(".sb__vs-pts span").first()).toHaveText(/^\d+\.\d$/);
   await expect(first.locator(".sb__box").first()).toHaveText(/\d+\/\d+, \d+ YD/);
 
-  // And it goes away again.
-  await first.locator(".sb__vs-pts").first().click();
-  await expect(first.locator(".sb__box")).toHaveCount(0);
+  // Both sides of every slot that has a man in it, on every row.
+  await expect(page.locator(".sb__vs-row .sb__box")).toHaveCount(18);
 });
 
-test("a player's own page is still one modified click away", async ({ page }) => {
+test("the player's own page is one tap away", async ({ page }) => {
   await page.goto("/preview/matchup");
-  // The plain tap opens his stat line rather than navigating — but the badge
-  // is still a link, so "open in new tab" and a cmd-click reach his page.
   const badge = page.locator(".sb__vs-cell .pbadge").first();
   await expect(badge).toHaveAttribute("href", /^\/player\//);
 });
@@ -127,20 +166,21 @@ test("a live player is obvious, a finished one is quiet", async ({ page }) => {
   await expect(page.locator(".sb__mark[data-state='pre']").first()).toContainText(/vs|@/);
 });
 
-test("the score follows you into the lineup", async ({ page }) => {
+test("the score never leaves the screen", async ({ page }) => {
   await page.goto("/preview/matchup");
 
-  const stuck = page.locator(".mstick");
-  await expect(stuck).toHaveAttribute("data-on", "false");
+  const pager = page.locator(".mpager");
+  const before = await pager.boundingBox();
+  await page.locator(".sb__vs-row").nth(7).scrollIntoViewIfNeeded();
+  const after = await pager.boundingBox();
 
-  await page.locator(".sb__vs-slot").nth(6).scrollIntoViewIfNeeded();
-  await expect(stuck).toHaveAttribute("data-on", "true");
-
-  // Both abbreviations and both numbers, so the bar answers "which game is
-  // this" and "what is the score" on its own.
-  await expect(stuck.locator(".mstick__side")).toHaveCount(2);
-  await expect(stuck.locator(".mstick__side").first()).toContainText(/\d+\.\d/);
-  await expect(stuck.locator(".mstick__state")).toHaveText(/live/i);
+  // Sticky, and in the same place: it is the one bar that answers "which game
+  // is this and what is the score", so it holds still whether you are at the
+  // top of the header or eight rows into the lineup.
+  expect(before).not.toBeNull();
+  expect(after).not.toBeNull();
+  expect(Math.abs(after!.y - before!.y)).toBeLessThanOrEqual(1);
+  await expect(pager.locator(".mpager__side").first()).toContainText(/\d+\.\d/);
 });
 
 test("the bench is there, and out of the way", async ({ page }) => {
@@ -151,14 +191,14 @@ test("the bench is there, and out of the way", async ({ page }) => {
   // The count is on the closed control, because "Bench" alone does not say
   // whether opening it is worth the tap.
   await expect(toggle).toContainText("3 · 2");
-  await expect(page.locator(".sb__vs-slot[data-bench='true']")).toHaveCount(0);
+  await expect(page.locator(".sb__vs-row[data-bench]")).toHaveCount(0);
 
   await toggle.click();
   // Three against two: one side is a man short, and the rows must not invent
   // a pairing to fill the gap.
-  await expect(page.locator(".sb__vs-slot[data-bench='true']")).toHaveCount(3);
-  await expect(page.locator(".sb__vs-slot[data-bench='true']").last().locator(".sb__vs-cell"))
+  await expect(page.locator(".sb__vs-row[data-bench]")).toHaveCount(3);
+  await expect(page.locator(".sb__vs-row[data-bench]").last().locator(".sb__vs-cell"))
     .toHaveCount(2);
   // A bench row carries its own position, since there is no shared slot pill.
-  await expect(page.locator(".sb__vs-slot[data-bench='true'] .sb__vs-pos").first()).toHaveText("RB");
+  await expect(page.locator(".sb__vs-row[data-bench] .sb__vs-pos").first()).toHaveText("RB");
 });

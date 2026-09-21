@@ -3053,38 +3053,44 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
    ellipsis can actually apply. */
 .sb__vs-team[data-align="end"] { flex-direction: row-reverse; justify-self: end; max-width: 100%; }
 
-/* A slot is the pair and, once somebody taps one of them, what their scores
-   were made of. The stat lines get their own row under the pair rather than
-   sitting inside a cell: a cell that grows would drag the shared position
-   pill off the centre line of the other side's name. */
-.sb__vs-slot + .sb__vs-slot { border-top: 1px solid var(--rule-soft); }
-.sb__vs-slot[data-bench="true"] { background: var(--ink-2); }
-
 /* Mirrored halves of one row, on any screen: the score moves first in
    source order on the far side so it lands next to the shared pill, which
    pushes the face and name out to the row's own outer edge instead — the
    two numbers a manager is actually comparing land right next to each
-   other, same as the team row above this one.
+   other.
 
-   Padding is tight on purpose. The whole point of moving the box score
-   behind a tap was the vertical budget: a phone should get the header and
-   five or six of these, not the header and two. */
+   Read as a grid rather than as a list of cards: one set of columns every
+   row keeps to, a hairline between rows, and alternating grounds so the eye
+   can run across a row without losing which one it is on. That striping is
+   most of what makes a table of eighteen names scannable, and it costs
+   nothing in height — which matters, because every row now carries its own
+   stat line. */
 .sb__vs-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 30px minmax(0, 1fr);
+  /* Wide enough for the widest pill there is. "FLEX" at nine pixels plus its
+     own padding is 40; a narrower track does not clip it — `.pos` is
+     centred, so it overflows both ways and lands on the projections either
+     side of it. */
+  grid-template-columns: minmax(0, 1fr) 42px minmax(0, 1fr);
   align-items: center; gap: 4px;
-  padding: 2px var(--s2);
+  padding: 5px var(--s2);
+  border-top: 1px solid var(--rule-soft);
 }
-.sb__vs-row > .pos { justify-self: center; min-width: 30px; padding: 0 5px; font-size: 9px; }
+.sb__vs-row:first-child { border-top: 0; }
+.sb__vs-row[data-alt] { background: var(--ink-2); }
+.sb__vs-row[data-bench] { background: var(--gold-haze); }
+.sb__vs-row[data-bench][data-alt] { background: var(--gold-wash); }
+.sb__vs-row > .pos { justify-self: center; min-width: 42px; padding: 0 5px; font-size: 9px; }
 /* The bench has no slot for the two sides to share, so the middle column
    holds a hairline instead of a pill that would claim one. */
 .sb__vs-spacer {
   justify-self: center; width: 1px; height: 18px; background: var(--rule);
 }
 
-.sb__vs-cell {
-  display: flex; align-items: center; gap: 6px; min-width: 0;
-}
+/* Two rows: the man and his score, then the line the score was made of,
+   across the whole half rather than boxed into the badge's text column. */
+.sb__vs-cell { display: grid; gap: 1px; min-width: 0; }
+.sb__vs-main { display: flex; align-items: center; gap: 6px; min-width: 0; }
 /* The badge takes every spare pixel in its half, which pins the score to the
    half's inner edge — right beside the shared pill, with the name pushed out
    to the row's own outer edge. On a phone there is no spare pixel and this
@@ -3101,30 +3107,21 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
 .sb__vs-cell .pbadge__name { display: block; }
 .sb__vs-cell[data-final="true"] { opacity: 0.72; }
 .sb__vs-cell[data-bye="true"] { background: #b3341f08; }
-.sb__vs-cell[data-align="end"] { flex-direction: row-reverse; text-align: right; }
+.sb__vs-cell[data-align="end"] { text-align: right; }
+.sb__vs-cell[data-align="end"] .sb__vs-main { flex-direction: row-reverse; }
 .sb__vs-cell[data-align="end"] .pbadge { flex-direction: row-reverse; }
 .sb__vs-cell[data-align="end"] .pbadge__sub { justify-content: flex-end; }
 
-/* The score, and the second door into the stat line behind it. A button
-   rather than a span because that is what it now does — and sized so a thumb
-   on a moving bus lands on it rather than on the 24px face beside it. The
-   44px floor is the touch target; the row stays short because the badge
-   next to it is already 40-odd pixels tall. */
+/* The strongest thing in the row, with what he was projected under it in a
+   size that cannot compete. Aligned to the row's inner edge so the two
+   numbers being compared sit either side of the pill. */
 .sb__vs-pts {
-  display: grid; justify-items: end; gap: 0; min-width: 30px; flex-shrink: 0;
-  min-height: 44px; align-content: center;
-  padding: 0 2px; border: 0; background: none; cursor: pointer;
-  font: inherit; color: inherit; text-align: right;
-  border-radius: var(--r-sm);
-  transition: background 0.15s var(--ease);
+  display: grid; justify-items: end; gap: 0; min-width: 32px; flex-shrink: 0;
+  text-align: right;
 }
-.sb__vs-pts[data-static] { cursor: default; }
-.sb__vs-pts:not([data-static]):hover { background: var(--ink-3); }
 .sb__vs-cell[data-align="end"] .sb__vs-pts { justify-items: start; text-align: left; }
-.sb__vs-pts b { font-family: var(--sans); font-weight: 700; font-size: var(--t-body); }
+.sb__vs-pts b { font-family: var(--sans); font-weight: 700; font-size: 1.05rem; line-height: 1.15; }
 .sb__vs-pts span:not(b) { font-size: var(--t-nano); color: var(--dim); }
-/* Open: the score keeps its weight and says so quietly. */
-.sb__vs-pts[aria-expanded="true"] b { color: var(--wine); }
 
 /* The position, back on the row, for a bench player who has no slot pill in
    the middle to tell you what he is. */
@@ -3156,18 +3153,14 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
 .sb__clock::before { content: "\00b7"; margin-right: 4px; }
 .sb__hurt { color: var(--lose); font-weight: 700; }
 
-/* What he actually did — the row somebody asked for. Wraps rather than
-   truncates: a box score cut off mid-number ("18/24, 245 Y…") is worse than
-   a row that grows a line. */
-.sb__vs-detail {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 30px minmax(0, 1fr);
-  gap: 4px;
-  padding: 0 var(--s2) var(--s2);
-}
-.sb__box { font-size: var(--t-nano); color: var(--muted); line-height: 1.5; }
-.sb__box[data-align="end"] { text-align: right; }
-.sb__vs-cell .pbadge__sub { line-height: 1.4; row-gap: 2px; }
+/* What he actually did, not just what it was worth. `flex-basis: 100%` puts
+   it on its own line of the wrapping sub rather than trailing the game clock
+   — the row is a grid, and a stat line that sometimes shares a line and
+   sometimes doesn't is the one thing that would stop it reading as one.
+   Wraps rather than truncates: a box score cut off mid-number ("18/24,
+   245 Y…") is worse than a row that grows a line. */
+.sb__box { font-size: var(--t-nano); color: var(--muted); line-height: 1.45; }
+.sb__vs-cell .pbadge__sub { line-height: 1.4; row-gap: 1px; }
 
 /* --- the bench ---------------------------------------------------------- */
 /* Collapsed, and labelled with how many are under it, because "Bench" alone
@@ -3266,101 +3259,50 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
   border-bottom: 1px solid var(--rule-hard);
 }
 
-/* --- the matchup rail --------------------------------------------------- */
-.mnav { display: flex; align-items: stretch; min-width: 0; }
-.mnav__rail {
-  display: flex;
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow-x: auto;
-  scrollbar-width: none;
-  overscroll-behavior-x: contain;
-  scroll-snap-type: x proximity;
+/* --- the pager: one game, and the way to the next ----------------------- */
+/* It never changes shape and it never leaves, so "which game is this and what
+   is the score" is answered in the same place at the top of the header and
+   nine rows into the lineup. That is the job the separate collapsed scoreline
+   used to do; folding it in here is a whole bar of height back. */
+.mpager {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) 38px;
+  align-items: stretch;
+  width: 100%; max-width: var(--mv-max); margin: 0 auto;
+  min-height: 46px;
 }
-.mnav__rail::-webkit-scrollbar { display: none; }
-
-.mnav__arrow {
+.mpager__arrow {
   display: grid; place-items: center;
-  flex: 0 0 auto; width: 30px;
-  border: 0; background: #ffffff0f; color: #cdbfa6; cursor: pointer;
+  border: 0; background: none; color: #cdbfa6; cursor: pointer;
   transition: background 0.15s var(--ease), color 0.15s var(--ease);
 }
-.mnav__arrow:hover { background: #ffffff1f; color: var(--ink-text); }
-.mnav__arrow[data-dir="left"]  { border-right: 1px solid #ffffff14; }
-.mnav__arrow[data-dir="right"] { border-left: 1px solid #ffffff14; }
-/* `hidden` on a grid/flex item is overridden by the display above it. */
-.mnav__arrow[hidden] { display: none; }
+.mpager__arrow:hover { background: #ffffff14; color: var(--ink-text); }
+/* An end of the week is a span, not a disabled button: nothing to tab to and
+   nothing to explain, but the column still holds so the scoreline stays
+   centred rather than sliding sideways on the first and last game. */
+.mpager__arrow:not(button) { pointer-events: none; }
 
-.mnav__game {
-  display: flex; align-items: center; gap: var(--s2);
-  flex: 0 0 auto;
-  scroll-snap-align: center;
-  /* Short, because it is furniture, not content — but the 44px floor still
-     holds for the thumb that has to hit it. */
-  min-height: 46px; padding: 6px var(--s4);
-  border: 0; border-right: 1px solid #ffffff14;
-  background: none; cursor: pointer;
-  white-space: nowrap;
-  transition: background 0.15s var(--ease);
-}
-.mnav__game:hover { background: #ffffff0a; }
-/* The one you are looking at: lit, and underlined in brass so it reads as
-   selected and not merely hovered. */
-.mnav__game[data-on="true"] {
-  background: #ffffff16;
-  box-shadow: inset 0 -2px 0 var(--gold-lit);
-}
-
-.mnav__pair { display: grid; gap: 1px; }
-.mnav__side {
-  display: inline-flex; align-items: baseline; justify-content: space-between;
-  gap: var(--s3); font-family: var(--mono);
-}
-.mnav__side b { font-size: var(--t-nano); letter-spacing: 0.08em; color: #b6a992; }
-.mnav__side .num { font-size: var(--t-tiny); font-weight: 600; color: var(--ink-text); }
-.mnav__side[data-lead="true"] b,
-.mnav__side[data-lead="true"] .num { color: var(--gold-lit); }
-
-.mnav__state {
-  font-size: var(--t-nano); font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
-  color: #7a6f5e; display: inline-flex; align-items: center; gap: 4px;
-}
-.mnav__game[data-state="live"] .mnav__state { color: var(--wine-lit); }
-.mnav__game[data-state="live"] .sb__pip { background: var(--wine-lit); }
-.mnav__mine { color: var(--gold-lit); font-size: var(--t-micro); }
-
-/* --- the collapsed scoreline -------------------------------------------- */
-/* It does not unmount when the header is in view — it collapses to nothing.
-   Mounting a bar into a sticky element mid-scroll shoves the whole document
-   up by its height, which on a thumb flick reads as the page fighting back. */
-.mstick {
+.mpager__game {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center; gap: var(--s3);
-  overflow: hidden;
-  height: 0; opacity: 0;
-  width: 100%; max-width: var(--mv-max); margin: 0 auto;
-  padding: 0 var(--gutter);
-  transition: height 0.18s var(--ease), opacity 0.18s var(--ease);
+  padding: 6px var(--s2);
 }
-.mstick[data-on="true"] {
-  height: 34px; opacity: 1;
-  border-top: 1px solid #ffffff14;
-}
-.mstick__side {
+.mpager__side {
   display: inline-flex; align-items: baseline; gap: var(--s2); min-width: 0;
   font-family: var(--mono);
 }
-.mstick__side[data-align="end"] { flex-direction: row-reverse; justify-self: end; }
-.mstick__side b { font-size: var(--t-micro); letter-spacing: 0.08em; color: #b6a992; }
-.mstick__side .num { font-size: var(--t-small); font-weight: 700; color: var(--ink-text); }
-.mstick__side[data-lead="true"] b,
-.mstick__side[data-lead="true"] .num { color: var(--gold-lit); }
-.mstick__state {
+.mpager__side[data-align="end"] { flex-direction: row-reverse; justify-self: end; }
+.mpager__side b { font-size: var(--t-micro); letter-spacing: 0.08em; color: #b6a992; }
+.mpager__side .num { font-size: var(--t-body); font-weight: 700; color: var(--ink-text); }
+.mpager__side[data-lead="true"] b,
+.mpager__side[data-lead="true"] .num { color: var(--gold-lit); }
+.mpager__state {
   font-size: var(--t-nano); font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
-  color: #7a6f5e; display: inline-flex; align-items: center; gap: 4px;
+  color: #7a6f5e; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;
 }
-@media (prefers-reduced-motion: reduce) { .mstick { transition: none; } }
+.mpager__game[data-state="live"] .mpager__state { color: var(--wine-lit); }
+.mpager__game[data-state="live"] .sb__pip { background: var(--wine-lit); }
 
 /* --- the scoreboard header ---------------------------------------------- */
 .mhead {
@@ -3439,6 +3381,25 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
   color: var(--dim); white-space: nowrap;
 }
 
+/* --- the phone: the lineup takes the glass ------------------------------ */
+/* `.page`'s gutter is right for a column of cards and wrong for the one
+   element on this screen that is a table. Sixteen pixels either side of a
+   390px phone is eight percent of the width, spent on nothing, while the
+   stat line inside it is the thing that has to fit. So the page stops
+   insetting on a phone and hands the inset back to every child except the
+   lineup, which runs to the glass and drops the side border and the corners
+   it no longer has room to be rounded by. */
+@media (max-width: 560px) {
+  .mv { padding-left: 0; padding-right: 0; gap: var(--s3); }
+  .mv > * { padding-left: var(--s2); padding-right: var(--s2); }
+  .mv > .sb__vs-lineup {
+    padding-left: 0; padding-right: 0;
+    border-left: 0; border-right: 0; border-radius: 0;
+  }
+  .sb__vs-row { padding-left: 6px; padding-right: 6px; gap: 2px; }
+  .sb__vs-cell { gap: 5px; }
+}
+
 @media (max-width: 520px) {
   .mhead { padding: var(--s3) var(--s4); gap: var(--s2); }
   /* The "vs" is decoration a phone cannot afford: the two sides need every
@@ -3449,8 +3410,8 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
      is on the field is already in the state chip at the top of the card. */
   .mhead__left { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   .mhead__left-mid { display: none; }
-  .mnav__game { padding: 6px var(--s3); }
-  .mstick { padding: 0 var(--s4); }
+  .mpager { grid-template-columns: 34px minmax(0, 1fr) 34px; }
+  .mpager__game { gap: var(--s2); }
 }
 
 /* --- table talk --------------------------------------------------------- */

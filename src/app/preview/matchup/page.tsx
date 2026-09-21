@@ -17,14 +17,11 @@
 import { useState } from "react";
 import { TopBar } from "@/components/Shell";
 import { VsLineups } from "@/components/Scoreboard";
-import { MatchupHead, MatchupSticky, useScrolledPast } from "@/components/matchup/MatchupHead";
-import { MatchupNavigator } from "@/components/matchup/MatchupNavigator";
+import { MatchupHead } from "@/components/matchup/MatchupHead";
+import { MatchupPager, useSwipe } from "@/components/matchup/MatchupPager";
 import { TalkThread } from "@/components/matchup/Talk";
 import { board, NOW, THREAD, STAGES, type Stage } from "@/lib/fixtures/sunday";
 import { cardLine } from "@/lib/scoreboard";
-
-/** The same figure the live route uses: the top bar plus the rail on it. */
-const STUCK = 68 + 46;
 
 export default function MatchupPreviewPage() {
   const [stage, setStage] = useState<Stage>("late");
@@ -33,15 +30,19 @@ export default function MatchupPreviewPage() {
   const card = b.matchups.find((m) => m.id === id) ?? b.matchups[0];
   const note = STAGES.find((s) => s.key === stage)!.note;
 
-  const { ref: belowHead, past: stuck } = useScrolledPast(STUCK);
+  const step = (by: 1 | -1) => {
+    const at = b.matchups.findIndex((m) => m.id === card.id);
+    const to = b.matchups[at + by];
+    if (to) setId(to.id);
+  };
+  const swipe = useSwipe(() => step(-1), () => step(1));
 
   return (
     <>
       <TopBar status="live" />
 
       <div className="mv-stick">
-        <MatchupNavigator board={b} currentId={card.id} onPick={setId} />
-        <MatchupSticky c={card} on={stuck} />
+        <MatchupPager board={b} currentId={card.id} onPick={setId} />
       </div>
 
       <div style={{
@@ -52,7 +53,7 @@ export default function MatchupPreviewPage() {
         players and real ESPN ids; the teams, scores, projections and lineups are invented.
       </div>
 
-      <main className="page mv">
+      <main className="page mv" {...swipe}>
         <div className="scroll" style={{ overflowX: "auto", overflowY: "hidden", paddingBottom: 2 }}>
           <div className="segmented" style={{ width: "max-content" }}>
             {STAGES.map((s) => (
@@ -65,8 +66,7 @@ export default function MatchupPreviewPage() {
         </div>
         <p className="prose" style={{ margin: 0, fontSize: "var(--t-small)" }}>{note}</p>
 
-        <MatchupHead c={card} now={NOW} />
-        <div ref={belowHead} aria-hidden />
+        <MatchupHead key={card.id} c={card} now={NOW} />
         <p className="mv__line">{cardLine(card, b.my_team_id)}</p>
 
         <VsLineups away={card.away} home={card.home} now={NOW} bench head={null} />

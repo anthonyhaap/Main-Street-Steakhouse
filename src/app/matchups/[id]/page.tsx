@@ -11,8 +11,8 @@ import { cardLine, type Scoreboard as Board } from "@/lib/scoreboard";
 import { TopBar } from "@/components/Shell";
 import { SkeletonRows } from "@/components/ui";
 import { VsLineups } from "@/components/Scoreboard";
-import { MatchupHead, MatchupSticky, useScrolledPast } from "@/components/matchup/MatchupHead";
-import { MatchupNavigator } from "@/components/matchup/MatchupNavigator";
+import { MatchupHead } from "@/components/matchup/MatchupHead";
+import { MatchupPager, useSwipe } from "@/components/matchup/MatchupPager";
 import { MatchupTalk } from "@/components/matchup/Talk";
 
 /**
@@ -31,19 +31,20 @@ import { MatchupTalk } from "@/components/matchup/Talk";
  * the middle. It used to be a dropdown in the lineup table's header, and the
  * score was a number you had to find in a row of small print above the rail.
  *
- * Switching games costs nothing. `ff_scoreboard` returns the whole week in one
- * call and this page is already holding it, so the rail along the top is a
- * selector over data in hand — no route change, no refetch, no skeleton. The
- * URL is rewritten underneath with the History API, which the App Router reads
- * as its own, so the game on screen stays the game you can send to somebody.
+ * One matchup is on screen, and only one. Stepping to another costs nothing:
+ * `ff_scoreboard` returns the whole week in one call and this page is already
+ * holding it, so the pager along the top is a selector over data in hand — no
+ * route change, no refetch, no skeleton. The URL is rewritten underneath with
+ * the History API, which the App Router reads as its own, so the game on
+ * screen stays the game you can send to somebody. The body takes the same
+ * step from a sideways swipe.
  *
- * And the header follows you down. Once the lineup is under the thumb, the
- * scoreline collapses into the rail as a bar, because a lineup with no score
- * above it is a list of names.
+ * The pager is sticky and never changes shape, so "which game is this and
+ * what is the score" is answered in the same place at the top of the header
+ * and nine rows into the lineup. It replaced a rail of every game in the week
+ * plus a separate collapsed scoreline underneath it — two bars and five
+ * scorelines on a screen about one matchup.
  */
-
-/** Where the sticky furniture ends: the top bar, plus the rail parked on it. */
-const STUCK = 68 + 46;
 
 export default function MatchupRoute({ params }: PageProps<"/matchups/[id]">) {
   const { id: routeId } = use(params);
@@ -119,10 +120,16 @@ export default function MatchupRoute({ params }: PageProps<"/matchups/[id]">) {
     window.history.replaceState(null, "", `/matchups/${next}${qs}`);
   }, [id, shown]);
 
-  // The sentinel the sticky bar watches: the line under the header. It does
-  // not exist until the board has landed, which is why the hook hands back a
-  // callback ref rather than taking one.
-  const { ref: belowHead, past: stuck } = useScrolledPast(STUCK);
+  // Stepping one game either way, for the arrows and for the swipe. Clamped
+  // rather than wrapped: a pager that loops silently reads as one that has
+  // lost its place.
+  const step = useCallback((by: 1 | -1) => {
+    if (!shown) return;
+    const at = shown.matchups.findIndex((m) => m.id === id);
+    const to = shown.matchups[at + by];
+    if (at >= 0 && to) pick(to.id);
+  }, [shown, id, pick]);
+  const swipe = useSwipe(() => step(-1), () => step(1));
 
   const line = useMemo(
     () => (card && shown ? cardLine(card, shown.my_team_id) : null),
@@ -133,15 +140,15 @@ export default function MatchupRoute({ params }: PageProps<"/matchups/[id]">) {
     <>
       <TopBar status={status} />
 
-      {/* One sticky stack under the top bar: the rail always, the scoreline
-          once the header it belongs to has gone. Two separately sticky
-          elements would fight over the same 68px and leave a seam. */}
-      <div className="mv-stick">
-        {shown && <MatchupNavigator board={shown} currentId={id} onPick={pick} />}
-        {shown && card && <MatchupSticky c={card} on={stuck} />}
-      </div>
+      {/* Sticky under the top bar, and the only thing on this screen that
+          names another game — by where its arrows go, not by its score. */}
+      {shown && card && (
+        <div className="mv-stick">
+          <MatchupPager board={shown} currentId={id} onPick={pick} />
+        </div>
+      )}
 
-      <main className="page mv">
+      <main className="page mv" {...swipe}>
         <div className="mv__back">
           <Link href={`/matchups${shown ? `?week=${shown.week}` : ""}`} className="btn" data-v="ghost" data-size="sm">
             <ArrowLeft size={13} /> Matchups
@@ -179,7 +186,6 @@ export default function MatchupRoute({ params }: PageProps<"/matchups/[id]">) {
                 game's name. Within a matchup the key holds, so a real live
                 score still counts up the way it should. */}
             <MatchupHead key={card.id} c={card} now={clock} />
-            <div ref={belowHead} aria-hidden />
             {/* Where the game stands, in one sentence, written from the
                 reader's side of it — the same line the card on the list page
                 carries, because it is the same game. */}

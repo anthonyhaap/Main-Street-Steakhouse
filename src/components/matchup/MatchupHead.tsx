@@ -15,17 +15,17 @@
  * probability drawn two ways is a win probability a league will catch
  * disagreeing with itself.
  *
- * `MatchupSticky` is the same header with everything but the scoreline taken
- * out, for the bar that replaces it once the reader has scrolled into the
- * lineup. Both read `leader()`, so the gilded name cannot differ between them.
+ * It has no collapsed twin. It used to hand off to a sticky scoreline on
+ * scroll; the pager above it is sticky and carries the same two numbers
+ * permanently, so the handoff was two bars saying one thing. Both read
+ * `leader()`, so the gilded name cannot differ between them.
  */
 
-import { useEffect, useState } from "react";
 import { Seal, useCountUp } from "@/components/ui";
 import { Odds, StateChip } from "@/components/Scoreboard";
 import { crestUrl } from "@/lib/crest";
 import {
-  abbr, cardState, fmt1, hasProblem, leader, projectedFinal, remainingProjection, stateWord,
+  cardState, fmt1, hasProblem, leader, projectedFinal, remainingProjection,
   winOdds, type ScoreCard, type ScoreSide,
 } from "@/lib/scoreboard";
 import { TriangleAlert } from "lucide-react";
@@ -115,79 +115,4 @@ function Left({ s, align = "start" }: { s: ScoreSide; align?: "start" | "end" })
       {left > 0 && <i className="num">{fmt1(remainingProjection(s))} to come</i>}
     </span>
   );
-}
-
-/* ---------------------------------------------------------------- sticky -- */
-
-/**
- * The scoreline, and nothing else, for once the header has scrolled away.
- *
- * `useScrolledPast` watches a sentinel under the header rather than the header
- * itself: an element's own intersection is measured against the viewport, and
- * the viewport here has a 68px top bar and a matchup rail parked on top of it,
- * so "not intersecting" happens well after the header is actually hidden
- * behind them.
- */
-export function MatchupSticky({ c, on }: { c: ScoreCard; on: boolean }) {
-  const state = cardState(c);
-  const ahead = leader(c);
-  const pre = state === "pre";
-
-  return (
-    <div className="mstick" data-on={on} aria-hidden={!on}>
-      <StickSide s={c.away} value={pre ? c.away.proj : c.away.points} lead={ahead === "away"} />
-      <span className="mstick__state">
-        {state === "live" && <i className="sb__pip" aria-hidden />}
-        {stateWord(state)}
-      </span>
-      <StickSide s={c.home} value={pre ? c.home.proj : c.home.points} lead={ahead === "home"} align="end" />
-    </div>
-  );
-}
-
-function StickSide({ s, value, lead, align = "start" }: {
-  s: ScoreSide; value: number; lead: boolean; align?: "start" | "end";
-}) {
-  return (
-    <span className="mstick__side" data-lead={lead} data-align={align}>
-      <b>{abbr(s.name)}</b>
-      <span className="num">{fmt1(value)}</span>
-    </span>
-  );
-}
-
-/**
- * True once the watched element has gone past `offset` pixels from the top of
- * the viewport — the line the top bar and the matchup rail sit on.
- *
- * An IntersectionObserver with a negative top root margin rather than a scroll
- * listener: the same answer, off the compositor, without a handler running on
- * every frame of a flick through nine lineup rows.
- *
- * It hands back a callback ref rather than taking a `useRef`, because the
- * element it watches does not exist on the first render: the live page has no
- * sentinel to hang it on until `ff_scoreboard` has answered. A ref object's
- * identity never changes, so an effect keyed on one would run once against a
- * null element and never again — and the bar would simply never appear on the
- * one screen it was written for. A callback ref is state, so the effect runs
- * when the element actually arrives.
- */
-export function useScrolledPast(offset: number) {
-  const [el, setEl] = useState<HTMLElement | null>(null);
-  const [past, setPast] = useState(false);
-
-  useEffect(() => {
-    if (!el || typeof IntersectionObserver === "undefined") return;
-    // `boundingClientRect.top` as well as `isIntersecting`: an element below
-    // the fold is also not intersecting, and a bar that appears before you
-    // have scrolled to the thing it replaces is worse than no bar.
-    const io = new IntersectionObserver(
-      ([entry]) => setPast(!entry.isIntersecting && entry.boundingClientRect.top < offset),
-      { rootMargin: `-${offset}px 0px 0px 0px`, threshold: 0 },
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, [el, offset]);
-
-  return { ref: setEl, past };
 }
