@@ -127,12 +127,21 @@ export default function MatchupRoute({ params }: PageProps<"/matchups/[id]">) {
  * width instead of eliding, which on a pill this narrow read as the score
  * beside it. A button and a small menu are more code than one element, but
  * every pixel of them is ours.
+ *
+ * Deliberately not `role="listbox"`/`role="option"`: that pattern promises
+ * arrow-key roving focus and Home/End, which this does not implement. What
+ * it actually is — a button that discloses a plain list of other buttons,
+ * Tab-reachable and Enter/Space-activatable for free — is exactly what it
+ * claims to be with no ARIA role on the list at all. Escape closes it and
+ * returns focus to the trigger, the one keyboard behavior a disclosure like
+ * this does owe.
  */
 function MatchupPicker({ matchups, currentId, onPick }: {
   matchups: ScoreCard[]; currentId: string; onPick: (id: string) => void;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const current = matchups.find((m) => m.id === currentId);
 
   useEffect(() => {
@@ -140,16 +149,24 @@ function MatchupPicker({ matchups, currentId, onPick }: {
     const onDown = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { setOpen(false); triggerRef.current?.focus(); }
+    };
     document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
   }, [open]);
 
   return (
     <div className="matchup-full__pick-wrap" ref={ref}>
       <button
         type="button"
+        ref={triggerRef}
         className="matchup-full__pick"
-        aria-haspopup="listbox"
+        aria-haspopup="true"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
       >
@@ -157,13 +174,12 @@ function MatchupPicker({ matchups, currentId, onPick }: {
         <ChevronDown size={12} />
       </button>
       {open && (
-        <ul className="matchup-full__menu" role="listbox">
+        <ul className="matchup-full__menu">
           {matchups.map((m) => (
             <li key={m.id}>
               <button
                 type="button"
-                role="option"
-                aria-selected={m.id === currentId}
+                aria-current={m.id === currentId}
                 onClick={() => { onPick(m.id); setOpen(false); }}
               >
                 {abbr(m.away.name)} @ {abbr(m.home.name)}
