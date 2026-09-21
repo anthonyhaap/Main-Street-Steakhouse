@@ -20,7 +20,8 @@
  */
 
 import { useState } from "react";
-import { ChevronDown, ChevronRight, Flame, Share2, TriangleAlert } from "lucide-react";
+import Link from "next/link";
+import { ChevronDown, ChevronRight, Flame, Maximize2, Share2, TriangleAlert } from "lucide-react";
 import { PlayerBadge } from "@/components/PlayerBadge";
 import { crestUrl } from "@/lib/crest";
 import { Seal, useCountUp } from "@/components/ui";
@@ -104,6 +105,19 @@ function Card({ c, now, myTeamId, talk, rivalry, onShare, hero = false }: {
       <header className="sb__top">
         <StateChip state={state} c={c} now={now} />
         {hero && c.mine && <span className="eyebrow" data-tone="gold">Your table</span>}
+        {/* The list view is a scroll of every game; the full-screen matchup is
+            one of them at a time, lineup already open, reachable from here and
+            from the ticker or its own dropdown once you're on it. */}
+        {lineups && (
+          <Link
+            href={`/matchups/${c.id}?week=${c.week}`}
+            className="sb__share"
+            aria-label="Open this matchup full screen"
+            title="Open this matchup full screen"
+          >
+            <Maximize2 size={14} />
+          </Link>
+        )}
         {/* The card already has a public page with an opengraph image behind
             it; until now the only way to reach it was the Tuesday recap on the
             front page, which is not where anybody is sitting when the thing
@@ -316,7 +330,14 @@ function TopLine({ s }: { s: ScoreSide }) {
  * schedule line that wraps instead of overflowing, and padding sized for
  * what the content needs rather than for half a row that used to hold less.
  */
-function VsLineups({ away, home, now }: { away: ScoreSide; home: ScoreSide; now: number }) {
+export function VsLineups({ away, home, now, head }: {
+  away: ScoreSide; home: ScoreSide; now: number;
+  /** What sits between the two team names — the "Lineups" label everywhere
+   * this table is one card among several, or the full-screen page's own
+   * matchup picker where this table is the whole screen and switching games
+   * happens right here rather than by leaving. */
+  head?: React.ReactNode;
+}) {
   if (away.starters.length === 0 && home.starters.length === 0) {
     return <div className="sb__vs-lineup"><div className="empty">No lineup set.</div></div>;
   }
@@ -326,7 +347,7 @@ function VsLineups({ away, home, now }: { away: ScoreSide; home: ScoreSide; now:
     <div className="sb__vs-lineup">
       <div className="sb__vs-head">
         <VsTeam s={away} />
-        <span className="eyebrow">Lineups</span>
+        {head ?? <span className="eyebrow">Lineups</span>}
         <VsTeam s={home} align="end" />
       </div>
       {Array.from({ length: rows }, (_, i) => {
