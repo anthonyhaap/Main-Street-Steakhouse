@@ -3071,7 +3071,7 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
      own padding is 40; a narrower track does not clip it — `.pos` is
      centred, so it overflows both ways and lands on the projections either
      side of it. */
-  grid-template-columns: minmax(0, 1fr) 42px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) 40px minmax(0, 1fr);
   align-items: center; gap: 4px;
   padding: 5px var(--s2);
   border-top: 1px solid var(--rule-soft);
@@ -3080,7 +3080,7 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
 .sb__vs-row[data-alt] { background: var(--ink-2); }
 .sb__vs-row[data-bench] { background: var(--gold-haze); }
 .sb__vs-row[data-bench][data-alt] { background: var(--gold-wash); }
-.sb__vs-row > .pos { justify-self: center; min-width: 42px; padding: 0 5px; font-size: 9px; }
+.sb__vs-row > .pos { justify-self: center; min-width: 40px; padding: 0 5px; font-size: 9px; }
 /* The bench has no slot for the two sides to share, so the middle column
    holds a hairline instead of a pill that would claim one. */
 .sb__vs-spacer {
@@ -3098,6 +3098,13 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
    two lists facing away from each other across a foot of empty card, or two
    huddled in the middle of one. */
 .sb__vs-cell .pbadge { flex: 1 1 auto; }
+/* And the text block takes it in turn. Without this the badge grows around a
+   text box still sized to the name, so the forty pixels it won sit between
+   the name and the score doing nothing — on a 390px phone that is a fifth of
+   the screen spent on air while "A. St. Brown" is being cut to "A. St.
+   Bro…". The name gets the room instead, and ellipses only when it has
+   genuinely run out. */
+.sb__vs-cell .pbadge__text { flex: 1 1 auto; }
 /* `text-overflow` needs a box with text directly in it, and `.pbadge__name`
    is a flex container — its text is an anonymous flex item, so the ellipsis
    never fires and the name is clipped mid-letter instead. Everywhere else
@@ -3120,8 +3127,8 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
   text-align: right;
 }
 .sb__vs-cell[data-align="end"] .sb__vs-pts { justify-items: start; text-align: left; }
-.sb__vs-pts b { font-family: var(--sans); font-weight: 700; font-size: 1.05rem; line-height: 1.15; }
-.sb__vs-pts span:not(b) { font-size: var(--t-nano); color: var(--dim); }
+.sb__vs-pts b { font-family: var(--sans); font-weight: 700; font-size: 1.15rem; line-height: 1.15; }
+.sb__vs-pts span:not(b) { font-size: var(--t-micro); color: var(--dim); }
 
 /* The position, back on the row, for a bench player who has no slot pill in
    the middle to tell you what he is. */
@@ -3390,14 +3397,20 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
    lineup, which runs to the glass and drops the side border and the corners
    it no longer has room to be rounded by. */
 @media (max-width: 560px) {
-  .mv { padding-left: 0; padding-right: 0; gap: var(--s3); }
-  .mv > * { padding-left: var(--s2); padding-right: var(--s2); }
+  .mv { padding-left: 0; padding-right: 0; gap: var(--s2); }
+  /* Margin, not padding. Padding pads a child's inside, which on a bordered
+     card leaves the border itself sitting on the glass and only moves the
+     content in — the opposite of an inset. Prose and controls keep a thumb's
+     worth; the two slabs take the whole width. */
+  .mv > * { margin-left: var(--s3); margin-right: var(--s3); }
+  .mv > .mhead,
   .mv > .sb__vs-lineup {
-    padding-left: 0; padding-right: 0;
+    margin-left: 0; margin-right: 0;
     border-left: 0; border-right: 0; border-radius: 0;
   }
-  .sb__vs-row { padding-left: 6px; padding-right: 6px; gap: 2px; }
-  .sb__vs-cell { gap: 5px; }
+  .sb__vs-row { padding: 4px 5px; gap: 2px; }
+  .sb__vs-cell { gap: 4px; }
+  .sb__vs-cell .sb__vs-main { gap: 5px; }
 }
 
 @media (max-width: 520px) {

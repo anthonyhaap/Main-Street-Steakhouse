@@ -456,7 +456,7 @@ function VsPlayer({ p, now, align, bench }: {
           position={p.position}
           team={p.nfl_team}
           espnId={p.espn_id}
-          size={26}
+          size={30}
           sub={
             <>
               {/* On the bench the slot pill is gone from the middle of the
@@ -495,11 +495,17 @@ function VsPlayer({ p, now, align, bench }: {
 /**
  * "J. Taylor", not "Jonathan Taylor" cut off mid-word — a row this narrow
  * needs the same trick a stadium scoreboard uses, first initial and the
- * surname that actually identifies him. Defenses keep their own name; "NE"
- * off a scoreboard reads as the opponent, not the guy on your bench.
+ * surname that actually identifies him.
+ *
+ * A defense takes the other half of the same trick: the nickname and what it
+ * is, which is how every scoreboard that has ever had to fit one writes it.
+ * "Houston Texans" is fourteen characters against room for eleven, so it
+ * arrived as "Houston…" — the one word that does not say which team. The bare
+ * abbreviation was the other option and is worse: "NE" in a lineup row reads
+ * as the opponent, not as the unit you started.
  */
 function vsDisplayName(p: ScoreStarter): string {
-  if (p.position === "DST") return p.full_name;
   const parts = p.full_name.trim().split(/\s+/);
+  if (p.position === "DST") return parts.length < 2 ? p.full_name : `${parts.at(-1)} D/ST`;
   return parts.length < 2 ? p.full_name : `${parts[0][0]}. ${parts.slice(1).join(" ")}`;
 }
