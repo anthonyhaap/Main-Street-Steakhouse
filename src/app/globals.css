@@ -118,6 +118,10 @@
      exactly to line its wordmark up with the content below. */
   --gutter: clamp(var(--s4), 3vw, var(--s6));
   --bottom-nav: 0px;
+  /* The sticky score ticker's own height, so a full-screen layout below it
+     can size itself off the same number the ticker actually renders at
+     rather than guessing at a slightly different one. */
+  --ticker-h: 48px;
 }
 
 @media (max-width: 1180px) {
@@ -2861,7 +2865,10 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
   padding: 9px var(--s4);
   border-right: 1px solid #ffffff14;
   white-space: nowrap;
+  text-decoration: none; color: inherit;
+  transition: background 0.15s var(--ease);
 }
+.ticker__game:hover { background: #ffffff0a; }
 .ticker__team { display: inline-flex; align-items: baseline; gap: 6px; font-family: var(--mono); }
 .ticker__team b { font-size: var(--t-tiny); letter-spacing: 0.06em; color: #b6a992; }
 .ticker__team .num { font-size: var(--t-small); font-weight: 600; color: var(--ink-text); font-variant-numeric: tabular-nums; }
@@ -3031,7 +3038,13 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
 }
 .sb__vs-head {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  /* Bounded, not `auto`: a native `<select>`'s intrinsic content width (its
+     widest option) wins over its own `max-width` when a grid track sizes
+     itself off it, so the matchup picker would blow this column out to
+     "away @ home" at full length regardless of what the select's CSS says.
+     A fixed track forces the select to actually be as wide as the column
+     and only then does its own overflow/ellipsis apply. */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 150px) minmax(0, 1fr);
   align-items: baseline; gap: var(--s2);
   padding: var(--s3) var(--s4);
   border-bottom: 1px solid var(--rule-soft);
@@ -3044,7 +3057,14 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
 }
 /* The score never truncates — only the name gives up room for it. */
 .sb__vs-team .num { font-size: var(--t-small); font-weight: 600; color: var(--muted); flex-shrink: 0; }
-.sb__vs-team[data-align="end"] { flex-direction: row-reverse; justify-self: end; }
+/* `justify-self: end` opts the item out of the grid's default stretch, which
+   sizes it to its own content instead of the track — harmless while the
+   track was wide enough for any name, but the matchup picker's fixed-width
+   column made that column narrower than a long team name, and an item sized
+   to content just overflows past its track rather than shrinking into it.
+   `max-width: 100%` puts the item back under the track's control so its
+   `min-width: 0` and the name's own ellipsis can actually apply. */
+.sb__vs-team[data-align="end"] { flex-direction: row-reverse; justify-self: end; max-width: 100%; }
 
 /* Mirrored halves of one row, on any screen: the score moves first in
    source order on the far side so it lands next to the shared pill, which
@@ -3534,9 +3554,13 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
   margin-left: auto; display: inline-grid; place-items: center;
   width: 30px; height: 30px; padding: 0; flex-shrink: 0;
   border: 0; border-radius: 999px; background: none;
-  color: var(--faint); cursor: pointer;
+  color: var(--faint); cursor: pointer; text-decoration: none;
   transition: color .16s var(--ease), background .16s var(--ease);
 }
+/* Two icons in the same header — the expand link and the share button —
+   only the first should claim the leftover space; the second just sits
+   beside it. */
+.sb__share + .sb__share { margin-left: 0; }
 .sb__share:hover, .sb__share:focus-visible { color: var(--gold); background: var(--gold-haze); }
 
 .sb__talk {
@@ -3817,6 +3841,52 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
   flex: 1;
   min-height: 0;
 }
+
+/* One matchup, the whole screen — the frame is exactly as tall as the shell
+   leaves between the top bar, the ticker sitting under it on this page only,
+   and the tab bar; the lineup takes what's left and scrolls on its own
+   rather than the page growing past the viewport. */
+.page[data-layout="matchup"] {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  flex: 0 0 auto;
+  height: calc(100dvh - 68px - var(--ticker-h) - var(--bottom-nav));
+}
+.matchup-full__back { flex: 0 0 auto; }
+/* Sits in `.sb__vs-head`'s own middle slot, in place of the "Lineups" label
+   this table shows everywhere else — the full screen's whole reason to
+   exist is that switching games doesn't cost leaving it. A button and a
+   menu, not a `<select>`: see the comment on MatchupPicker. */
+.matchup-full__pick-wrap { position: relative; justify-self: center; }
+.matchup-full__pick {
+  display: inline-flex; align-items: center; gap: 4px; max-width: 100%;
+  font: 700 var(--t-nano) var(--sans); letter-spacing: 0.02em; color: var(--muted);
+  background: var(--ink-1); border: 1px solid var(--rule); border-radius: 999px;
+  padding: 6px 10px; cursor: pointer;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.matchup-full__pick:hover { color: var(--wine); border-color: var(--wine); }
+.matchup-full__menu {
+  position: absolute; top: calc(100% + 6px); left: 50%; transform: translateX(-50%);
+  z-index: 10; min-width: 180px; max-width: 70vw;
+  margin: 0; padding: 4px; list-style: none;
+  background: var(--ink-1); border: 1px solid var(--rule); border-radius: var(--r-sm);
+  box-shadow: var(--shadow-1);
+}
+.matchup-full__menu button {
+  display: block; width: 100%; text-align: left; border: 0; border-radius: 6px;
+  background: none; padding: 8px 10px; cursor: pointer;
+  font: 600 var(--t-small) var(--sans); color: var(--ink);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.matchup-full__menu button:hover { background: var(--ink-2); }
+.matchup-full__menu button[aria-selected="true"] { color: var(--wine); font-weight: 700; }
+/* The lineup is the reason this screen exists, so it gets everything the
+   back link didn't need — and scrolls in place rather than taking the page
+   with it, which is the one thing "the entire screen" actually requires. */
+.matchup-full__lineup { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.matchup-full__lineup .sb__vs-lineup { border-radius: var(--r-sm); min-height: 100%; }
 
 /* A laptop in a short window gets a usable list rather than a sliver: below
    this the room stops shrinking and the page is allowed to scroll again. */
