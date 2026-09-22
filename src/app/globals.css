@@ -3218,6 +3218,15 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
      the label in its own header just eats the width the team names and
      totals need on a phone. */
   .sb__vs-head .eyebrow { display: none; }
+  /* And then two columns rather than three, because hiding that label did not
+     leave an empty middle track — `display: none` removes the grid item
+     altogether, so the home team slid into the `auto` track, sized itself to
+     its own content, and left a phantom `1fr` at the end with nothing in it.
+     The away name was being squeezed into what was left: 102px against the
+     home side's 149 at 390, which is why "Dry Aged Dynasty" arrived as "Dry
+     Ag…" while "The Porterhouse" sat comfortably beside it. Two tracks for
+     the two items that are actually there, and the halves are halves. */
+  .sb__vs-head { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
 }
 
 /* --- the phone: the board takes the glass ------------------------------- */
@@ -3276,6 +3285,18 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
      two columns is a stat, a stat, a stat and a hole. A phone gets the
      column it always had; the second one is only worth having at three. */
   .sb-board .sb__strip { grid-template-columns: minmax(0, 1fr); }
+
+  /* Four things in the card's top row is one too many for a phone: the state
+     chip, "Your table", and two icon buttons. The one that gave was the chip,
+     which is the only one of the four carrying a fact — "Live · 6 players in
+     action" wants 204px, was handed 190, and broke across two lines, doubling
+     the height of the first thing on the card. Only the hero ever carries the
+     label, and the hero is the big card at the top with the gold seal on your
+     side and a heading under it calling everything else "around the room", so
+     it is the one of the four already said three other ways. The chip keeps
+     its line instead — in every state, down to 320. */
+  .sb-board .sb__top { gap: var(--s2); }
+  .sb-board .sb[data-hero="true"] .sb__top .eyebrow { display: none; }
 }
 
 /* ============================================================================
