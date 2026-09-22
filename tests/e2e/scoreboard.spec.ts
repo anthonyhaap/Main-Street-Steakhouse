@@ -64,6 +64,46 @@ test("both lineups open with a game state on every row", async ({ page }) => {
   await expect(rows.first().locator(".sb__mark").first()).toBeVisible();
 });
 
+test("the board takes the glass on a phone", async ({ page }, info) => {
+  test.skip(info.project.name !== "mobile", "a claim about a phone's width");
+  await page.goto("/preview/matchups");
+  await page.getByRole("button", { name: "Late window", exact: true }).click();
+
+  const width = page.viewportSize()!.width;
+  const hero = page.locator(".sb[data-hero='true']");
+
+  // The card is the page. Four nested boxes used to inset the lineup — the
+  // page's gutter, the hero's own padding, two borders and the row — and by
+  // the time a name was printed it had 125px of a 390px screen to do it in.
+  for (const card of [hero, page.locator(".sb-list .sb").first()]) {
+    const box = await card.boundingBox();
+    expect(box!.x).toBeLessThanOrEqual(1);
+    expect(box!.width).toBeGreaterThanOrEqual(width - 1);
+  }
+
+  await hero.getByRole("button", { name: /Both lineups/ }).click();
+  const row = (await hero.locator(".sb__vs-row").first().boundingBox())!;
+  // The live rail on the card's left edge is the only thing the row gives up.
+  expect(row.x).toBeLessThanOrEqual(3);
+  expect(row.width).toBeGreaterThanOrEqual(width - 4);
+
+  // Two halves of one row, equal, with the slot between them narrow enough
+  // that the pixels go to the players rather than to the pill.
+  const cells = hero.locator(".sb__vs-row").first().locator(".sb__vs-cell");
+  const [a, h] = [await cells.first().boundingBox(), await cells.last().boundingBox()];
+  expect(Math.abs(a!.width - h!.width)).toBeLessThanOrEqual(1);
+  const pill = (await hero.locator(".sb__vs-row .pos").first().boundingBox())!;
+  expect(pill.width).toBeLessThanOrEqual(44);
+  // And neither half is reached by the other: a projection under a name that
+  // could not shrink used to land on top of the number opposite it.
+  expect(pill.x).toBeGreaterThanOrEqual(a!.x + a!.width - 1);
+  expect(pill.x + pill.width).toBeLessThanOrEqual(h!.x + 1);
+
+  // Nothing bought the width by scrolling the document sideways.
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth))
+    .toBeLessThanOrEqual(0);
+});
+
 test("the numbers say when they were written", async ({ page }) => {
   await page.goto("/preview/matchups");
   await expect(page.getByText(/Scores .*(ago|not yet scored)/)).toBeVisible();

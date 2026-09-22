@@ -3169,6 +3169,15 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
 .sb__box { font-size: var(--t-nano); color: var(--muted); line-height: 1.45; }
 .sb__vs-cell .pbadge__sub { line-height: 1.4; row-gap: 1px; }
 
+/* A flex item's automatic minimum size is its min-content, and `.sb__clock`
+   is deliberately nowrap — so the sub line could not shrink below "LIVE ·
+   14:18" and spilled out of its own half onto the other side's projection
+   rather than wrapping. Two numbers on top of each other is worse than any
+   amount of truncation: zero the floor and the mark wraps inside its own
+   column, which is what the wrap on `.pbadge__sub` was there for. */
+.sb__vs-cell .pbadge__sub { min-width: 0; }
+.sb__vs-cell .sb__mark { min-width: 0; flex-wrap: wrap; }
+
 /* --- the bench ---------------------------------------------------------- */
 /* Collapsed, and labelled with how many are under it, because "Bench" alone
    does not say whether opening it is worth the tap. */
@@ -3209,6 +3218,64 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
      the label in its own header just eats the width the team names and
      totals need on a phone. */
   .sb__vs-head .eyebrow { display: none; }
+}
+
+/* --- the phone: the board takes the glass ------------------------------- */
+/*
+   Where the narrow card came from, since widening the card was never going to
+   find it. On a 390px phone a lineup row had 125px a side to print a face, a
+   name, a club crest, a score, a projection, a game clock and a stat line in
+   — and ninety-eight pixels of the screen went on nothing. None of those
+   pixels belonged to the row: `.page` insets sixteen either side, the hero
+   card twenty-four more (its own `padding` beats the phone's `.sb { padding:
+   var(--s4) }` above on specificity, so the hero never took the phone's
+   narrower inset at all), the card a border, the lineup another, the row
+   five. Four nested boxes, each reasonable on its own.
+
+   So on a phone the card stops being a card and the page becomes one. The
+   slab pulls back out through the page's gutter by exactly that gutter —
+   a negative margin naming `--gutter` rather than a number, so it stays
+   correct at every width and wherever in the tree the card is placed, which
+   matters because the live board wraps the cards in a fade div and the
+   fixture does not. It keeps ten pixels of its own so the sentence and the
+   odds are not sitting on the glass, and hands even those back to the one
+   child that is a table.
+
+   Same trade `/matchups/[id]` already made below, for the same reason: a
+   hundred pixels of margin is a hundred pixels of name.
+*/
+@media (max-width: 560px) {
+  .sb-board { --sb-pad: 10px; }
+
+  .sb-board .sb {
+    margin-inline: calc(var(--gutter) * -1);
+    padding-inline: var(--sb-pad);
+    border-inline: 0;
+    border-radius: 0;
+  }
+  /* Restated after `border-inline`, which would otherwise take it too: the
+     wine rail is the one border on this card that says something, and on a
+     square edge-to-edge slab it reads better than it did on a rounded one. */
+  .sb-board .sb[data-state="live"] { border-left: 3px solid var(--wine); }
+
+  /* And the lineup takes even the ten. It is the only child here that is a
+     table rather than prose, and the only one where the width buys a column
+     instead of a margin. */
+  .sb-board .sb__vs-lineup {
+    margin-inline: calc(var(--sb-pad) * -1);
+    border-inline: 0;
+    border-radius: 0;
+  }
+
+  /* Stacked slabs want a seam, not a gap: the cards are the page now, so the
+     space between them reads as a rule rather than as air around a card. */
+  .sb-board .sb-list { gap: var(--s2); }
+
+  /* The strip is `auto-fit` over a 170px floor, which at the card's old 306px
+     could only ever be one column. At 367 it becomes two — and three stats in
+     two columns is a stat, a stat, a stat and a hole. A phone gets the
+     column it always had; the second one is only worth having at three. */
+  .sb-board .sb__strip { grid-template-columns: minmax(0, 1fr); }
 }
 
 /* ============================================================================
@@ -3408,9 +3475,23 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
     margin-left: 0; margin-right: 0;
     border-left: 0; border-right: 0; border-radius: 0;
   }
-  .sb__vs-row { padding: 4px 5px; gap: 2px; }
+  /* The row itself, on both screens that draw one — this one and the board,
+     which is why these are not scoped to `.mv`. Denser, and with the middle
+     column giving rather than taking: it is the one part of the row that
+     gets no wider when the screen does. A 38px track with a pill sized to
+     sit inside it, rather than a 40px track with a pill flush to its edges
+     overhanging the projections either side. "FLEX" at nine pixels is 22 of
+     the 36, so nothing clips. */
+  .sb__vs-row {
+    grid-template-columns: minmax(0, 1fr) 38px minmax(0, 1fr);
+    padding: 4px 5px; gap: 2px;
+  }
+  .sb__vs-row > .pos { min-width: 36px; max-width: 100%; height: 20px; padding: 0 3px; }
   .sb__vs-cell { gap: 4px; }
   .sb__vs-cell .sb__vs-main { gap: 5px; }
+  /* Twelve pixels between a thirty-pixel face and the name is a laptop's
+     gap. Here it is four characters of surname. */
+  .sb__vs-cell .pbadge { gap: 8px; }
 }
 
 @media (max-width: 520px) {
