@@ -87,6 +87,36 @@ test("the ruling is the commissioner's alone", async ({ page }) => {
   await expect(bet.getByRole("button", { name: "Award Mike" })).toBeVisible();
 });
 
+test("a spread bet shows both sides of the line", async ({ page }) => {
+  await page.goto("/preview/challenges");
+  const shot = page.locator("#challenge-c9");
+  const sides = shot.getByTestId("spread");
+  await expect(sides.getByText("KC \u22123")).toBeVisible();
+  await expect(sides.getByText("BUF +3")).toBeVisible();
+  await expect(sides.getByText(/Kicks off .* It locks then\./)).toBeVisible();
+  await expect(shot.getByRole("button", { name: "Accept & lock" })).toBeVisible();
+  await expect(shot.locator(".bet__facts").getByText("$20")).toBeVisible();
+});
+
+test("a spread bet in play says who is covering", async ({ page }) => {
+  await page.goto("/preview/challenges");
+  const bet = page.locator("#challenge-c10");
+  // BUF +2.5 down four: the line is not enough, so Dave's MIA -2.5 is covering.
+  await expect(bet.getByText("Q3 8:14 · Dave covering")).toBeVisible();
+  await expect(bet.locator('.bet__side[data-covering="true"]')).toContainText("MIA \u22122.5");
+  await expect(bet.locator(".bet__side").filter({ hasText: "BUF +2.5" })).not.toHaveAttribute("data-covering", "true");
+});
+
+test("a spread bet that covered pays like any other", async ({ page }) => {
+  await page.goto("/preview/challenges");
+  const bet = page.locator("#challenge-c11");
+  await expect(bet.getByText("Final · You covered")).toBeVisible();
+  const ask = bet.getByRole("link", { name: "Request $10 in Venmo" });
+  const href = await ask.getAttribute("href");
+  expect(href).toContain("venmo.com/mike-pays?");
+  expect(href).toContain("Week+6");
+});
+
 test("a push lands on its card", async ({ page }) => {
   await page.goto("/preview/challenges#c3");
   await expect(page.locator("#challenge-c3")).toHaveAttribute("data-target", "true");

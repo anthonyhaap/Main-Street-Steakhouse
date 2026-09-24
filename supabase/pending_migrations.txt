@@ -50,3 +50,4 @@
 weekly_awards
 scoreboard_carries_the_bench
 position_fantasy_ranks
+spread_challenges
