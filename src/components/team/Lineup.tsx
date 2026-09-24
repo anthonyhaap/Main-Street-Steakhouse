@@ -5,6 +5,7 @@ import { InjuryBadge, Kickoff, Spark, usageLine } from "@/components/nfl";
 import { PlayerBadge } from "@/components/PlayerBadge";
 import { fmtPts } from "@/components/ui";
 import type { HubPlayer, WireInjury } from "@/lib/nfl/types";
+import { ordinal } from "@/lib/power";
 
 /**
  * One roster line.
@@ -66,9 +67,12 @@ export function PlayerRow({
           sub={
             <>
               <span>{player.position} · {player.nfl_team ?? "FA"}</span>
-              {player.depth.rank && player.depth.of ? (
-                <span style={{ color: "var(--faint)" }}>
-                  {player.position}{player.depth.rank} of {player.depth.of}
+              {player.pos_rank ? (
+                <span
+                  style={{ color: "var(--faint)" }}
+                  title={`${ordinal(player.pos_rank.rank)} of ${player.pos_rank.of} at ${player.position} in fantasy points this season`}
+                >
+                  {player.position}{player.pos_rank.rank} of {player.pos_rank.of}
                 </span>
               ) : null}
               {locked && <Lock size={11} color="var(--faint)" aria-label="Locked" />}
