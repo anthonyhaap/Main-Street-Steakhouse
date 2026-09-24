@@ -1110,6 +1110,27 @@ a.kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); border-c
 .bet__wait, .bet__ref { margin: 0; color: var(--dim); font-size: var(--t-small); }
 .bet__ruling { display: grid; gap: var(--s2); padding-top: var(--s3); border-top: 1px solid var(--rule); }
 
+/* A spread bet's two sides: each manager's team and line, and the score. */
+.bet__spread { display: grid; gap: var(--s2); }
+.bet__side {
+  display: flex; align-items: center; gap: var(--s2); min-width: 0;
+  padding: var(--s2) var(--s3); border: 1px solid var(--rule); border-radius: var(--r-sm);
+  background: var(--ink-1);
+}
+.bet__side[data-covering="true"] { border-color: var(--win); box-shadow: inset 3px 0 0 var(--win); }
+.bet__line { font-weight: 700; white-space: nowrap; }
+.bet__who { flex: 1; min-width: 0; color: var(--muted); font-size: var(--t-small); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bet__score { font-weight: 700; font-size: var(--t-head); }
+
+/* The dialog's side picker: two teams, one tap. */
+.spread-pick { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s2); }
+.spread-pick__opt {
+  display: flex; align-items: center; justify-content: center; gap: var(--s2);
+  padding: var(--s3); border: 1px solid var(--rule); border-radius: var(--r-sm);
+  background: var(--ink-1); color: inherit; font: 700 var(--t-body)/1 var(--sans); cursor: pointer;
+}
+.spread-pick__opt[aria-pressed="true"] { border-color: var(--gold-lit); box-shadow: 0 0 0 3px var(--gold-wash); }
+
 /* The card a push pointed at: a ring that fades once the eye has found it. */
 .bet[data-target="true"] { animation: bet-ring 4s var(--ease) forwards; }
 @keyframes bet-ring {
