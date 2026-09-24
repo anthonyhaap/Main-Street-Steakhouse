@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { cameFromInApp } from "@/lib/trail";
 import { ArrowLeft, ExternalLink } from "lucide-react";
 import { headshot, teamColor, teamLogo } from "@/lib/nfl/assets";
 import { team as clubOf } from "@/lib/nfl/teams";
@@ -34,6 +36,7 @@ const STAT_ROWS: Record<string, [keyof Totals, string][]> = {
 /* ------------------------------------------------------------------- page -- */
 
 export function PlayerPage({ card }: { card: PlayerCard }) {
+  const router = useRouter();
   const p = card.player;
   const club = clubOf(p.nfl_team);
   const color = teamColor(p.nfl_team);
@@ -53,8 +56,24 @@ export function PlayerPage({ card }: { card: PlayerCard }) {
       }}
     >
       <div>
-        <Link href="/team" className="btn" data-v="ghost" data-size="sm">
-          <ArrowLeft size={13} /> My team
+        {/* Back to wherever the player was opened from — the transactions list,
+            a matchup, standings. A card opened cold (a new tab, a pasted link,
+            straight out of sign-in) has nowhere to go back to, so the link's
+            own href (My Team) catches that case, and a cmd-click or middle
+            click still opens it. */}
+        <Link
+          href="/team"
+          className="btn"
+          data-v="ghost"
+          data-size="sm"
+          onClick={(e) => {
+            if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+            if (!cameFromInApp()) return;
+            e.preventDefault();
+            router.back();
+          }}
+        >
+          <ArrowLeft size={13} /> Back
         </Link>
       </div>
 
