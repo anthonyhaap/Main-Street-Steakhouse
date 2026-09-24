@@ -49,9 +49,11 @@ export default function ChallengesPage() {
       supabaseBrowser().from("challenges").select("*").eq("league_id", LEAGUE_ID).order("created_at", { ascending: false }),
       supabaseBrowser().from("profiles").select("id,display_name,settlement_provider,settlement_handle,settlement_opt_in_at"),
       supabaseBrowser().from("matchups").select("*").eq("league_id", LEAGUE_ID).order("week"),
-      // The games a spread bet can still be made on: not yet kicked off.
+      // Every game a spread bet can still be made on: not yet kicked off. No
+      // limit — a whole regular season is under 300 rows, and a cap would
+      // quietly hide the later weeks in September.
       supabaseBrowser().from("nfl_games").select(SPREAD_GAME_COLUMNS).eq("status", "pre")
-        .gt("kickoff_at", new Date().toISOString()).order("kickoff_at").limit(48),
+        .gt("kickoff_at", new Date().toISOString()).order("kickoff_at"),
     ]);
     const failure = challenges.error ?? profiles.error ?? matchups.error ?? upcoming.error;
     if (failure) throw failure;
@@ -270,6 +272,8 @@ function ChallengeDialog({ matchups, games, close, done }: { matchups: Matchup[]
   // Spread bets: only games still to kick off, soonest first.
   const openGames = useMemo(() => games.filter((g) => isOpen(g)).sort((x, y) =>
     (x.kickoff_at ?? "").localeCompare(y.kickoff_at ?? "")), [games]);
+  // Grouped by week, so a full season's schedule is still a list you can scan.
+  const openWeeks = useMemo(() => [...new Set(openGames.map((g) => g.week))], [openGames]);
   const game = openGames.find((g) => g.id === gameId) ?? null;
   const lineNumber = line.trim() === "" ? NaN : Number(line);
   const spreadReady = !!game && !!side && validLine(lineNumber);
@@ -330,12 +334,16 @@ function ChallengeDialog({ matchups, games, close, done }: { matchups: Matchup[]
             <Field label="Game">
               <select className="field" required value={gameId} onChange={(event) => { setGameId(event.target.value); setSide(""); setLine(""); }}>
                 <option value="">{openGames.length ? "Choose a game" : "No games left to kick off"}</option>
-                {openGames.map((g) => (
-                  <option key={g.id} value={g.id}>
-                    Week {g.week} · {g.away_team} at {g.home_team}
-                    {g.home_spread != null ? ` · ${spreadText(g.home_team, Number(g.home_spread))}` : ""}
-                    {g.kickoff_at ? ` · ${new Date(g.kickoff_at).toLocaleString(undefined, { weekday: "short", hour: "numeric", minute: "2-digit" })}` : ""}
-                  </option>
+                {openWeeks.map((week) => (
+                  <optgroup key={week} label={`Week ${week}`}>
+                    {openGames.filter((g) => g.week === week).map((g) => (
+                      <option key={g.id} value={g.id}>
+                        {g.away_team} at {g.home_team}
+                        {g.home_spread != null ? ` · ${spreadText(g.home_team, Number(g.home_spread))}` : ""}
+                        {g.kickoff_at ? ` · ${new Date(g.kickoff_at).toLocaleString(undefined, { weekday: "short", hour: "numeric", minute: "2-digit" })}` : ""}
+                      </option>
+                    ))}
+                  </optgroup>
                 ))}
               </select>
             </Field>
