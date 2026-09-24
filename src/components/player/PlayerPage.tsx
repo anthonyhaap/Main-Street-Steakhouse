@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { cameFromInApp } from "@/lib/trail";
 import { ArrowLeft, ExternalLink } from "lucide-react";
 import { headshot, teamColor, teamLogo } from "@/lib/nfl/assets";
 import { team as clubOf } from "@/lib/nfl/teams";
@@ -56,18 +57,20 @@ export function PlayerPage({ card }: { card: PlayerCard }) {
     >
       <div>
         {/* Back to wherever the player was opened from — the transactions list,
-            a matchup, standings. A card opened cold in a new tab has nowhere to
-            go back to, so the link's own href (My Team) catches that case. */}
+            a matchup, standings. A card opened cold (a new tab, a pasted link,
+            straight out of sign-in) has nowhere to go back to, so the link's
+            own href (My Team) catches that case, and a cmd-click or middle
+            click still opens it. */}
         <Link
           href="/team"
           className="btn"
           data-v="ghost"
           data-size="sm"
           onClick={(e) => {
-            if (window.history.length > 1) {
-              e.preventDefault();
-              router.back();
-            }
+            if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+            if (!cameFromInApp()) return;
+            e.preventDefault();
+            router.back();
           }}
         >
           <ArrowLeft size={13} /> Back
