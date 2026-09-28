@@ -50,4 +50,3 @@
 weekly_awards
 scoreboard_carries_the_bench
 position_fantasy_ranks
-pool_keeps_injured_players
