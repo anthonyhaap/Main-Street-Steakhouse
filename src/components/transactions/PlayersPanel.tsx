@@ -48,9 +48,20 @@ export function PlayersPanel() {
       // available players, and "available" is decided against the owners; a
       // pool rendered a beat before them would show every drafted player as
       // signable and then take them all away.
+      //
+      // Preseason ADP ranks only the top ~270, and by midseason most of the
+      // free agents are below it. Ordered by rank alone, the other eight
+      // hundred came back in whatever order Postgres chose, and the list shows
+      // three hundred — so Ollie Gordon, Miami's RB2 the day Achane went on IR,
+      // was sometimes on the page and sometimes not. The rest of the season's
+      // projection decides between the unranked, and the name settles ties, so
+      // the list is the same list every time it loads.
       const [p, w] = await Promise.all([
         supabase.from("draft_pool").select("*")
-          .order("overall_rank", { ascending: true, nullsFirst: false }).range(0, 2499),
+          .order("overall_rank", { ascending: true, nullsFirst: false })
+          .order("proj_remaining", { ascending: false, nullsFirst: false })
+          .order("full_name", { ascending: true })
+          .range(0, 2499),
         supabase.rpc("ff_current_week"),
         loadOwners(),
       ]);
