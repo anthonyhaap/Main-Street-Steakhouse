@@ -35,12 +35,22 @@
     radial-gradient(1200px 400px at 20% -10%, #6a0b2033, transparent 70%),
     var(--sun-bg);
   color: var(--sun-text);
-  padding: var(--s4) var(--gutter) calc(var(--sun-ticker) + var(--bottom-nav) + var(--s6) + env(safe-area-inset-bottom));
+  /* The body already keeps --bottom-nav clear for the tab bar; this only
+     clears the ticker, which sits on top of it. */
+  padding: var(--s4) var(--gutter) calc(var(--sun-ticker) + var(--s5) + env(safe-area-inset-bottom));
   font-variant-numeric: tabular-nums;
 }
 .sun a { color: inherit; }
 .sun button { font: inherit; color: inherit; }
 .sun :focus-visible { outline: 2px solid var(--sun-gold); outline-offset: 2px; }
+
+/* The shell's bars are translucent by design — on paper, what shows through
+   is paper. Over this page it would be white scores ghosting behind the nav,
+   so here they are solid. */
+body:has(.sun) .topbar { background: var(--ink-0); backdrop-filter: none; -webkit-backdrop-filter: none; }
+body:has(.sun) .tabbar { background: #ffffff; }
+/* The strip the body keeps for the tab bar is the page's, not the paper's. */
+body:has(.sun) { background: #0d0b0a; }
 
 /* ------------------------------------------------------------------ head -- */
 
@@ -170,6 +180,8 @@
 /* ------------------------------------------------------------- featured -- */
 
 .sun-feat {
+  container-type: inline-size;
+  min-width: 0;
   background: var(--sun-1);
   border: 1px solid var(--sun-line);
   border-top: 2px solid var(--sun-gold);
@@ -184,7 +196,10 @@
 .sun-feat__label b {
   font: 800 var(--t-micro)/1 var(--sans); letter-spacing: 0.16em; text-transform: uppercase; color: var(--sun-gold);
 }
-.sun-pick { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; max-width: 100%; }
+.sun-feat__label > b { flex-shrink: 0; }
+/* A flex item that scrolls must be allowed to be narrower than its content,
+   or it sizes to all six buttons and runs out of the panel into the rail. */
+.sun-pick { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; max-width: 100%; min-width: 0; flex: 0 1 auto; }
 .sun-pick::-webkit-scrollbar { display: none; }
 .sun-pick button {
   padding: 4px 8px; border-radius: 4px; border: 1px solid var(--sun-line); background: none; cursor: pointer;
@@ -250,6 +265,19 @@
 .sun-odds__cap { font: 700 var(--t-nano)/1 var(--sans); letter-spacing: 0.12em; text-transform: uppercase; color: var(--sun-dim); text-align: center; }
 
 .sun-feat__detail { margin-top: var(--s4); display: grid; gap: var(--s4); }
+
+/* The featured panel sizes to its column, which narrows when the chat opens
+   or the window does. Below these widths the hero numbers would push into the
+   rail, so they step down instead. */
+@container (max-width: 680px) {
+  .sun-team__pts { font-size: var(--t-title); }
+  .sun-mid { min-width: 92px; }
+  .sun-lu__row { grid-template-columns: 30px minmax(0, 1fr) auto 40px; gap: 6px; }
+}
+@container (max-width: 520px) {
+  .sun-lineups, .sun-path { grid-template-columns: 1fr; }
+  .sun-team__sub { display: none; }
+}
 .sun-feat__toggle { display: none; }
 .sun-lineups { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s4); }
 .sun-lu { display: grid; align-content: start; }
@@ -442,17 +470,31 @@
 }
 .sun-chat__send input::placeholder { color: var(--sun-dim); }
 
-/* The desktop drawer: collapsible, never covering the ticker. */
+/* The chat column. Beside the rail when there is room for three columns, in
+   the rail's place when there is not — a column of the grid either way, so it
+   can never sit on top of the RedZone feed the way an overlay would. */
 .sun-drawer {
-  position: fixed; z-index: 45; right: 0; top: 68px;
-  bottom: calc(var(--sun-ticker) + var(--bottom-nav) + env(safe-area-inset-bottom));
-  width: min(380px, 100%);
+  position: sticky; top: calc(68px + var(--s4));
+  max-height: calc(100dvh - 68px - var(--sun-ticker) - var(--bottom-nav) - var(--s6));
+  min-height: min(520px, calc(100dvh - 68px - var(--sun-ticker) - var(--bottom-nav) - var(--s6)));
   display: grid; grid-template-rows: auto minmax(0, 1fr);
-  padding: var(--s4); gap: var(--s3);
-  background: var(--sun-1); border-left: 1px solid var(--sun-line);
-  box-shadow: -20px 0 50px #0008;
+  padding: var(--s3); gap: var(--s3);
+  background: var(--sun-1); border: 1px solid var(--sun-line); border-radius: var(--r-sm);
+  min-width: 0;
   animation: sun-drawer .22s var(--ease);
 }
+.sun[data-chat="true"] .sun-grid { grid-template-columns: minmax(0, 1fr) minmax(300px, 360px); }
+.sun[data-chat="true"] .sun-rail { display: none; }
+@media (min-width: 1400px) {
+  .sun[data-chat="true"] .sun-grid { grid-template-columns: minmax(0, 60fr) minmax(300px, 25fr) minmax(300px, 340px); }
+  .sun[data-chat="true"] .sun-rail { display: grid; }
+}
+/* A focused one-panel view keeps its full width and the chat beside it. */
+.sun[data-chat="true"][data-desk="redzone"] .sun-grid,
+.sun[data-chat="true"][data-desk="matchups"] .sun-grid,
+.sun[data-chat="true"][data-desk="nfl"] .sun-grid { grid-template-columns: minmax(0, 1fr) minmax(300px, 360px); }
+.sun[data-chat="true"][data-desk="redzone"] .sun-rail { display: grid; }
+.sun[data-chat="true"][data-desk="redzone"] .sun-main { display: none; }
 .sun-drawer__head { display: flex; align-items: center; justify-content: space-between; }
 .sun-drawer__head h2 { margin: 0; font: 800 var(--t-micro)/1 var(--sans); letter-spacing: 0.16em; text-transform: uppercase; }
 
@@ -565,7 +607,31 @@
   .sun [data-panel="recap"] { order: -1; }
 
   .sun-drawer { display: none; }
-  .sun [data-panel="chat"] .sun-chat { min-height: 50dvh; }
+  .sun[data-chat="true"] .sun-rail { display: contents; }
+  /* The chat on a phone is as tall as what was said, not half a screen of
+     nothing under four lines. */
+  .sun [data-panel="chat"] .sun-chat { grid-template-rows: auto auto auto; }
+  .sun-chat__log { overflow: visible; }
+
+  /* Density. A phone is read at arm's length between plays: full-width
+     cards, less air inside them, and the slate two to a row. */
+  .sun-sec__head { margin-bottom: 6px; }
+  .sun-feat__toggle { padding-top: 8px; padding-bottom: 8px; }
+  .sun-cards { gap: 6px; }
+  .sun-card { padding: 8px 10px; gap: 2px; }
+  .sun-nfl { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+  .sun-game { padding: 8px 9px; }
+  .sun-game__team { grid-template-columns: 18px minmax(0, 1fr) auto; gap: 6px; }
+  .sun-game__p { grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; }
+  .sun-rz { padding: 10px 12px; gap: 2px; }
+  .sun-rz__row { padding: 5px 0; }
+  .sun-rz__row span { margin-top: -2px; }
+  .sun-feed { gap: 6px; }
+  .sun-alert { padding: 9px 11px; gap: 2px; }
+  .sun-close__card { padding: 10px 12px; gap: 3px; }
+  .sun-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+  .sun-tile { padding: 10px; }
+  .sun-tabs[data-for="phone"] .sun-tab { padding: 12px 4px; letter-spacing: 0.1em; }
 
   .sun-fab {
     display: grid; place-items: center;

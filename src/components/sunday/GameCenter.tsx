@@ -99,7 +99,7 @@ export function GameCenter({ board, now, delayed = false, chat, onSend, chatErro
   const empty = board.matchups.length === 0;
 
   return (
-    <div className="sun" data-phase={phase} data-desk={desk} data-mob={mob}>
+    <div className="sun" data-phase={phase} data-desk={desk} data-mob={mob} data-chat={drawer}>
       <header className="sun-head">
         <div className="sun-head__title">
           <h1><span aria-hidden>🥩 </span>{phase === "final" ? "Sunday at the Steakhouse" : "Steakhouse Sunday"}</h1>
@@ -170,23 +170,25 @@ export function GameCenter({ board, now, delayed = false, chat, onSend, chatErro
         <aside className="sun-rail" aria-label="Fantasy RedZone rail">
           <RedZoneRail board={board} phase={phase} list={list} now={now} onMatchup={openMatchup} onGame={openNfl} />
         </aside>
+        {/* The chat is a column of the layout, not a sheet over it: beside the
+            rail on a wide screen, in the rail's place on a narrower one, and
+            never on top of anything. */}
+        {drawer && (
+          <aside className="sun-drawer" aria-label="League chat">
+            <div className="sun-drawer__head">
+              <h2>💬 Chat</h2>
+              <button type="button" className="sun-btn" style={{ padding: 6 }} aria-label="Close chat" onClick={() => setDrawer(false)}>
+                <X size={14} />
+              </button>
+            </div>
+            <ChatPanel items={chat} onSend={onSend} error={chatError} />
+          </aside>
+        )}
       </div>
 
       <section className="sun-sec" data-panel="chat" aria-label="League chat">
         <ChatPanel items={chat} onSend={onSend} error={chatError} />
       </section>
-
-      {drawer && (
-        <aside className="sun-drawer" aria-label="League chat">
-          <div className="sun-drawer__head">
-            <h2>💬 Chat</h2>
-            <button type="button" className="sun-btn" style={{ padding: 6 }} aria-label="Close chat" onClick={() => setDrawer(false)}>
-              <X size={14} />
-            </button>
-          </div>
-          <ChatPanel items={chat} onSend={onSend} error={chatError} />
-        </aside>
-      )}
 
       <button type="button" className="sun-fab" hidden={mob === "chat"} aria-label="Open league chat" onClick={openChat}>
         <MessageCircle size={22} aria-hidden />

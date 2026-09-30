@@ -128,3 +128,22 @@ test("the game center is one tap from any screen", async ({ page }, info) => {
     await expect(page.getByRole("link", { name: "Game Center" })).toHaveAttribute("href", "/sunday");
   }
 });
+
+test("on a desktop the chat takes a column and covers nothing", async ({ page }, info) => {
+  test.skip(info.project.name === "mobile", "the phone has its own chat tab");
+  const apart = (a: { x: number; width: number }, b: { x: number; width: number }) =>
+    a.x + a.width <= b.x + 1 || b.x + b.width <= a.x + 1;
+  for (const width of [1280, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/preview/sunday");
+    await page.locator(".sun-tabs[data-for='desk']").getByRole("button", { name: "Chat" }).click();
+    const chat = (await page.locator(".sun-drawer").boundingBox())!;
+    const main = (await page.locator(".sun-main").boundingBox())!;
+    expect(apart(chat, main), `${width}: chat over the board`).toBe(true);
+    const rail = page.locator(".sun-rail");
+    if (await rail.isVisible()) expect(apart(chat, (await rail.boundingBox())!), `${width}: chat over the rail`).toBe(true);
+    // And the featured panel stays inside its own column.
+    const feat = (await page.locator(".sun-feat").boundingBox())!;
+    expect(feat.x + feat.width).toBeLessThanOrEqual(main.x + main.width + 1);
+  }
+});
