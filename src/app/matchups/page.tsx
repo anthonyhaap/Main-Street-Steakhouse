@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { useLive, useServerClock } from "@/lib/live";
 import { useSession } from "@/lib/session";
@@ -176,6 +177,7 @@ export default function MatchupsPage() {
               <span className="sb-slate__fresh">
                 Scores <b>{freshness(shown.stats_updated_at, clock)}</b>
                 {shown.projections_updated_at && ` · projections ${freshness(shown.projections_updated_at, clock)}`}
+                {" · "}<Link href={`/sunday?week=${shown.week}`}>Game center</Link>
               </span>
             </div>
           )}

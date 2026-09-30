@@ -63,3 +63,10 @@ export const DRAFT_STARTS_AT: string | null = "2026-09-09T00:30:00Z";
 
 /** The time as the league was told it, for the label under the count. */
 export const DRAFT_START_LABEL = "7:30 PM CT";
+
+/**
+ * Where "Watch NFL RedZone" goes. The NFL's own page for it, and nothing
+ * more: Steakhouse Sunday is the second screen, not the video provider, so it
+ * never embeds, frames or restreams the broadcast. A link out, in a new tab.
+ */
+export const REDZONE_URL = "https://www.nfl.com/plus/";

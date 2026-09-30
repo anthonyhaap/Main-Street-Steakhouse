@@ -549,9 +549,9 @@ export function action(b: Briefing, phase: Phase): Action | null {
         ? { label: b.draft.on_clock_team_id === b.me?.team_id ? "Make your pick" : "Enter the draft room", href: "/draft", urgent: b.draft.on_clock_team_id === b.me?.team_id }
         : { label: "Draft room", href: "/draft" };
     case "live":
-      return { label: "Watch it live", href: "/matchups" };
+      return { label: "Watch it live", href: "/sunday" };
     case "monday":
-      return { label: "Watch Monday night", href: "/matchups" };
+      return { label: "Watch Monday night", href: "/sunday" };
     case "settled":
     case "recap":
       return { label: "Send the recap to the chat", kind: "share" };
