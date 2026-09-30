@@ -114,3 +114,4 @@
 20260924182613 spread_challenges
 20260928022659 pool_keeps_injured_players
 20260930201953 sunday_game_center
+20260930204132 publish_nfl_games
