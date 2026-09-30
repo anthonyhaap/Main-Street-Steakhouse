@@ -1,7 +1,7 @@
 /**
  * Load the game center's payload, with or without its migration.
  *
- * `ff_sunday` arrives with `20260930120000_sunday_game_center`, and the
+ * `ff_sunday` arrives with `20260930201953_sunday_game_center`, and the
  * browser ships ahead of a migration being applied — this repository applies
  * migrations after they merge. A game center that refused to open until then
  * would be a blank page on the one day it matters, so when the function is not
