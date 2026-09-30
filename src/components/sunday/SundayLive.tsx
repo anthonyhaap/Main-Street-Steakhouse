@@ -41,7 +41,9 @@ export function SundayLive({ initial, week }: { initial: SundayBoard | null; wee
   }, [week]);
 
   const { data, status, error, refetch } = useLive<SundayBoard>(fetcher, {
-    tables: ["matchups", "rosters", "nfl_games"],
+    // `sunday_events` is the one that matters most: a row there is the
+    // server saying something just happened.
+    tables: ["matchups", "rosters", "nfl_games", "sunday_events"],
     channel: "sunday",
     pollMs: hot ? 15000 : 60000,
     enabled: ready,

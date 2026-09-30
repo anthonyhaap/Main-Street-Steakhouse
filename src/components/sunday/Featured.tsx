@@ -57,7 +57,7 @@ export function Featured({ card, label, auto, phase, now, nfl, cards, onPick }: 
   return (
     <section id="sun-featured" className="sun-feat" data-panel="featured" data-open={open} aria-label="Featured matchup">
       <div className="sun-feat__label">
-        <b>{auto ? (phase === "live" ? "🔥 " : "🏆 ") + label : "Your pick"}</b>
+        <b>{auto ? label : "Your pick"}</b>
         <div className="sun-pick scroll" role="group" aria-label="Switch matchup">
           {!auto && <button type="button" onClick={() => onPick(null)}>{label}</button>}
           {cards.map((c) => (

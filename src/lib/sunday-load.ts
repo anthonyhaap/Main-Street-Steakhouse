@@ -59,5 +59,7 @@ export async function loadSunday(sb: SupabaseClient, week: number | null): Promi
     updated_at: g.updated_at,
   }));
 
-  return { ...board, nfl };
+  // No function, no event engine either: an empty feed, which the page reads
+  // as "nothing has happened yet".
+  return { ...board, nfl, events: [] };
 }
