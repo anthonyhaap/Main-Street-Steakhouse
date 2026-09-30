@@ -11,6 +11,7 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 import type { WireStatus } from "@/lib/live";
 import { useUnreadCounts } from "@/lib/unread";
 import { Seal } from "@/components/ui";
+import { isGameDay } from "@/lib/sunday";
 
 /**
  * The first four are the tab bar on a phone, in thumb order: the briefing,
@@ -45,7 +46,33 @@ type NavItem = {
   commish?: boolean;
   /** Which of ff_unread_counts' fields this item's badge reads, if any. */
   badge?: "chat" | "league_feed";
+  /** Carries the red dot: football is on, or about to be. */
+  live?: boolean;
 };
+
+/**
+ * On a Sunday the second slot is the game center, not the board. Same width,
+ * same thumb position — the screen a manager reaches for during the games is
+ * the one in the place he already reaches — and the board stays one tap away
+ * behind More. Every other day it is Matchups, and the game center is in More.
+ */
+const SUNDAY: NavItem = { href: "/sunday", label: "Sunday", Icon: Radio, live: true };
+
+/**
+ * Whether today is a Sunday on the league's clock. Decided after hydration,
+ * never during render: the shell is prerendered, and a build on a Saturday
+ * must not hand a Sunday reader a nav that disagrees with its own HTML.
+ */
+function useGameDay(): boolean {
+  const [on, setOn] = useState(false);
+  useEffect(() => {
+    const check = () => setOn(isGameDay(Date.now()));
+    check();
+    const id = setInterval(check, 60_000);
+    return () => clearInterval(id);
+  }, []);
+  return on;
+}
 
 const NAV: NavItem[] = [
   { href: "/",             label: "Tonight",      Icon: UtensilsCrossed },
@@ -158,6 +185,10 @@ function LeagueMenu({ path, counts }: { path: string; counts?: { chat: number; l
             <Crown size={14} strokeWidth={1.75} aria-hidden />
             League Home
           </Link>
+          <Link href="/sunday" className="nav__dropdown-item" data-on={isOn(path, "/sunday")} onClick={close}>
+            <Radio size={14} strokeWidth={1.75} aria-hidden />
+            Game Center
+          </Link>
           {LEAGUE_PAGES.map(({ href, label, Icon, badge }) => (
             <Link key={href} href={href} className="nav__dropdown-item" data-on={isOn(path, href)} onClick={close}>
               <Icon size={14} strokeWidth={1.75} aria-hidden />
@@ -180,6 +211,7 @@ export function TopBar({ status }: { status?: WireStatus }) {
   const standalone = useStandalone();
   const close = () => setMore(false);
   const counts = useUnreadCounts();
+  const gameDay = useGameDay();
 
   // Commish tools are not an everyday manager destination, and sitting them at
   // the same weight as My Team told eleven people to read past that whole end
@@ -187,7 +219,7 @@ export function TopBar({ status }: { status?: WireStatus }) {
   // it, and the crown that says whose it is.
   const showAdmin = isCommissioner || !league?.commissioner_id;
   const items: NavItem[] = [
-    ...NAV,
+    ...NAV.map((i) => (gameDay && i.href === "/matchups" ? SUNDAY : i)),
     { href: "/league", label: "League", Icon: Crown },
     ...(showAdmin ? [{ href: "/admin", label: "Commish", Icon: Crown, commish: true }] : []),
   ];
@@ -196,7 +228,12 @@ export function TopBar({ status }: { status?: WireStatus }) {
   const restActive = rest.some((i) => isOn(path, i.href)) || LEAGUE_PAGES.some((i) => isOn(path, i.href));
   // The sheet groups Draft/History/The House/Recap under their own "League"
   // heading rather than listing League itself as one more flat tile.
-  const sheetRest = rest.filter((i) => i.href !== "/league");
+  const sheetRest: NavItem[] = [
+    ...rest.filter((i) => i.href !== "/league"),
+    gameDay
+      ? { href: "/matchups", label: "Matchups", Icon: Radio }
+      : { href: "/sunday", label: "Game Center", Icon: Radio },
+  ];
 
   return (
     <>
@@ -210,7 +247,7 @@ export function TopBar({ status }: { status?: WireStatus }) {
         </Link>
 
         <nav className="nav" aria-label="Primary">
-          {items.map(({ href, label, commish }) =>
+          {items.map(({ href, label, commish, live }) =>
             href === "/league" ? (
               <LeagueMenu key={href} path={path} counts={counts ?? undefined} />
             ) : (
@@ -223,12 +260,27 @@ export function TopBar({ status }: { status?: WireStatus }) {
               >
                 {commish && <Crown size={12} aria-hidden />}
                 {label}
+                {live && <i className="nav__live" aria-label="live today" />}
               </Link>
             )
           )}
         </nav>
 
         <div className="topbar__actions">
+          {/* The game center, one tap from anywhere on a phone. The desktop
+              nav has no width to spare, so there it lives in the League menu
+              and, on a Sunday, in the Matchups slot. */}
+          <Link
+            href="/sunday"
+            className="gc-pill"
+            data-live={gameDay}
+            data-on={isOn(path, "/sunday")}
+            aria-label={gameDay ? "Game Center, live today" : "Game Center"}
+            onTouchStart={() => router.prefetch("/sunday")}
+          >
+            {gameDay ? <i className="gc-pill__dot" aria-hidden /> : <Radio size={14} strokeWidth={2} aria-hidden />}
+            <span>{gameDay ? "Live" : "Game Center"}</span>
+          </Link>
           <Wire status={status} />
           {team && (
             <div style={{ display: "flex", alignItems: "center", gap: "var(--s2)" }}>
@@ -262,7 +314,7 @@ export function TopBar({ status }: { status?: WireStatus }) {
       </header>
 
       <nav className="tabbar" aria-label="Primary">
-        {tabs.map(({ href, label, Icon }) => (
+        {tabs.map(({ href, label, Icon, live }) => (
           <Link
             key={href}
             href={href}
@@ -274,6 +326,7 @@ export function TopBar({ status }: { status?: WireStatus }) {
           >
             <Icon strokeWidth={1.75} />
             <span>{label}</span>
+            {live && <i className="nav__live nav__live--tab" aria-label="live today" />}
           </Link>
         ))}
         <button
@@ -378,6 +431,36 @@ export function TopBar({ status }: { status?: WireStatus }) {
         }
         .nav__dropdown-item:hover { color: var(--cream); background: #1b18140a; }
         .nav__dropdown-item[data-on="true"] { color: var(--wine); background: var(--wine-wash); }
+        /* The game center's red dot on a Sunday. Red is the one colour the
+           app keeps for "live", and this is the one nav item that earns it. */
+        .nav__live {
+          display: inline-block; width: 6px; height: 6px; margin-left: 6px;
+          border-radius: 50%; background: #e5383b; vertical-align: 2px;
+          animation: nav-live 1.6s ease-in-out infinite;
+        }
+        .tabbar__item { position: relative; }
+
+        /* The top-bar door to the game center: ink, like the room it opens.
+           Phones and tablets only — past 1180px the nav carries it. */
+        .gc-pill {
+          display: none; align-items: center; gap: 6px;
+          min-height: 34px; padding: 0 12px; border-radius: 999px;
+          background: var(--ink-deep); color: var(--ink-text);
+          font: 800 var(--t-micro)/1 var(--sans); letter-spacing: 0.1em; text-transform: uppercase;
+          text-decoration: none; white-space: nowrap;
+          box-shadow: 0 1px 0 #0000000d, 0 4px 14px #1b181426;
+        }
+        .gc-pill[data-live="true"] { background: #b3213f; color: #fff; }
+        .gc-pill[data-on="true"] { outline: 2px solid var(--gold-lit); outline-offset: 2px; }
+        .gc-pill__dot {
+          width: 8px; height: 8px; border-radius: 50%; background: #fff;
+          animation: nav-live 1.6s ease-in-out infinite;
+        }
+        @media (max-width: 1180px) { .gc-pill { display: inline-flex; } }
+        @media (prefers-reduced-motion: reduce) { .gc-pill__dot { animation: none; } }
+        .nav__live--tab { position: absolute; top: 10px; left: calc(50% + 10px); margin: 0; }
+        @keyframes nav-live { 0%, 100% { opacity: 1 } 50% { opacity: .4 } }
+        @media (prefers-reduced-motion: reduce) { .nav__live { animation: none; } }
         @keyframes dropdown-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
 
         /* The sheet's own grouping for the same pages, phone-width equivalent

@@ -16,7 +16,7 @@ import { expect, test } from "@playwright/test";
 const PAGES = [
   "/preview/tonight", "/preview/standings", "/preview/team", "/preview/draft", "/preview/history",
   "/preview/chat", "/preview/league-feed", "/preview/matchups", "/preview/players", "/preview/trades", "/preview/waivers",
-  "/preview/ledger", "/preview/notifications", "/preview/challenges",
+  "/preview/ledger", "/preview/notifications", "/preview/challenges", "/preview/sunday",
 ];
 
 /* Drawn objects are exempt: the doors' SVG lettering, the draft TV, the

@@ -354,6 +354,59 @@ authenticated-only. `20260904020439` corrects the grant and, so a future
 mistake cannot re-open it, makes the function refuse a caller with no
 `auth.uid()` outright rather than leaning on the grant the way its siblings do.
 
+### Steakhouse Sunday
+
+`/sunday` is the game center: NFL RedZone on the television, this on the
+phone. RedZone says what is happening around the NFL; the game center says
+why it matters to *this* league. On a phone or tablet it is a button in the
+top bar on every screen — red and pulsing on a Sunday — and on a Sunday it
+also takes the Matchups slot in the nav. On a laptop it is in the League menu
+the rest of the week, and linked from the board.
+
+It opens before its migration is applied: `src/lib/sunday-load.ts` falls back
+to `ff_scoreboard` plus the week's `nfl_games` rows when `ff_sunday` is not
+there yet, and only possession and the red zone wait for the migration.
+
+It reads one call. `ff_sunday(league_id, week)` is `ff_scoreboard` with the
+week's NFL games beside it: score, state, and — new — who has the ball and
+whether that drive is in the red zone. `ff_load_nfl_week` already read ESPN's
+scoreboard every two minutes during a game window; the same payload carries a
+`situation`, and three more fields off it (`possession`, `red_zone`,
+`down_distance`) land on `nfl_games` in the same upsert. No browser talks to
+ESPN or Sleeper: cron writes once, realtime tells every open phone to refetch,
+and the page is server-rendered from the same call so it arrives painted.
+
+`src/lib/sunday.ts` turns the payload into the page, and is pure:
+
+| function | decides |
+|----------|---------|
+| `sundayPhase` | `pre`, `live` (including the gap between windows), `final` |
+| `excitement` | a score per table from configurable weights (`EXCITEMENT`): within a point, within five, fourth quarter, upset, the week's high, standings, and — when the server can supply them — lead changes, touchdowns, rivalry and playoff stakes |
+| `featured` | the Game of the Week before kickoff, the Game to Watch during, the finish of the day after |
+| `moodOf` | ROLLING, SWEATING, COOKED — read off the live odds; a caption, not a claim |
+| `needs` | the points it would take to pass the other side's *projected* finish — never "score this and you win" |
+| `inTheRedZone` | our starters whose club has the ball inside the twenty (not kickers, not defenses) |
+| `alerts` | the Fantasy RedZone, levels 1–4, stable ids so a refetch never repeats a row |
+| `closeGames` | tables within five, late — lifted above the board for everyone |
+| `tickerItems`, `recap`, `delayed` | the bottom rail, Tuesday's tiles, and whether to say the stats are behind |
+
+Everything there is read from the *state* of the board. "Allen scored and it
+put Ray ahead" needs the board before and after, stored once and
+deduplicated — the event engine, which is the next phase and a server job,
+not a browser's. Nothing on the page invents a history it cannot see.
+
+Desktop is a broadcast dashboard (featured table and board left, RedZone rail
+right, chat as a drawer, ticker along the bottom); a phone is one column with
+the featured strip over sticky tabs, opening on the RedZone feed. Dark only
+here, scoped to `.sun`. Watch NFL RedZone links out to the NFL (`REDZONE_URL`)
+and never embeds it. When the provider goes quiet the page keeps every score,
+the chat and the feed on screen and says the stats are delayed.
+
+`/preview/sunday` runs an invented week (`@/lib/fixtures/gamecenter`) —
+sixteen real fixtures, twelve lineups of real players — from Sunday morning
+to Tuesday, with a switch that takes the provider down.
+`tests/e2e/sunday.spec.ts` holds it.
+
 ### The room, on the front page
 
 Tonight's Table answers three questions in the first second. The clubhouse is
