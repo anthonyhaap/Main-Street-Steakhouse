@@ -19,7 +19,7 @@
 -- forward. No browser polls anyone for this; it reads the table, and realtime
 -- tells it when to.
 --
--- DEDUPLICATION. Every event carries a `dedupe_key` that is unique per league,
+-- DEDUPLICATION. Every event carries a `dedupe_key` unique per league and season,
 -- and every insert is `on conflict do nothing`. The keys name the thing that
 -- happened, not the moment it was noticed:
 --
@@ -64,7 +64,10 @@ create table if not exists public.sunday_events (
                      'close_game','upset_watch','red_zone','final')),
   level            smallint not null check (level between 1 and 4),
   priority         integer not null default 0,
-  matchup_id       uuid references public.matchups(id) on delete cascade,
+  -- Set null, not cascade: ff_generate_schedule rebuilds a season by deleting
+  -- its matchups, and a history table that one button could empty would not
+  -- be a history. The event keeps its words, teams and scores without it.
+  matchup_id       uuid references public.matchups(id) on delete set null,
   -- The manager it happened FOR, and the one across the table.
   team_id          uuid references public.teams(id) on delete set null,
   opponent_team_id uuid references public.teams(id) on delete set null,
@@ -83,7 +86,9 @@ create table if not exists public.sunday_events (
   -- The moment of the insert, not of the transaction: one run writes several
   -- events, and the feed's order has to be the order they were written in.
   created_at       timestamptz not null default clock_timestamp(),
-  unique (league_id, dedupe_key)
+  -- Per season: a league carried into next year keeps this year's events,
+  -- and "his first touchdown of week 1" must not collide with last year's.
+  unique (league_id, season, dedupe_key)
 );
 
 create index if not exists sunday_events_week_idx
@@ -420,7 +425,8 @@ begin
          -- away by a correction and restored is already told; the lead change
          -- it brings back is not, and must get its own card below.
          and not exists (select 1 from sunday_events e
-                          where e.league_id = p_league_id and e.dedupe_key = p2.key)
+                          where e.league_id = p_league_id and e.season = v_league.season
+                            and e.dedupe_key = p2.key)
        order by p2.matchup_id, (p2.kind = 'touchdown') desc, p2.delta desc
     ) pick
    where p.matchup_id = pick.matchup_id and p.player_id = pick.player_id;
@@ -476,7 +482,7 @@ begin
     from _sd_p p
     join _sd_t t on t.matchup_id = p.matchup_id
    where p.kind is not null
-  on conflict (league_id, dedupe_key) do nothing;
+  on conflict (league_id, season, dedupe_key) do nothing;
   get diagnostics v_k = row_count; v_n := v_n + v_k;
 
   -- -------------------------------------------------- lead changes --
@@ -510,7 +516,7 @@ begin
     from _sd_t t
    where t.lead_changed
      and not exists (select 1 from _sd_p p where p.matchup_id = t.matchup_id and p.takes_lead)
-  on conflict (league_id, dedupe_key) do nothing;
+  on conflict (league_id, season, dedupe_key) do nothing;
   get diagnostics v_k = row_count; v_n := v_n + v_k;
 
   -- ------------------------------------------------------ close games --
@@ -531,7 +537,7 @@ begin
     from _sd_t t
    where t.late and not t.settled and not t.close_on
      and abs(t.hp - t.ap) <= (w->>'close_margin')::numeric
-  on conflict (league_id, dedupe_key) do nothing;
+  on conflict (league_id, season, dedupe_key) do nothing;
   get diagnostics v_k = row_count; v_n := v_n + v_k;
 
   -- ----------------------------------------------------------- upsets --
@@ -551,7 +557,7 @@ begin
          jsonb_build_object('gap', round(abs(t.hproj - t.aproj), 1))
     from _sd_t t
    where not t.upset_fired and not t.settled and t.dog is not null and t.leader = t.dog
-  on conflict (league_id, dedupe_key) do nothing;
+  on conflict (league_id, season, dedupe_key) do nothing;
   get diagnostics v_k = row_count; v_n := v_n + v_k;
 
   -- ------------------------------------------------------------ finals --
@@ -577,7 +583,7 @@ begin
                             'upset', coalesce(t.dog is not null and t.leader = t.dog, false))
     from _sd_t t
    where t.settled and not t.final_fired
-  on conflict (league_id, dedupe_key) do nothing;
+  on conflict (league_id, season, dedupe_key) do nothing;
   get diagnostics v_k = row_count; v_n := v_n + v_k;
 
   -- ---------------------------------------------------------- red zone --
@@ -609,7 +615,7 @@ begin
    where g.season = v_league.season and g.season_type = 2 and g.week = v_week
      and g.status = 'in' and g.red_zone and g.possession is not null
      and not coalesce(gs.red_zone, false)
-  on conflict (league_id, dedupe_key) do nothing;
+  on conflict (league_id, season, dedupe_key) do nothing;
   get diagnostics v_k = row_count; v_n := v_n + v_k;
 
   -- ------------------------------------------------------ move forward --

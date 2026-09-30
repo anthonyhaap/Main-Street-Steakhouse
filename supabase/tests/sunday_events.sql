@@ -207,6 +207,16 @@ begin
   end if;
   v_checks := v_checks + 1;
 
+  -- Regenerating the schedule deletes the league's matchups. The history
+  -- must survive it: every event stays, only its matchup link goes.
+  v_n := (select count(*) from sunday_events where league_id = v_league);
+  delete from matchups where id = v_m;
+  if (select count(*) from sunday_events where league_id = v_league) <> v_n
+     or exists (select 1 from sunday_events where league_id = v_league and matchup_id is not null) then
+    raise exception 'deleting a matchup took its event history with it';
+  end if;
+  v_checks := v_checks + 1;
+
   raise notice 'sunday_events: % checks passed', v_checks;
 end $$;
 

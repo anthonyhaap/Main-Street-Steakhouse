@@ -14,6 +14,7 @@
  */
 
 import { useState } from "react";
+import { LEAGUE_TZ } from "@/lib/config";
 import { fmt1 } from "@/lib/scoreboard";
 import { eventTag, signed, type SundayEvent } from "@/lib/sunday";
 
@@ -22,7 +23,9 @@ const ago = (iso: string, now: number) => {
   if (m < 1) return "just now";
   if (m < 60) return `${m}m ago`;
   const h = Math.floor(m / 60);
-  return h < 24 ? `${h}h ago` : new Date(iso).toLocaleDateString("en-US", { weekday: "short" });
+  // The league's clock, not the machine's: this renders on the server first,
+  // and a Sunday-night event must read "Sun" there and in the browser alike.
+  return h < 24 ? `${h}h ago` : new Date(iso).toLocaleDateString("en-US", { weekday: "short", timeZone: LEAGUE_TZ });
 };
 
 export function EventFeed({ events, now, onMatchup, onGame }: {
