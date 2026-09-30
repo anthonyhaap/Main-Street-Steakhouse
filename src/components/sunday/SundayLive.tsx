@@ -22,6 +22,7 @@ import { useLive, useServerClock } from "@/lib/live";
 import { useSession } from "@/lib/session";
 import { LEAGUE_ID } from "@/lib/config";
 import { delayed, type SundayBoard } from "@/lib/sunday";
+import { loadSunday } from "@/lib/sunday-load";
 import type { ChatFeed } from "@/lib/types";
 import { TopBar } from "@/components/Shell";
 import { GameCenter, GameCenterSkeleton } from "./GameCenter";
@@ -34,10 +35,7 @@ export function SundayLive({ initial, week }: { initial: SundayBoard | null; wee
   const [hot, setHot] = useState((initial?.games?.in_progress ?? 0) > 0);
 
   const fetcher = useCallback(async (): Promise<SundayBoard> => {
-    const { data, error } = await supabaseBrowser()
-      .rpc("ff_sunday", { p_league_id: LEAGUE_ID, p_week: week });
-    if (error) throw new Error(error.message);
-    const b = data as SundayBoard;
+    const b = await loadSunday(supabaseBrowser(), week);
     setHot((b.games?.in_progress ?? 0) > 0);
     return b;
   }, [week]);

@@ -185,6 +185,10 @@ function LeagueMenu({ path, counts }: { path: string; counts?: { chat: number; l
             <Crown size={14} strokeWidth={1.75} aria-hidden />
             League Home
           </Link>
+          <Link href="/sunday" className="nav__dropdown-item" data-on={isOn(path, "/sunday")} onClick={close}>
+            <Radio size={14} strokeWidth={1.75} aria-hidden />
+            Game Center
+          </Link>
           {LEAGUE_PAGES.map(({ href, label, Icon, badge }) => (
             <Link key={href} href={href} className="nav__dropdown-item" data-on={isOn(path, href)} onClick={close}>
               <Icon size={14} strokeWidth={1.75} aria-hidden />
@@ -263,6 +267,20 @@ export function TopBar({ status }: { status?: WireStatus }) {
         </nav>
 
         <div className="topbar__actions">
+          {/* The game center, one tap from anywhere on a phone. The desktop
+              nav has no width to spare, so there it lives in the League menu
+              and, on a Sunday, in the Matchups slot. */}
+          <Link
+            href="/sunday"
+            className="gc-pill"
+            data-live={gameDay}
+            data-on={isOn(path, "/sunday")}
+            aria-label={gameDay ? "Game Center, live today" : "Game Center"}
+            onTouchStart={() => router.prefetch("/sunday")}
+          >
+            {gameDay ? <i className="gc-pill__dot" aria-hidden /> : <Radio size={14} strokeWidth={2} aria-hidden />}
+            <span>{gameDay ? "Live" : "Game Center"}</span>
+          </Link>
           <Wire status={status} />
           {team && (
             <div style={{ display: "flex", alignItems: "center", gap: "var(--s2)" }}>
@@ -421,6 +439,25 @@ export function TopBar({ status }: { status?: WireStatus }) {
           animation: nav-live 1.6s ease-in-out infinite;
         }
         .tabbar__item { position: relative; }
+
+        /* The top-bar door to the game center: ink, like the room it opens.
+           Phones and tablets only — past 1180px the nav carries it. */
+        .gc-pill {
+          display: none; align-items: center; gap: 6px;
+          min-height: 34px; padding: 0 12px; border-radius: 999px;
+          background: var(--ink-deep); color: var(--ink-text);
+          font: 800 var(--t-micro)/1 var(--sans); letter-spacing: 0.1em; text-transform: uppercase;
+          text-decoration: none; white-space: nowrap;
+          box-shadow: 0 1px 0 #0000000d, 0 4px 14px #1b181426;
+        }
+        .gc-pill[data-live="true"] { background: #b3213f; color: #fff; }
+        .gc-pill[data-on="true"] { outline: 2px solid var(--gold-lit); outline-offset: 2px; }
+        .gc-pill__dot {
+          width: 8px; height: 8px; border-radius: 50%; background: #fff;
+          animation: nav-live 1.6s ease-in-out infinite;
+        }
+        @media (max-width: 1180px) { .gc-pill { display: inline-flex; } }
+        @media (prefers-reduced-motion: reduce) { .gc-pill__dot { animation: none; } }
         .nav__live--tab { position: absolute; top: 10px; left: calc(50% + 10px); margin: 0; }
         @keyframes nav-live { 0%, 100% { opacity: 1 } 50% { opacity: .4 } }
         @media (prefers-reduced-motion: reduce) { .nav__live { animation: none; } }

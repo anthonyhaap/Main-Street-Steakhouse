@@ -358,9 +358,14 @@ mistake cannot re-open it, makes the function refuse a caller with no
 
 `/sunday` is the game center: NFL RedZone on the television, this on the
 phone. RedZone says what is happening around the NFL; the game center says
-why it matters to *this* league. On a Sunday it takes the Matchups slot in
-the nav, with a red dot; every other day it is in More, and linked from the
-board.
+why it matters to *this* league. On a phone or tablet it is a button in the
+top bar on every screen — red and pulsing on a Sunday — and on a Sunday it
+also takes the Matchups slot in the nav. On a laptop it is in the League menu
+the rest of the week, and linked from the board.
+
+It opens before its migration is applied: `src/lib/sunday-load.ts` falls back
+to `ff_scoreboard` plus the week's `nfl_games` rows when `ff_sunday` is not
+there yet, and only possession and the red zone wait for the migration.
 
 It reads one call. `ff_sunday(league_id, week)` is `ff_scoreboard` with the
 week's NFL games beside it: score, state, and — new — who has the ball and

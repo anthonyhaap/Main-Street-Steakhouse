@@ -111,3 +111,20 @@ test("Watch NFL RedZone links out and embeds nothing", async ({ page }) => {
   await expect(a).toHaveAttribute("rel", /noopener/);
   await expect(page.locator(".sun iframe, .sun video")).toHaveCount(0);
 });
+
+test("the game center is one tap from any screen", async ({ page }, info) => {
+  await page.goto("/preview/tonight");
+  const pill = page.locator(".gc-pill");
+  if (info.project.name === "mobile") {
+    // A phone: the button in the top bar, on every page, never behind More.
+    await expect(pill).toBeVisible();
+    await expect(pill).toHaveAttribute("href", "/sunday");
+    const box = (await pill.boundingBox())!;
+    expect(box.height).toBeGreaterThanOrEqual(34);
+  } else {
+    // A laptop: the nav has no room for it, so it is in the League menu.
+    await expect(pill).toBeHidden();
+    await page.getByRole("button", { name: "League" }).click();
+    await expect(page.getByRole("link", { name: "Game Center" })).toHaveAttribute("href", "/sunday");
+  }
+});

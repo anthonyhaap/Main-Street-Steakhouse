@@ -1,6 +1,6 @@
 import { supabaseServer } from "@/lib/supabase/server";
-import { LEAGUE_ID } from "@/lib/config";
 import type { SundayBoard } from "@/lib/sunday";
+import { loadSunday } from "@/lib/sunday-load";
 import { SundayLive } from "@/components/sunday/SundayLive";
 
 /**
@@ -20,8 +20,9 @@ export default async function Page({ searchParams }: {
   const week = Number.isInteger(asked) && asked >= 1 ? asked : null;
 
   const supabase = await supabaseServer();
-  const { data, error } = await supabase.rpc("ff_sunday", { p_league_id: LEAGUE_ID, p_week: week });
-  const initial: SundayBoard | null = !error && data ? (data as SundayBoard) : null;
+  // A failure here is not the page's failure: the browser fetches again on
+  // mount and shows its own error if that fails too.
+  const initial: SundayBoard | null = await loadSunday(supabase, week).catch(() => null);
 
   return <SundayLive initial={initial} week={week} />;
 }
