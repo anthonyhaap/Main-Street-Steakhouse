@@ -57,6 +57,10 @@ function TableSide({ r, side, team, live, me }: {
   return (
     <div className="table__side" data-lead={lead} data-mine={mine}>
       <Seal name={team?.name ?? "—"} src={crestUrl(team?.logo_path)} mine={mine} size={30} />
+      {/* No door to the desk here, deliberately: the whole card is already a
+          link to the full scoreboard, and an anchor cannot hold another one.
+          The tables in this carousel are a glance at six games, and the games
+          are what they open — every name on the board they open is a door. */}
       <span className="table__name">
         <b>{team?.name ?? "—"}</b>
         {team?.manager_name && <i>{team.manager_name}</i>}

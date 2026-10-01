@@ -1,11 +1,10 @@
 "use client";
 
 import { useMemo } from "react";
-import Link from "next/link";
 import { Trophy } from "lucide-react";
 import type { Outlook } from "@/lib/types";
 import { SIMS, oddsCanSeparate, projectPlayoffs, rankKey, type PlayoffProjection } from "@/lib/playoffs";
-import { Seal, SkeletonRows, fmtPts } from "@/components/ui";
+import { Seal, SkeletonRows, TeamLink, fmtPts } from "@/components/ui";
 import { Meter } from "@/components/dash";
 
 /**
@@ -130,13 +129,22 @@ export function StandingsBoard({ outlook, myTeamId, crestOf }: {
                         {separable ? i + 1 : "–"}
                       </td>
                       <td style={{ padding: "var(--s3) var(--s4)" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: "var(--s2)" }}>
+                        {/* Every team is a door to its desk — yours included,
+                            which is just /team. The crest and the manager's
+                            name are inside the door with the team's: the three
+                            of them are what a thumb aims at, and the name on
+                            its own is eight characters of target. */}
+                        <TeamLink
+                          id={t.id}
+                          name={t.name}
+                          mine={mine}
+                          className="tdoor"
+                          style={{ display: "flex", alignItems: "center", gap: "var(--s2)" }}
+                        >
                           <Seal name={t.name} src={crestOf?.(t.id) ?? null} mine={mine} size={28} />
                           <div style={{ minWidth: 0 }}>
-                            {/* Every name is a door to that team's desk —
-                                yours included, which is just /team. */}
                             <div style={{ whiteSpace: "nowrap", fontWeight: mine ? 600 : 500 }}>
-                              <Link className="tlink" href={mine ? "/team" : `/team?id=${t.id}`}>{t.name}</Link>
+                              {t.name}
                             </div>
                             {t.manager_name && (
                               <div style={{ fontSize: "var(--t-micro)", color: "var(--dim)", whiteSpace: "nowrap", marginTop: 1 }}>
@@ -144,7 +152,7 @@ export function StandingsBoard({ outlook, myTeamId, crestOf }: {
                               </div>
                             )}
                           </div>
-                        </div>
+                        </TeamLink>
                       </td>
                       <td className="num" style={cell}>{t.wins}</td>
                       <td className="num" style={cell}>{t.losses}</td>

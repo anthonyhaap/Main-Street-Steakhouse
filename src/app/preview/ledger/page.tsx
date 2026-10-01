@@ -17,6 +17,7 @@
 import { useState } from "react";
 import { TopBar } from "@/components/Shell";
 import { Ledger, type LedgerFilter } from "@/components/ledger/Ledger";
+import { teamIdsByName } from "@/lib/team-link";
 import type { LedgerEntry } from "@/lib/types";
 
 /* Anchored to local midnight rather than to "hours ago", which is not the same
@@ -82,6 +83,19 @@ const ENTRIES: LedgerEntry[] = [
   },
 ];
 
+/**
+ * The invented league behind the invented week, so the names in these sentences
+ * can be resolved to desks the way the real screen resolves them against the
+ * session. `BRISKET` is deliberately left out: a team the list cannot place —
+ * one that has been renamed since the move, in the real thing — must still read
+ * as plain text, and this is where that is asserted.
+ */
+const TEAMS = [
+  { id: "t1", name: BUTCHERS },
+  { id: "t4", name: CHUCK },
+];
+const teamIdOf = teamIdsByName(TEAMS);
+
 export default function PreviewLedger() {
   const [empty, setEmpty] = useState(false);
   const [filter, setFilter] = useState<LedgerFilter>("all");
@@ -109,6 +123,8 @@ export default function PreviewLedger() {
           teams={[BRISKET, CHUCK, BUTCHERS]}
           onFilter={setFilter}
           onTeam={setTeam}
+          teamIdOf={teamIdOf}
+          myTeamId="t4"
         />
       </main>
     </>

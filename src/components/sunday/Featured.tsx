@@ -12,7 +12,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ChevronDown } from "lucide-react";
-import { Seal } from "@/components/ui";
+import { Seal, TeamLink } from "@/components/ui";
 import { crestUrl } from "@/lib/crest";
 import {
   cardState, fmt1, gameMark, pctLabel, projectedFinal, who, winOdds, leader,
@@ -134,13 +134,13 @@ function TeamBlock({ s, k, card, pre, lead, phase, flash }: {
   return (
     <div key={flash} className="sun-team" data-key={k} data-lead={lead === null ? undefined : lead === k}
       data-flash={flash > 0}>
-      <div className="sun-team__id">
+      <TeamLink id={s.team_id} name={s.name} mine={s.mine} className="sun-team__id tdoor">
         <Seal name={s.name} src={crestUrl(s.logo_path)} mine={s.mine} size={40} />
         <span className="sun-team__names">
           <span className="sun-team__who">{who(s)}{s.mine ? " · You" : ""}</span>
           <span className="sun-team__sub">{s.name} · {s.wins}-{s.losses}{s.ties ? `-${s.ties}` : ""}</span>
         </span>
-      </div>
+      </TeamLink>
       {pre
         ? <span className="sun-team__pts">{fmt1(s.proj)}</span>
         : <LiveScore value={Number(s.points)} className="sun-team__pts" />}
