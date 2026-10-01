@@ -83,6 +83,28 @@ begin
     (v_wr, v_game, 2026, 2, v_week, '{"rec":3,"rec_yd":40}', 'sleeper'),
     (v_te, v_game, 2026, 2, v_week, '{"rec":3,"rec_yd":30}', 'sleeper');
 
+  -- A second table that has not kicked off, with an underdog on paper: no
+  -- leader yet, but a projected one. Real weeks are full of these, and a
+  -- leader of NULL compared against the underdog is NULL, not false — the
+  -- every-minute update once wrote that NULL into a NOT NULL flag.
+  insert into nfl_teams (id, name, espn_id) values ('SEC','Gammas','SEC'), ('SED','Deltas','SED')
+  on conflict (id) do nothing;
+  insert into nfl_games (espn_event_id, season, season_type, week, home_team, away_team,
+                         kickoff_at, status, status_detail)
+  values ('se-2', 2026, 2, v_week, 'SEC', 'SED', now() + interval '3 hours', 'pre', 'Sun 4:25 PM');
+  declare v_c uuid; v_d uuid; v_cp uuid; v_dp uuid;
+  begin
+    insert into teams (league_id, name, manager_name) values (v_league, 'Charlie', 'Cy') returning id into v_c;
+    insert into teams (league_id, name, manager_name) values (v_league, 'Delta', 'Di') returning id into v_d;
+    insert into matchups (league_id, week, home_team_id, away_team_id) values (v_league, v_week, v_c, v_d);
+    insert into players (full_name, position, nfl_team) values ('Later Runner','RB','SEC') returning id into v_cp;
+    insert into players (full_name, position, nfl_team) values ('Later Receiver','WR','SED') returning id into v_dp;
+    insert into rosters (team_id, player_id, week, slot) values (v_c, v_cp, v_week, 'RB'), (v_d, v_dp, v_week, 'WR');
+    insert into player_projections (player_id, season, season_type, week, stats, source) values
+      (v_cp, 2026, 2, v_week, '{"rush_yd":50}', 'sleeper'),        -- 5
+      (v_dp, 2026, 2, v_week, '{"rec":10,"rec_yd":100}', 'sleeper'); -- 20: Cy is the underdog
+  end;
+
   -- ------------------------------------------------------- the first look --
   v_n := public.ff_sunday_detect(v_league, v_week);
   if v_n <> 0 or exists (select 1 from sunday_events where league_id = v_league) then
