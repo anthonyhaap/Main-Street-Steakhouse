@@ -153,14 +153,158 @@ test("the desk says when waivers settle and opens onto the pool", async ({ page 
 });
 
 /**
- * The standings are the front door to the other desks: every team's name is a
- * link to `/team?id=`, and your own is plain `/team`.
+ * The standings are the front door to the other desks: every team is a link to
+ * `/team?id=`, and your own is plain `/team`.
+ *
+ * The door is `.tdoor` — the crest, the name and the manager inside one anchor
+ * — rather than `.tlink` around the name alone. A name is eight characters of
+ * target next to a 28-pixel crest that used to do nothing, and on a phone the
+ * difference decided whether the feature was reachable.
  */
 test("the standings link every team to its desk", async ({ page }) => {
   await page.goto("/preview/standings");
-  const links = page.locator("table a.tlink");
+  const links = page.locator("table a.tdoor");
   await expect(links).toHaveCount(12);
   // The fixture signs in as t4: that row goes home, the other eleven go visiting.
-  await expect(page.locator('table a.tlink[href="/team"]')).toHaveCount(1);
-  await expect(page.locator('table a.tlink[href^="/team?id=t"]')).toHaveCount(11);
+  await expect(page.locator('table a.tdoor[href="/team"]')).toHaveCount(1);
+  await expect(page.locator('table a.tdoor[href^="/team?id=t"]')).toHaveCount(11);
+
+  // The crest is inside the door, not beside it.
+  const visiting = page.locator('table a.tdoor[href^="/team?id=t"]').first();
+  await expect(visiting.locator(".seal")).toHaveCount(1);
+  // And the door says what it opens, which the team's name alone does not.
+  await expect(visiting).toHaveAttribute("aria-label", /^Open .+'s roster$/);
+  await expect(page.locator('table a.tdoor[href="/team"]'))
+    .toHaveAttribute("aria-label", "Open your roster");
+});
+
+/**
+ * Every board that draws a team draws a door to its roster, not just the
+ * standings — the complaint this answers was that clicking a team on the
+ * Sunday board did nothing at all.
+ *
+ * One test over several fixtures rather than one per page: the thing worth
+ * pinning down is that the rule is league-wide, and the rule is one helper.
+ */
+test("every board opens a team's roster", async ({ page }) => {
+  // The scoreboard: both sides of every card, crest and record inside the door.
+  // Three games in the fixture, so six sides — one of them the reader's own,
+  // which goes to plain `/team`.
+  await page.goto("/preview/matchups");
+  const sides = page.locator("a.sb__who[href^='/team']");
+  await expect(sides).toHaveCount(6);
+  await expect(sides.first().locator(".seal")).toHaveCount(1);
+  await expect(page.locator("a.sb__who[href='/team']")).toHaveCount(1);
+
+  // The power rankings, beneath the table that disagrees with them.
+  await page.goto("/preview/standings");
+  await expect(page.locator(".pwr a[href^='/team']")).toHaveCount(12);
+
+  // The clubhouse scoreline — both sides of tonight's game. The six tables in
+  // the carousel under it are each one link to the full scoreboard already, so
+  // they hold no door of their own; the board they open is full of them.
+  await page.goto("/preview/tonight");
+  await expect(page.locator("a.tt__who[href^='/team']")).toHaveCount(2);
+  await expect(page.locator("a.table__name")).toHaveCount(0);
+
+  // Sunday Live's featured game, both sides of it.
+  await page.goto("/preview/sunday");
+  await expect(page.locator("a.sun-team__id[href^='/team']")).toHaveCount(2);
+});
+
+/**
+ * A door with nowhere to go is still drawn, and is still inert.
+ *
+ * The clubhouse's scoreline doubles as the draft clock and the countdown to the
+ * doors, and those sides are a number with a caption rather than a team. They
+ * keep the block that lays them out — otherwise the bar reflows on a Tuesday —
+ * so the anchor is there with no `href` on it.
+ */
+test("a side that is not a team is not a door", async ({ page }) => {
+  await page.goto("/preview/tonight");
+  for (const el of await page.locator("a.tt__who").all()) {
+    const href = await el.getAttribute("href");
+    if (href !== null) expect(href).toMatch(/^\/team/);
+  }
+});
+
+/**
+ * The trade desk names teams in three places, and every one of them is a door
+ * built from an id the offer payload already carried — `proposer_team_id` and
+ * `receiver_team_id`, never the name it prints.
+ *
+ * Which end of the offer gets named depends on which way it went, so the test
+ * checks the id as well as the count: a door that opened the wrong side of a
+ * trade would still look right.
+ */
+test("the trade desk opens the team across the table", async ({ page }) => {
+  await page.goto("/preview/trades");
+
+  // The live offer in the fixture came FROM t2 to the reader, so the header
+  // names the proposer, not the reader.
+  await expect(page.getByRole("link", { name: "Open Prime Cut's roster" }).first())
+    .toHaveAttribute("href", "/team?id=t2");
+
+  // The block: a listing of the reader's own goes to plain /team, somebody
+  // else's to their desk.
+  const block = page.locator(".row", { hasText: "want a back" });
+  await expect(block.locator("a[href='/team?id=t2']")).toHaveCount(1);
+
+  // Settled offers the reader sent name the receiver.
+  await expect(page.locator("a[href='/team?id=t8']")).toHaveCount(1);
+  await expect(page.locator("a[href='/team?id=t12']")).toHaveCount(1);
+});
+
+/**
+ * The ledger is the one screen with no team ids to link by — `ff_transactions`
+ * records each side of a move as a name, because the row is read as a sentence.
+ * So the names are resolved against the league's own team list.
+ *
+ * The fixture's list deliberately omits one of the teams in the week, which is
+ * what a team renamed since the move looks like. That name has to stay plain
+ * text: a door built on a near-miss would open a roster that had nothing to do
+ * with the move being read.
+ */
+test("the ledger opens the teams it can place, and only those", async ({ page }) => {
+  await page.goto("/preview/ledger");
+
+  // Scoped to the entries: every team in the week is also an <option> in the
+  // filter above them, and an option is not a door however it reads.
+  const rows = page.locator(".rows");
+
+  // Placed: Chuck Wagon is the reader (plain /team), the Butchers are visited.
+  await expect(rows.locator("a[href='/team?id=t1']").first()).toBeVisible();
+  await expect(rows.locator("a[href='/team']").first()).toBeVisible();
+
+  // Not placed: Brisket Brigade is absent from the fixture's league, so it is
+  // named without being linked — and still rendered.
+  await expect(rows.getByText("Brisket Brigade").first()).toBeVisible();
+  await expect(rows.getByRole("link", { name: /Brisket Brigade/ })).toHaveCount(0);
+});
+
+/**
+ * The waiver order is the wire's one list of other teams, and `ff_waiver_board`
+ * gives it as names and priorities — so it resolves the same way the ledger
+ * does, with the same two misses.
+ *
+ * The row already knew which one was the reader's, for the "you" marker. The
+ * door reads that same answer: a row badged "you" whose link opened somebody
+ * else's desk would be the two of them disagreeing in public, so the test
+ * asserts they agree.
+ */
+test("the waiver order opens the teams ahead of you", async ({ page }) => {
+  await page.goto("/preview/waivers");
+  const order = page.locator(".card", { hasText: "Waiver order" }).locator(".rows");
+
+  // Four of the five are in the fixture's league: three visits and the reader.
+  await expect(order.locator("a[href^='/team?id=']")).toHaveCount(3);
+
+  // The row marked "you" is the one that goes home, not to a ?id=.
+  const you = order.locator(".row", { hasText: "you" });
+  await expect(you.locator("a[href='/team']")).toHaveCount(1);
+  await expect(you).toContainText("Gridiron Butchers");
+
+  // And the one the league list cannot place is named without being linked.
+  await expect(order.getByText("Brisket Brigade")).toBeVisible();
+  await expect(order.getByRole("link", { name: /Brisket Brigade/ })).toHaveCount(0);
 });

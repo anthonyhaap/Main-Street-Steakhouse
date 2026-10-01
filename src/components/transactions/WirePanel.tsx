@@ -10,14 +10,19 @@ import { useLive, type WireStatus } from "@/lib/live";
 import { useSession } from "@/lib/session";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import type { WaiverBoard, WaiverPlayer } from "@/lib/types";
+import { teamIdsByName } from "@/lib/team-link";
 
 /** The waiver wire: what settles when, what you have asked for, and in what
  *  order the run will answer you. */
 export function WirePanel({ onStatus }: { onStatus?: (s: WireStatus) => void }) {
-  const { ready, team } = useSession();
+  const { ready, team, teams: leagueTeams } = useSession();
   const toast = useToast();
   const [claiming, setClaiming] = useState<WaiverPlayer | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+
+  // The waiver order arrives as names and priorities, so the league's own list
+  // is what turns a row in the queue into a door to that team's desk.
+  const teamIdOf = useMemo(() => teamIdsByName(leagueTeams), [leagueTeams]);
 
   const fetcher = useCallback(async () => {
     if (!team) return null;
@@ -126,6 +131,7 @@ export function WirePanel({ onStatus }: { onStatus?: (s: WireStatus) => void }) 
           () => supabaseBrowser().rpc("ff_cancel_waiver_claim", { p_claim_id: id }),
           `Claim on ${name} withdrawn.`)}
         onMove={move}
+        teamIdOf={teamIdOf}
       />
 
       {claiming && (

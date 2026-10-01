@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState, type ReactNode } from "react";
-import Link from "next/link";
 import { Eye, Pencil, Wand2 } from "lucide-react";
 import { buildInsights, myNews } from "@/lib/nfl/insights";
 import { injuriesByPlayer } from "@/lib/nfl/wire";
@@ -9,7 +8,7 @@ import { buildLineup, slotOk } from "@/lib/nfl/lineup";
 import type { MatchupCurve } from "@/lib/nfl/matchup";
 import type { GameWeather } from "@/lib/nfl/venues";
 import type { HubPlayer, TeamHub, Wire } from "@/lib/nfl/types";
-import { Seal, useCountUp } from "@/components/ui";
+import { Seal, TeamLink, useCountUp } from "@/components/ui";
 import { PlayerRow } from "@/components/team/Lineup";
 import { Coach } from "@/components/team/Coach";
 import { InsightBoard, NewsWire, TeamStats } from "@/components/team/Rail";
@@ -185,7 +184,9 @@ export function TeamDesk({
                     away, the same way this one was from the standings. */}
                 <h1>
                   {hub.matchup
-                    ? <Link className="tlink" href={`/team?id=${hub.matchup.opponent.id}`}>{hub.matchup.opponent.name}</Link>
+                    ? <TeamLink id={hub.matchup.opponent.id} name={hub.matchup.opponent.name}>
+                        {hub.matchup.opponent.name}
+                      </TeamLink>
                     : "No opponent"}
                 </h1>
                 <div className="th-side__meta">

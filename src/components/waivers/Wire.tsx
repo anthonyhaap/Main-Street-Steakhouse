@@ -3,6 +3,7 @@
 import { ArrowDown, ArrowUp, Clock, Gavel, Trash2 } from "lucide-react";
 import type { WaiverBoard, WaiverPlayer } from "@/lib/types";
 import { when } from "@/lib/waivers";
+import { TeamLink } from "@/components/ui";
 
 export { when };
 
@@ -14,7 +15,7 @@ export { when };
  * page above it owns the fetching and the RPCs; everything here is props.
  */
 export function Wire({
-  board, teamName, busy, claimed, onClaim, onCancelClaim, onMove,
+  board, teamName, busy, claimed, onClaim, onCancelClaim, onMove, teamIdOf,
 }: {
   board: WaiverBoard;
   teamName: string;
@@ -23,6 +24,15 @@ export function Wire({
   onClaim: (p: WaiverPlayer) => void;
   onCancelClaim: (claimId: string, playerName: string) => void;
   onMove: (index: number, by: -1 | 1) => void;
+  /**
+   * A team's id from its name — `teamIdsByName` over the league's own list.
+   * The waiver order is the one list on this screen that names other teams, and
+   * `ff_waiver_board` gives it as `{ team, priority }` with no id to link by.
+   *
+   * Optional, and absent in the fixture: `/preview/waivers` has no session to
+   * resolve against, so the order reads as the plain text it always was.
+   */
+  teamIdOf?: (name: string) => string | null;
 }) {
   return (
     <>
@@ -121,16 +131,24 @@ export function Wire({
           <span className="eyebrow">win a claim, go to the back</span>
         </div>
         <div className="rows">
-          {board.order.map((o) => (
-            <div className="row" key={o.team}>
-              <span className="num" style={{ width: 22, color: "var(--faint)", textAlign: "right" }}>
-                {o.priority ?? "–"}
-              </span>
-              <div style={{ flex: 1 }}>
-                {o.team}{o.team === teamName && <span className="eyebrow" style={{ marginLeft: 8 }}>you</span>}
+          {board.order.map((o) => {
+            // Whose row this is was already decided by name, for the "you"
+            // marker. The door reads the same answer rather than a second one:
+            // a row badged "you" that opened somebody else's desk would be the
+            // two of them disagreeing in public.
+            const mine = o.team === teamName;
+            return (
+              <div className="row" key={o.team}>
+                <span className="num" style={{ width: 22, color: "var(--faint)", textAlign: "right" }}>
+                  {o.priority ?? "–"}
+                </span>
+                <div style={{ flex: 1 }}>
+                  <TeamLink id={teamIdOf?.(o.team) ?? null} name={o.team} mine={mine}>{o.team}</TeamLink>
+                  {mine && <span className="eyebrow" style={{ marginLeft: 8 }}>you</span>}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
