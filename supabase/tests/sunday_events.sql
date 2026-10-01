@@ -1,7 +1,7 @@
 -- ============================================================================
 -- The Fantasy RedZone event engine: says what happened, once.
 --
--- `20261001120000_sunday_events` diffs the week against a snapshot every
+-- `20260930235409_sunday_events` diffs the week against a snapshot every
 -- minute and writes what changed. Its failure modes are the ones a feed is
 -- judged by: posting the whole afternoon at once when it is switched on,
 -- posting the same touchdown three times because Sleeper sent it three

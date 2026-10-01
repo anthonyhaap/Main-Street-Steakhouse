@@ -51,7 +51,7 @@ export type NflGame = {
 /**
  * One Fantasy RedZone event, as `ff_sunday` sends it in `events`: something
  * that happened between two looks at the week, written once by the server's
- * `ff_sunday_detect` and never again. See `20261001120000_sunday_events`.
+ * `ff_sunday_detect` and never again. See `20260930235409_sunday_events`.
  */
 export type EventType =
   | "touchdown" | "big_play" | "scoring" | "turnover" | "lead_change"
