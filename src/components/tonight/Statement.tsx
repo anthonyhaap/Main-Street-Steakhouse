@@ -67,7 +67,7 @@ export function Statement() {
 
       <footer className="memo__sign">
         <p>Respectfully,</p>
-        <p className="memo__hand" aria-hidden="true">Twan</p>
+        <p className="memo__hand">Twan</p>
         <p>Commissioner<br />Main Street Steakhouse League</p>
       </footer>
       <p className="memo__note">AI was not used in the publishing of this statement.</p>
