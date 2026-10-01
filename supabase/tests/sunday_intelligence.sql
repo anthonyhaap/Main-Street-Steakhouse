@@ -1,7 +1,7 @@
 -- ============================================================================
 -- Steakhouse Sunday, phase 4: what the league knows, and the rare moments.
 --
--- `20261001120000_sunday_intelligence` hands the page the facts its storylines
+-- `20261001034741_sunday_intelligence` hands the page the facts its storylines
 -- are written from, lets the commissioner tune the excitement weights, and
 -- writes three Steakhouse moments the detector could not see. The ways that
 -- goes wrong are quiet ones: a streak counted across a week that was not over,
