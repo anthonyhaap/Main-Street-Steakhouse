@@ -14,7 +14,7 @@
  * exercised rather than frozen into a date nobody is on.
  */
 
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { TopBar } from "@/components/Shell";
 import { Ledger, type LedgerFilter } from "@/components/ledger/Ledger";
 import { teamIdsByName } from "@/lib/team-link";
@@ -111,7 +111,19 @@ const TEAMS = [
 ];
 const teamIdOf = teamIdsByName(TEAMS);
 
+/* The dates above are read from the clock when the module loads, and the page
+ * is prerendered at build time — so the server's HTML says what time the build
+ * ran, the browser says what time it is now, and React refuses to hydrate one
+ * into the other (#418) as soon as a minute has passed between them. The
+ * ledger is therefore drawn in the browser only: the server snapshot says
+ * "not yet", the client's says "now", and React swaps one for the other after
+ * hydration without calling it a mismatch. */
+const noSubscription = () => () => {};
+const inBrowser = () => true;
+const onServer = () => false;
+
 export default function PreviewLedger() {
+  const hydrated = useSyncExternalStore(noSubscription, inBrowser, onServer);
   const [empty, setEmpty] = useState(false);
   const [filter, setFilter] = useState<LedgerFilter>("all");
   const [team, setTeam] = useState("");
@@ -131,7 +143,7 @@ export default function PreviewLedger() {
           </div>
         </div>
 
-        <Ledger
+        {hydrated && <Ledger
           entries={entries}
           filter={filter}
           team={team}
@@ -140,7 +152,7 @@ export default function PreviewLedger() {
           onTeam={setTeam}
           teamIdOf={teamIdOf}
           myTeamId="t4"
-        />
+        />}
       </main>
     </>
   );
