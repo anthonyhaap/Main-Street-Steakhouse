@@ -21,7 +21,7 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 import { useLive, useServerClock } from "@/lib/live";
 import { useSession } from "@/lib/session";
 import { LEAGUE_ID } from "@/lib/config";
-import { delayed, toggleReaction, type SundayBoard } from "@/lib/sunday";
+import { delayed, toggleReaction, type RecapExtras, type SundayBoard } from "@/lib/sunday";
 import { useUnreadCounts } from "@/lib/unread";
 import { loadSunday } from "@/lib/sunday-load";
 import type { ChatFeed } from "@/lib/types";
@@ -103,6 +103,25 @@ export function SundayLive({ initial, week }: { initial: SundayBoard | null; wee
     await refetch();
   }, [refetch]);
 
+  // Tuesday's recap reads a little more than the board: the swings, the bets,
+  // the best line. Asked for once the week's last game is over — a live
+  // Sunday pays nothing for it — and absent, not an error, a migration behind.
+  const over = !!data && (data.games?.total ?? 0) > 0 && data.games.final === data.games.total;
+  const recapWeek = data?.week ?? null;
+  const recapFetcher = useCallback(async (): Promise<RecapExtras | null> => {
+    if (recapWeek === null) return null;
+    const { data: r, error: e } = await supabaseBrowser()
+      .rpc("ff_sunday_recap", { p_league_id: LEAGUE_ID, p_week: recapWeek });
+    if (e) return null;
+    return r as RecapExtras;
+  }, [recapWeek]);
+  const recapExtras = useLive<RecapExtras | null>(recapFetcher, {
+    tables: ["challenges", "reactions"],
+    channel: "sunday-recap",
+    pollMs: 300000,
+    enabled: ready && over,
+  });
+
   const unread = useUnreadCounts();
 
   // Server time, the same as every clock in the app.
@@ -140,6 +159,14 @@ export function SundayLive({ initial, week }: { initial: SundayBoard | null; wee
           chatError={chatError ?? chat.error}
           onReact={react}
           onTune={tune}
+          recapExtras={recapExtras.data ?? null}
+          weeks={{
+            prev: board.week > 1 ? `/sunday?week=${board.week - 1}` : null,
+            // Forward only from a Sunday that was asked for; the page without
+            // a week is already this one.
+            next: week !== null ? `/sunday?week=${board.week + 1}` : null,
+            current: week !== null ? "/sunday" : null,
+          }}
           unreadChat={unread?.chat ?? 0}
         />
       )}

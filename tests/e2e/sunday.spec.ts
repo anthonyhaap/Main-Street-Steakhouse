@@ -352,3 +352,35 @@ test("the commissioner's weights decide the featured table, and are bounded", as
   await expect(tune.getByRole("status")).toContainText("Saved");
   await expect(page.locator(".sun-why")).toContainText("rivalry");
 });
+
+/* ----------------------------------------------------- phase 5: history -- */
+
+test("Tuesday's recap keeps the whole day", async ({ page }) => {
+  await page.goto("/preview/sunday");
+  await stage(page, "Tuesday");
+  const recap = page.locator("[data-panel='recap']");
+  await expect(recap.locator(".sun-tile", { hasText: "Biggest comeback" })).toContainText("from 8.9 down");
+  await expect(recap.locator(".sun-tile", { hasText: "Biggest fantasy play" })).toContainText("Puka Nacua");
+  await expect(recap.locator(".sun-tile", { hasText: "Most reacted-to moment" })).toContainText("Lou takes the lead over Gus");
+  await expect(recap.locator(".sun-recap__quote")).toContainText("absolute fraud");
+  await expect(recap.locator(".sun-recap__quote")).toContainText("Sal · 7 reactions");
+  // A settled bet says who won; an open one does not pretend to.
+  await expect(recap.locator(".sun-recap__list li", { hasText: "Dev outscores Ray" })).toContainText("Dev won");
+  await expect(recap.locator(".sun-recap__list li", { hasText: "Packers -3.5" })).toContainText("still to settle");
+  await expect(recap.locator(".sun-recap__list li", { hasText: "Gus v Lou" })).toContainText("Lou in front · 103.6–97.1");
+  // And the feed is still there to scroll back through.
+  await expect(page.locator(".sun-evfeed")).toContainText("Lou takes the lead over Gus");
+});
+
+test("the wall keeps Sunday: moments, records and every manager's line", async ({ page }) => {
+  await page.goto("/preview/history");
+  const wall = page.locator(".sunday-wall");
+  await expect(wall).toContainText("27 Sundays on record");
+  const moments = wall.locator(".card", { hasText: "Memorable moments" });
+  await expect(moments.locator(".ledger__row").first()).toContainText("Lou takes the lead over Gus");
+  // This season's moment opens its Sunday; an older one is a line on the wall.
+  await expect(moments.getByRole("link", { name: /Lou takes the lead over Gus/ })).toHaveAttribute("href", "/sunday?week=12");
+  await expect(moments.getByRole("link", { name: /Vic sets the season high/ })).toHaveCount(0);
+  await expect(wall.locator(".card", { hasText: "Sunday records" })).toContainText("Biggest comeback: Anthony over Marcus");
+  await expect(wall.locator(".sunday-lines tbody tr")).toHaveCount(12);
+});

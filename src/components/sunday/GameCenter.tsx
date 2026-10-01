@@ -23,7 +23,7 @@ import { freshness, slateLine } from "@/lib/scoreboard";
 import {
   alerts as alertsOf, closeGames, eventContext, excitement, featured, intelContext, liveMoment, storylines,
   sundayPhase, talkContext, tickerItems, weightsFrom,
-  type CardContext, type Phase, type SundayBoard, type SundayEvent, type TickerTarget,
+  type CardContext, type Phase, type RecapExtras, type SundayBoard, type SundayEvent, type TickerTarget,
 } from "@/lib/sunday";
 import type { ChatItem } from "@/lib/types";
 import { Featured } from "./Featured";
@@ -54,12 +54,20 @@ export type GameCenterProps = {
   context?: Record<string, CardContext>;
   /** The commissioner's save for the excitement weights. */
   onTune?: (changes: Record<string, number | null>) => Promise<void>;
+  /** What the recap needs beyond the board, once the week is over. */
+  recapExtras?: RecapExtras | null;
+  /**
+   * Links to the Sundays either side of this one. Absent where there is
+   * nowhere to go — the preview runs one invented week.
+   */
+  weeks?: { prev: string | null; next: string | null; current: string | null };
 };
 
 const PHONE = "(max-width: 960px)";
 
 export function GameCenter({
   board, now, delayed = false, chat, onSend, chatError, context, onReact, onTune, unreadChat = 0,
+  recapExtras = null, weeks,
 }: GameCenterProps) {
   const phase: Phase = sundayPhase(board, now);
   const [desk, setDesk] = useState<Desk>("center");
@@ -150,7 +158,10 @@ export function GameCenter({
         <div className="sun-head__title">
           <h1><span aria-hidden>🥩 </span>{phase === "final" ? "Sunday at the Steakhouse" : "Steakhouse Sunday"}</h1>
           <div className="sun-head__meta">
+            {weeks?.prev && <a className="sun-week" href={weeks.prev} aria-label={`Week ${board.week - 1}`}>‹</a>}
             <span>Week {board.week}</span>
+            {weeks?.next && <a className="sun-week" href={weeks.next} aria-label={`Week ${board.week + 1}`}>›</a>}
+            {weeks?.current && <a className="sun-week" href={weeks.current}>This Sunday</a>}
             <span aria-hidden>•</span>
             <span className="sun-live" data-phase={phase}><i aria-hidden />{phaseWord}</span>
             <span className="sun-fresh">
@@ -196,7 +207,7 @@ export function GameCenter({
 
       <div className="sun-grid">
         <div className="sun-main">
-          {phase === "final" && <Recap board={board} onMatchup={openMatchup} />}
+          {phase === "final" && <Recap board={board} extras={recapExtras} onMatchup={openMatchup} />}
           {focus && auto && (
             <Featured
               card={focus} label={auto.label} auto={!pickedCard} phase={phase} now={now}

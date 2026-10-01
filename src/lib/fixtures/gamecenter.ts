@@ -18,7 +18,7 @@
  */
 
 import type { ScoreCard, ScoreSide, ScoreStarter, Talk } from "@/lib/scoreboard";
-import type { ActivityItem, Intel, NflGame, SundayBoard, SundayEvent, TableRow } from "@/lib/sunday";
+import type { ActivityItem, Intel, NflGame, RecapExtras, SundayBoard, SundayEvent, SundayHistory, TableRow } from "@/lib/sunday";
 import type { ChatItem } from "@/lib/types";
 
 export type GcStage = "pre" | "early" | "late" | "final";
@@ -478,4 +478,55 @@ export function gcActivity(stage: GcStage): ActivityItem[] {
     ...(stage === "final" ? stampAct(ACT_FINAL, GC_NOW.final) : []),
   ];
   return day.sort((a, b) => b.at.localeCompare(a.at));
+}
+
+/**
+ * What `ff_sunday_recap` would add on Tuesday: how far each side was down on
+ * the way (Lou was 24 behind Gus before the lead change), the bets riding on
+ * the week, and the line the room loved most.
+ */
+export function gcRecapExtras(): RecapExtras {
+  return {
+    week: 12,
+    swings: [
+      { matchup_id: "gm1", lead_changes: 1, home_worst: 6.2, away_worst: 3.1 },
+      { matchup_id: "gm2", lead_changes: 2, home_worst: 4.8, away_worst: 12.6 },
+      { matchup_id: "gm3", lead_changes: 0, home_worst: 0, away_worst: 9.4 },
+      { matchup_id: "gm4", lead_changes: 1, home_worst: 3.3, away_worst: 7.7 },
+      { matchup_id: "gm5", lead_changes: 3, home_worst: 24.1, away_worst: 8.9 },
+      { matchup_id: "gm6", lead_changes: 0, home_worst: 15.2, away_worst: 0 },
+    ],
+    challenges: [
+      { id: "ch-1", title: "Dev outscores Ray", stake: "Loser buys the first round", status: "resolved", matchup_id: "gm1", who: "Ray", opp: "Dev", winner: "Dev" },
+      { id: "ch-2", title: "Packers -3.5", stake: "Bragging rights", status: "awaiting_result", matchup_id: "gm6", who: "Gus", opp: "Hank", winner: null },
+    ],
+    best_chat: {
+      id: "c-fraud", who: "Sal", body: "absolute fraud", at: new Date(GC_NOW.late - 3 * H).toISOString(),
+      reactions: 7, sunday_event_id: null,
+    },
+  };
+}
+
+/** `ff_sunday_history` for the invented league: three seasons of Sundays. */
+export function gcSundayHistory(): SundayHistory {
+  return {
+    moments: [
+      { id: "hm-1", season: 2026, week: 12, type: "lead_change", level: 4, headline: "Lou takes the lead over Gus", description: "Late, with 5 still to play", matchup_id: "gm5", reactions: 9, talk: 2, at: new Date(GC_NOW.late - 4 * 60_000).toISOString() },
+      { id: "hm-2", season: 2026, week: 7, type: "comeback", level: 4, headline: "Anthony comes back on Marcus", description: "Was down 31.4 and now leads", matchup_id: null, reactions: 6, talk: 4, at: "2026-10-18T22:10:00Z" },
+      { id: "hm-3", season: 2025, week: 15, type: "season_high", level: 4, headline: "Vic sets the season high", description: "171.3, past 166.0", matchup_id: null, reactions: 4, talk: 1, at: "2025-12-14T23:40:00Z" },
+      { id: "hm-4", season: 2025, week: 3, type: "final", level: 4, headline: "Moe beats Hank, 98.4–97.9", description: "Last place beats first place", matchup_id: null, reactions: 0, talk: 0, at: "2025-09-23T03:30:00Z" },
+    ],
+    records: {
+      comeback: { season: 2026, week: 7, matchup_id: "x", who: "Anthony", opp: "Marcus", down: 31.4 },
+      lead_changes: { season: 2025, week: 11, matchup_id: "y", n: 7, home: "Tom", away: "Nate" },
+      closest: { season: 2025, week: 3, matchup_id: "z", margin: 0.5, who: "Moe", opp: "Hank" },
+      play: { season: 2026, week: 4, id: "p", headline: "Ja'Marr Chase — 3 touchdowns", points: 27.4, who: "Ray" },
+    },
+    managers: TEAMS.map(([, manager], t) => ({
+      team_id: `gt${t}`, who: manager,
+      moments: (t * 5) % 4, comebacks: t % 3 === 0 ? 1 : 0, lead_changes: (t * 7) % 9,
+      touchdowns: 10 + ((t * 11) % 13), reactions: (t * 13) % 31,
+    })),
+    weeks: 27,
+  };
 }

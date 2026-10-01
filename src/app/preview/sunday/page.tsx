@@ -14,7 +14,7 @@
 import { useState } from "react";
 import { TopBar } from "@/components/Shell";
 import { GameCenter } from "@/components/sunday/GameCenter";
-import { gcBoard, gcChat, gcIntel, GC_NOW, GC_STAGES, type GcStage } from "@/lib/fixtures/gamecenter";
+import { gcBoard, gcChat, gcIntel, gcRecapExtras, GC_NOW, GC_STAGES, type GcStage } from "@/lib/fixtures/gamecenter";
 import { WEIGHT_DIALS, talkContext, toggleReaction } from "@/lib/sunday";
 
 export default function SundayPreviewPage() {
@@ -87,7 +87,7 @@ export default function SundayPreviewPage() {
       </div>
       <GameCenter key={stage} board={board} now={GC_NOW[stage]} delayed={stale} chat={chat}
         onSend={send} onReact={(id, emoji) => setBoard((b) => toggleReaction(b, id, emoji))} unreadChat={3}
-        onTune={tune} />
+        onTune={tune} recapExtras={stage === "final" ? gcRecapExtras() : null} />
     </>
   );
 }

@@ -14,6 +14,10 @@ import { TopBar } from "@/components/Shell";
 import { HistoryWall } from "@/components/history/HistoryWall";
 import { mulberry32 } from "@/lib/playoffs";
 import type { HistoricalStanding, History, HistoryCell, HistoryManager, HistorySeason } from "@/lib/history";
+import { gcSundayHistory } from "@/lib/fixtures/gamecenter";
+
+/** Steakhouse Sunday's own wall section, from the game center's invented league. */
+const SUNDAY = gcSundayHistory();
 
 const MANAGERS = ["Anthony", "Marcus", "Dev", "Dave", "Tom", "Nate", "Jules", "Sam", "Kai", "Priya", "Mike", "Ray"];
 const TEAMS = [
@@ -179,7 +183,7 @@ export default function HistoryPreview() {
         <strong>Fixture.</strong> Ten invented seasons for twelve invented managers, generated from a seed.
         Nobody here is a real person; every plaque, streak and beating is made up.
       </div>
-      <HistoryWall history={history} historicalStandings={standings} myManager="Anthony" importable />
+      <HistoryWall history={history} historicalStandings={standings} myManager="Anthony" importable sunday={SUNDAY} />
     </>
   );
 }
