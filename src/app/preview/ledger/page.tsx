@@ -27,9 +27,24 @@ import type { LedgerEntry } from "@/lib/types";
 const NOW = new Date();
 const MIDNIGHT = new Date(NOW.getFullYear(), NOW.getMonth(), NOW.getDate()).getTime();
 
-/** Earlier today, or the stroke of midnight if the day is younger than that. */
-const today = (minutesAgo: number) =>
-  new Date(Math.max(MIDNIGHT, NOW.getTime() - minutesAgo * 60_000)).toISOString();
+/**
+ * Earlier today, as a time of day rather than a span before now.
+ *
+ * It was `NOW - minutesAgo`, and that made this page's HTML depend on the clock
+ * at the moment the module was evaluated — which, for a prerendered page, is the
+ * moment of the *build*. The browser re-rendered it at load against its own
+ * clock, the printed minute had moved on, and React reported the text hydration
+ * mismatch it should: the server said 1:58 AM and the client said 2:01. The run
+ * went red on a page whose content nobody had touched, and it only showed up at
+ * all once a minute boundary happened to fall between the build and the test.
+ *
+ * The note above already states the rule — anything built from `midnight` lands
+ * on the day it says it does, at any hour — and this was the one helper not
+ * keeping it. An offset from local midnight is the same on both sides of
+ * hydration for as long as the calendar day lasts, which outlives any run.
+ */
+const today = (hour: number, minute = 0) =>
+  new Date(MIDNIGHT + hour * 3600_000 + minute * 60_000).toISOString();
 /** Always yesterday: 1-24 hours before today began. */
 const yesterday = (hoursBeforeMidnight: number) =>
   new Date(MIDNIGHT - hoursBeforeMidnight * 3600_000).toISOString();
@@ -42,7 +57,7 @@ const BRISKET = "Brisket Brigade";
 
 const ENTRIES: LedgerEntry[] = [
   {
-    id: "x6", kind: "trade", week: 3, created_at: today(120), ord: 6,
+    id: "x6", kind: "trade", week: 3, created_at: today(14, 20), ord: 6,
     items: [
       { player_id: "p1", player: "Ja'Marr Chase", position: "WR", nfl_team: "CIN", from_team: BUTCHERS, to_team: CHUCK },
       { player_id: "p2", player: "Bijan Robinson", position: "RB", nfl_team: "ATL", from_team: CHUCK, to_team: BUTCHERS },
@@ -50,14 +65,14 @@ const ENTRIES: LedgerEntry[] = [
     ],
   },
   {
-    id: "x5", kind: "waiver", week: 3, created_at: today(360), ord: 5,
+    id: "x5", kind: "waiver", week: 3, created_at: today(10, 5), ord: 5,
     items: [
       { player_id: "p4", player: "Tyjae Spears", position: "RB", nfl_team: "TEN", from_team: BRISKET, to_team: null },
       { player_id: "p5", player: "Jaylen Wright", position: "RB", nfl_team: "MIA", from_team: null, to_team: BRISKET },
     ],
   },
   {
-    id: "x4", kind: "waiver", week: 3, created_at: today(360), ord: 4,
+    id: "x4", kind: "waiver", week: 3, created_at: today(10, 5), ord: 4,
     items: [
       { player_id: "p6", player: "Cade Otton", position: "TE", nfl_team: "TB", from_team: null, to_team: CHUCK },
     ],
