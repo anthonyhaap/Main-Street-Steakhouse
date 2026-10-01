@@ -177,3 +177,15 @@ test("the phone gets a manifest and a launch screen", async ({ request }) => {
   const bad = await request.get("/splash/evil.png");
   expect(bad.status()).toBe(404);
 });
+
+test("the Commissioner's statement is posted under the card", async ({ page }) => {
+  await page.goto("/preview/tonight");
+  const memo = page.getByRole("article", { name: /Official statement from the Commissioner/ });
+  await expect(memo).toBeVisible();
+  await expect(memo.getByText("We do not negotiate with terrorists.")).toBeVisible();
+  await expect(memo.getByText("Unless additional screenshots emerge.")).toBeVisible();
+  // It reads on a phone without pushing the page sideways.
+  await page.setViewportSize({ width: 360, height: 800 });
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  expect(overflow).toBeLessThanOrEqual(0);
+});

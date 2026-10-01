@@ -15,6 +15,7 @@ import { InstallNudge } from "@/components/InstallNudge";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { Carousel } from "@/components/tonight/Carousel";
 import { Room } from "@/components/tonight/Room";
+import { Statement } from "@/components/tonight/Statement";
 import { TonightSkeleton, TonightsTable, type Flash } from "@/components/tonight/TonightsTable";
 
 /**
@@ -124,6 +125,8 @@ export function Tonight({ initial, serverNow }: { initial: Briefing | null; serv
             </section>
           )}
           {b && <TonightsTable b={b} now={clock} flash={flash} onShare={share} />}
+
+          <Statement />
 
           {b && <Carousel b={b} live={phase === "live"} />}
           {/* A second call, on purpose: the room arrives after the card. */}
