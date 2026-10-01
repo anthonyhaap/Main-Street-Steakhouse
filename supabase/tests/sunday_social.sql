@@ -1,7 +1,7 @@
 -- ============================================================================
 -- Steakhouse Sunday, phase 3: reactions, talk and activity.
 --
--- `20261002120000_sunday_social` teaches three existing things one more
+-- `20261001020059_sunday_social` teaches three existing things one more
 -- trick each: `ff_react` a 'sunday' stream, the chat a message about a
 -- moment, and `ff_sunday` the league's activity. What can go wrong is what
 -- always goes wrong with a social feature in a private league — a reaction on
