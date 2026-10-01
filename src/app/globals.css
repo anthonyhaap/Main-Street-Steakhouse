@@ -118,6 +118,11 @@
      exactly to line its wordmark up with the content below. */
   --gutter: clamp(var(--s4), 3vw, var(--s6));
   --bottom-nav: 0px;
+  /* The top bar's full height. The app runs edge to edge (viewport-fit:
+     cover, black-translucent status bar), so on a notched phone the bar has
+     to reach up under the clock and push its contents below it. Everything
+     that sticks under the bar measures from this, not from a bare 68px. */
+  --topbar: calc(68px + env(safe-area-inset-top));
 }
 
 @media (max-width: 1180px) {
@@ -209,13 +214,15 @@ body {
   position: sticky;
   top: 0;
   z-index: 50;
-  height: 68px;
+  height: var(--topbar);
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top);
   /* The bar's ground spans the window — a sticky header that stopped at the
      shell's edge would leave the page showing through beside it. Its contents
      do not: past --shell-max they take the same inset the shell takes, so the
      crest sits directly above the first card rather than out at the glass.
      Below that width the max() picks the plain gutter and nothing moves. */
-  padding: 0 max(var(--gutter), calc((100% - var(--shell-max)) / 2 + var(--gutter)));
+  padding-inline: max(var(--gutter), calc((100% - var(--shell-max)) / 2 + var(--gutter)));
   /* The nav used to carry its own margin-left:auto, which — paired with the
      account cluster's margin-left:auto — centers it in the space *left over
      between the logo and that cluster*, not in the bar's full width. Since
@@ -2916,13 +2923,13 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
    ========================================================================== */
 
 /* --- the ticker: the other tables, run along the top -------------------- */
-/* The topbar is sticky at 68px; the ticker sits right under it and stays
+/* The topbar is sticky at --topbar; the ticker sits right under it and stays
    stuck there too, so the rest of the room's scores never cost a scroll back
    up. Dark rather than paper, on purpose — it borrows the plaque/share-card
    surface so it reads as a scoreboard and not one more card on the page. */
 .ticker {
   position: sticky;
-  top: 68px;
+  top: var(--topbar);
   z-index: 40;
   background:
     radial-gradient(1200px 80px at 50% -60%, var(--ink-warm), transparent 70%),
@@ -3401,12 +3408,12 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
 /* --- the sticky stack --------------------------------------------------- */
 /* One sticky element under the top bar, not two: the rail lives here always
    and the scoreline drops in under it once the header it belongs to has gone
-   past. Two separately sticky boxes would each claim `top: 68px` and overlap.
+   past. Two separately sticky boxes would each claim `top: var(--topbar)` and overlap.
    Dark rather than paper, borrowing the plaque surface, so the whole stack
    reads as one piece of scoreboard furniture. */
 .mv-stick {
   position: sticky;
-  top: 68px;
+  top: var(--topbar);
   z-index: 40;
   background:
     radial-gradient(1200px 80px at 50% -60%, var(--ink-warm), transparent 70%),
@@ -4230,7 +4237,7 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
    page that was itself taller than the phone and the last row hid behind the
    tab bar.
 
-   The frame is the viewport minus the chrome the shell already owns: the 68px
+   The frame is the viewport minus the chrome the shell already owns: the --topbar
    top bar and the tab bar (--bottom-nav, which the shell reserves as its own
    padding).
    ========================================================================== */
@@ -4287,7 +4294,7 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
      size to its content and quietly ignores `height`. The frame has to opt out
      of growing before it can be given one. */
   flex: 0 0 auto;
-  height: calc(100dvh - 68px - var(--bottom-nav));
+  height: calc(100dvh - var(--topbar) - var(--bottom-nav));
 }
 
 .draft-room {
