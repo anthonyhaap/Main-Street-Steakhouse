@@ -24,7 +24,7 @@ import Link from "next/link";
 import { ChevronDown, ChevronRight, Flame, Maximize2, Share2, TriangleAlert } from "lucide-react";
 import { PlayerBadge } from "@/components/PlayerBadge";
 import { crestUrl } from "@/lib/crest";
-import { Seal, useCountUp } from "@/components/ui";
+import { Seal, TeamLink, useCountUp } from "@/components/ui";
 import {
   benchOf, boxScoreLine, cardLine, cardState, gameMark, hasProblem, kickLabel, leader,
   pctLabel, projectedFinal, stillToPlay, topPerformer, versusProjection, winOdds, fmt1,
@@ -200,7 +200,10 @@ function Side({ s, lead, hero, state, lineups }: {
 
   return (
     <div className="sb__side" data-lead={lead} data-mine={s.mine}>
-      <div className="sb__who">
+      {/* Crest, name, manager and record are one door to that team's desk. The
+          anchor goes on `.sb__who` rather than inside it so the flex — and the
+          mirror the right-hand side gets from it — is untouched. */}
+      <TeamLink id={s.team_id} name={s.name} mine={s.mine} className="sb__who tdoor">
         <Seal name={s.name} src={crestUrl(s.logo_path)} mine={s.mine} size={hero ? 40 : 28} />
         <span className="sb__id">
           <b>{s.name}</b>
@@ -209,7 +212,7 @@ function Side({ s, lead, hero, state, lineups }: {
             {s.wins}–{s.losses}{s.ties ? `–${s.ties}` : ""}
           </i>
         </span>
-      </div>
+      </TeamLink>
       <div className="sb__pts">
         {/* No roster is not a projection of nothing; it is no projection. */}
         <b className="num">{!lineups ? "—" : state === "pre" ? fmt1(s.proj) : shown.toFixed(1)}</b>
@@ -433,7 +436,7 @@ function VsRow({ a, h, now, slot, alt, bench = false }: {
 function VsTeam({ s, align = "start" }: { s: ScoreSide; align?: "start" | "end" }) {
   return (
     <span className="sb__vs-team" data-align={align}>
-      <b>{s.name}</b>
+      <TeamLink id={s.team_id} name={s.name} mine={s.mine} className="tlink"><b>{s.name}</b></TeamLink>
       <span className="num">{fmt1(s.points)}</span>
     </span>
   );

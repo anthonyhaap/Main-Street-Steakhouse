@@ -9,7 +9,7 @@ import { LEAGUE_ID, SITE_URL } from "@/lib/config";
 import { crestUrl } from "@/lib/crest";
 import { matchupText, phaseOf, recapText, type Briefing } from "@/lib/briefing";
 import { TopBar } from "@/components/Shell";
-import { Seal, useToast } from "@/components/ui";
+import { Seal, TeamLink, useToast } from "@/components/ui";
 import { Curtain } from "@/components/Curtain";
 import { InstallNudge } from "@/components/InstallNudge";
 import { PullToRefresh } from "@/components/PullToRefresh";
@@ -155,7 +155,10 @@ function Table({ b }: { b: Briefing }) {
           <li key={t.team_id} data-mine={t.team_id === b.me?.team_id} data-line={t.seed === b.league.playoff_teams}>
             <span className="num place__seed">{t.seed}</span>
             <Seal name={t.name} src={crestUrl(t.logo_path)} mine={t.team_id === b.me?.team_id} size={26} />
-            <span className="place__name">{t.name}{t.manager_name && <i> · {t.manager_name}</i>}</span>
+            <span className="place__name">
+              <TeamLink id={t.team_id} name={t.name} mine={t.team_id === b.me?.team_id}>{t.name}</TeamLink>
+              {t.manager_name && <i> · {t.manager_name}</i>}
+            </span>
             <span className="num place__rec">{t.wins}–{t.losses}{t.ties ? `–${t.ties}` : ""}</span>
           </li>
         ))}

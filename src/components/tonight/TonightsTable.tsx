@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { ArrowRight, Share2 } from "lucide-react";
-import { Seal, fmtPts, useCountUp } from "@/components/ui";
+import { Seal, TeamLink, fmtPts, useCountUp } from "@/components/ui";
 import { crestUrl } from "@/lib/crest";
 import { DRAFT_STARTS_AT } from "@/lib/config";
 import {
@@ -98,9 +98,9 @@ function Numbers({ b, phase, flash, now }: { b: Briefing; phase: Phase; flash: F
     const me = b.me!;
     return (
       <div className="tt__nums" data-i="3">
-        <Side name={me.name} sub={record(me)} crest={crestUrl(me.logo_path)} mine value={l.my_points} lead={l.my_points >= l.opp_points} label="final" />
+        <Side name={me.name} sub={record(me)} crest={crestUrl(me.logo_path)} mine teamId={me.team_id} value={l.my_points} lead={l.my_points >= l.opp_points} label="final" />
         <span className="tt__vs eyebrow">final</span>
-        <Side name={l.opponent.name} sub={who(l.opponent)} crest={crestUrl(l.opponent.logo_path)} value={l.opp_points} lead={l.opp_points > l.my_points} align="end" label="final" />
+        <Side name={l.opponent.name} sub={who(l.opponent)} crest={crestUrl(l.opponent.logo_path)} teamId={l.opponent.team_id} value={l.opp_points} lead={l.opp_points > l.my_points} align="end" label="final" />
       </div>
     );
   }
@@ -110,7 +110,7 @@ function Numbers({ b, phase, flash, now }: { b: Briefing; phase: Phase; flash: F
   if (!m || !me) {
     return (
       <div className="tt__nums" data-i="3">
-        {me && <Side name={me.name} sub={record(me)} crest={crestUrl(me.logo_path)} mine value={Number(me.points_for ?? 0)} label="points for" lead />}
+        {me && <Side name={me.name} sub={record(me)} crest={crestUrl(me.logo_path)} mine teamId={me.team_id} value={Number(me.points_for ?? 0)} label="points for" lead />}
       </div>
     );
   }
@@ -121,11 +121,11 @@ function Numbers({ b, phase, flash, now }: { b: Briefing; phase: Phase; flash: F
   const label = phase === "settled" ? "final" : started ? "live" : "proj.";
   return (
     <div className="tt__nums" data-i="3" data-flash={flash ?? undefined}>
-      <Side name={me.name} sub={record(me)} crest={crestUrl(me.logo_path)} mine
+      <Side name={me.name} sub={record(me)} crest={crestUrl(me.logo_path)} mine teamId={me.team_id}
         value={mine} lead={mine >= theirs} label={label} proj={started ? m.my_proj : null} />
       <span className="tt__vs eyebrow">{m.home ? "home" : "away"}</span>
       <Side name={m.opponent.name} sub={record(m.opponent, who(m.opponent))} crest={crestUrl(m.opponent.logo_path)}
-        value={theirs} lead={theirs > mine} align="end" label={label} proj={started ? m.opp_proj : null} />
+        teamId={m.opponent.team_id} value={theirs} lead={theirs > mine} align="end" label={label} proj={started ? m.opp_proj : null} />
     </div>
   );
 }
@@ -136,8 +136,13 @@ function record(t: { wins: number; losses: number; ties: number; seed: number | 
   return prefix ? `${prefix} · ${rec}${seed}` : `${rec}${seed}`;
 }
 
-function Side({ name, sub, crest = null, mine = false, value, decimals = 1, lead = false, align = "start", label, proj, plain = false }: {
+function Side({ name, sub, crest = null, mine = false, teamId, value, decimals = 1, lead = false, align = "start", label, proj, plain = false }: {
   name: string; sub?: string; crest?: string | null; mine?: boolean;
+  /**
+   * The team this side is, when it is a team at all — the door to its desk.
+   * The `plain` sides below are a pick number and a clock, and have none.
+   */
+  teamId?: string | null;
   value: number; decimals?: number; lead?: boolean; align?: "start" | "end";
   label?: string; proj?: number | null;
   /** A number with a caption, not a team: no seal. */
@@ -146,13 +151,16 @@ function Side({ name, sub, crest = null, mine = false, value, decimals = 1, lead
   const shown = useCountUp(Number(value));
   return (
     <div className="tt__side" data-align={align} data-lead={lead}>
-      <div className="tt__who">
+      {/* Crest, name and record together, on the element that already lays them
+          out. Without an id — the pick clock, the countdown — this is the same
+          `div` it always was. */}
+      <TeamLink id={teamId} name={name} mine={mine} className="tt__who tdoor">
         {!plain && <Seal name={name} src={crest} mine={mine} size={34} />}
         <span>
           <b>{name}</b>
           {sub && <i>{sub}</i>}
         </span>
-      </div>
+      </TeamLink>
       <b className="tt__num num">{shown.toFixed(decimals)}</b>
       {(label || proj != null) && (
         <span className="tt__numlabel eyebrow">

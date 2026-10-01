@@ -1,7 +1,9 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { AlertTriangle, CheckCircle2, Info } from "lucide-react";
+import { teamHref, teamLinkLabel } from "@/lib/team-link";
 
 /* ---------------------------------------------------------------- toasts -- */
 
@@ -107,6 +109,46 @@ export function Seal({ name, src = null, mine = false, size = 30 }: {
           onError={() => setFailedSrc(src)} />
       ) : initials}
     </span>
+  );
+}
+
+/* ------------------------------------------------------------ team doors -- */
+
+/**
+ * A team, as a door to its desk.
+ *
+ * Wraps whatever names the team — the crest, the name, the manager, the record,
+ * the score, or all of them — so the whole block is one hit target instead of
+ * the handful of characters in the name. On a phone that is the difference
+ * between a feature and a rumour about one: a 28-pixel crest beside a nine-
+ * character name is hard to hit on purpose, and the row around them is not.
+ *
+ * A team with no id is still drawn, as the same anchor with no `href` on it —
+ * an `<a>` without one is inert, unfocusable and styled by `[href]`-scoped
+ * rules, so it looks and behaves like the text it replaced. That is worth more
+ * than dropping the element: the box stays, so nothing on a board reflows
+ * because one payload quoted a team by name instead of by id, and an anchor's
+ * content model takes the blocks these doors wrap where a `<span>` would not.
+ */
+export function TeamLink({ id, name, mine = false, className = "tlink", style, children }: {
+  id: string | null | undefined;
+  /**
+   * The team's name, for the link's label only — the visible children are
+   * frequently a crest and a number rather than the name itself.
+   */
+  name: string;
+  mine?: boolean;
+  className?: string;
+  style?: React.CSSProperties;
+  children: React.ReactNode;
+}) {
+  const href = teamHref(id, mine);
+  if (!href) return <a className={className} style={style}>{children}</a>;
+  const label = teamLinkLabel(name, mine);
+  return (
+    <Link href={href} className={className} style={style} aria-label={label} title={label}>
+      {children}
+    </Link>
   );
 }
 

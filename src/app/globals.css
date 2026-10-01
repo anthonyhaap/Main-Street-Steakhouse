@@ -1853,7 +1853,27 @@ a.kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); border-c
    the opponent in the hero all wear it. Inherits the weight and colour of
    wherever it sits, and only says it is a link on hover. */
 .tlink { text-decoration: none; color: inherit; }
-.tlink:hover { color: var(--wine); text-decoration: underline; text-underline-offset: 2px; }
+.tlink[href]:hover { color: var(--wine); text-decoration: underline; text-underline-offset: 2px; }
+
+/* The same door, drawn around the whole block that identifies a team — crest,
+   name, manager, record, score — rather than around the name alone. A nine-
+   character name is a target a thumb misses; the row it sits in is not, and
+   every board in the app has a block like this already.
+
+   It brings no layout of its own on purpose. It is always put ON the element
+   that already carried the flex or the grid, so the anchor replaces that box
+   instead of adding one inside it — nothing reflows, and the rule stays usable
+   on a dozen boards that lay their team blocks out a dozen ways.
+
+   Underlining is left to `.tlink`: a crest and two numbers with a line under
+   them reads as a mistake, so a block door tints and rims its crest instead.
+
+   Scoped to `[href]` throughout: a team with no id wears the same class on the
+   same inert anchor, and a block that tints under the cursor without going
+   anywhere is a worse lie than a block that does nothing. */
+.tdoor { text-decoration: none; color: inherit; }
+.tdoor[href]:hover { color: var(--wine); }
+.tdoor[href]:hover .seal { border-color: var(--gold-lit); }
 
 /* --- draft: the projection column ---------------------------------------- */
 
