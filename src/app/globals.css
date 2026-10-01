@@ -2410,6 +2410,32 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
 .tonight { gap: clamp(var(--s5), 4vw, var(--s7)); }
 .tonight__foot { text-align: center; padding: var(--s4) 0 var(--s2); }
 
+/* The Commissioner's statement: a memo on letterhead, set in the serif. */
+.memo {
+  display: grid;
+  gap: var(--s3);
+  min-width: 0;
+  padding: clamp(var(--s5), 4vw, var(--s7)) clamp(var(--s4), 4vw, var(--s6));
+  background: var(--ink-1);
+  border: 1px solid var(--rule);
+  border-top: 3px solid var(--wine);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-2);
+  font-family: var(--serif);
+  font-size: 1.0625rem;
+  line-height: 1.55;
+  color: var(--cream);
+}
+.memo p { margin: 0; max-width: 64ch; overflow-wrap: anywhere; }
+.memo__title { margin: 0; font-size: var(--t-title); text-transform: uppercase; letter-spacing: 0.01em; }
+.memo__rule { display: block; height: 1px; background: var(--rule-hard); }
+.memo__qa { display: grid; gap: var(--s1); margin: 0; }
+.memo__qa dt { font-weight: 700; margin-top: var(--s2); }
+.memo__qa dd { margin: 0; }
+.memo__sign { display: grid; gap: var(--s2); margin-top: var(--s3); }
+.memo__hand { font-style: italic; font-size: 2rem; line-height: 1; color: var(--ink-warm); }
+.memo__note { justify-self: center; text-align: center; margin-top: var(--s4); font-size: var(--t-small); font-style: italic; color: var(--muted); }
+
 .tt {
   position: relative;
   display: grid;

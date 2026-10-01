@@ -14,6 +14,7 @@ import { TopBar } from "@/components/Shell";
 import { TonightsTable } from "@/components/tonight/TonightsTable";
 import { Carousel } from "@/components/tonight/Carousel";
 import { RoomBoard } from "@/components/tonight/Room";
+import { Statement } from "@/components/tonight/Statement";
 import { phaseOf, type Briefing, type BriefStarter, type RoomFeed } from "@/lib/briefing";
 import { DRAFT_STARTS_AT } from "@/lib/config";
 
@@ -261,6 +262,7 @@ export default function TonightPreview() {
       </div>
       <main className="page tonight">
         <TonightsTable b={b} now={now} onShare={() => alert("Share sheet")} />
+        <Statement />
         <Carousel b={b} live={phase === "live"} />
         <RoomBoard feed={room(now)} now={now} />
         <p className="eyebrow tonight__foot">Main Street Steakhouse · Est. 2016 · Members Only</p>
