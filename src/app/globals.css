@@ -2821,6 +2821,20 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
 .ledger__row i { font-style: normal; color: var(--dim); font-size: var(--t-micro); display: block; margin-top: 2px; }
 .ledger__row .num:last-child { font-family: var(--sans); font-weight: 500; font-size: 1.05rem; letter-spacing: -0.02em; }
 .ledger__row .num[data-tone="gold"] { color: var(--gold); }
+.ledger__link { color: inherit; text-decoration: none; min-width: 0; }
+.ledger__link:hover b { color: var(--gold); text-decoration: underline; }
+
+/* Steakhouse Sunday on the wall. */
+.sunday-wall__head {
+  display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px var(--s3);
+  margin: var(--s4) 0 var(--s2); padding: 0 var(--s2);
+}
+.table-scroll { overflow-x: auto; }
+.sunday-lines { width: 100%; border-collapse: collapse; font-size: var(--t-small); }
+.sunday-lines th, .sunday-lines td { padding: 8px var(--s3); text-align: right; font-variant-numeric: tabular-nums; }
+.sunday-lines th:first-child { text-align: left; font-weight: 600; }
+.sunday-lines thead th { font-size: var(--t-micro); color: var(--dim); font-weight: 600; }
+.sunday-lines tbody tr + tr { border-top: 1px solid var(--rule-soft); }
 
 .rival {
   display: grid; gap: 6px;

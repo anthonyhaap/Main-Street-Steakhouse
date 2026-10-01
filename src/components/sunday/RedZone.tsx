@@ -14,11 +14,11 @@
  */
 
 import { Tv } from "lucide-react";
-import { REDZONE_URL } from "@/lib/config";
+import { LEAGUE_TZ, REDZONE_URL } from "@/lib/config";
 import { fmt1, kickLabel, who, type ScoreCard, type Scoreboard as Board } from "@/lib/scoreboard";
 import {
-  closeOnPaper, inTheRedZone, playersToWatch, recap,
-  type Alert, type Phase, type SundayBoard,
+  closeOnPaper, eventTag, inTheRedZone, playersToWatch, recap, signed,
+  type Alert, type Phase, type RecapExtras, type SundayBoard,
 } from "@/lib/sunday";
 import { EventFeed, type FeedActions } from "./Feed";
 
@@ -161,8 +161,10 @@ function PaperRow({ c, onOpen }: { c: ScoreCard; onOpen: (id: string) => void })
 
 /* ---------------------------------------------------------------- recap -- */
 
-export function Recap({ board, onMatchup }: { board: Board; onMatchup: (id: string) => void }) {
-  const r = recap(board);
+export function Recap({ board, extras = null, onMatchup }: {
+  board: SundayBoard; extras?: RecapExtras | null; onMatchup: (id: string) => void;
+}) {
+  const r = recap(board, extras);
   const line = (c: ScoreCard) => {
     const [a, b] = Number(c.home.points) >= Number(c.away.points) ? [c.home, c.away] : [c.away, c.home];
     return `${who(a)} ${fmt1(a.points)} — ${who(b)} ${fmt1(b.points)}`;
@@ -177,6 +179,20 @@ export function Recap({ board, onMatchup }: { board: Board; onMatchup: (id: stri
     tiles.push({ title: "Biggest upset", big: `${who(s)} won`, small: `Came in projected ${fmt1(r.upset.gap)} behind · ${line(r.upset.card)}`, id: r.upset.card.id });
   }
   if (r.bestPlayer) tiles.push({ title: "Biggest fantasy day", big: `${r.bestPlayer.p.full_name} ${fmt1(r.bestPlayer.p.points)}`, small: `for ${who(r.bestPlayer.side)} · ${r.bestPlayer.p.position} ${r.bestPlayer.p.nfl_team ?? ""}`, id: r.bestPlayer.card.id });
+  if (r.comeback) {
+    const s = r.comeback.key === "home" ? r.comeback.card.home : r.comeback.card.away;
+    tiles.push({ title: "Biggest comeback", big: `${who(s)} from ${fmt1(r.comeback.down)} down`, small: line(r.comeback.card), id: r.comeback.card.id });
+  }
+  if (r.bestPlay?.matchup_id) {
+    tiles.push({ title: "Biggest fantasy play", big: r.bestPlay.headline, small: `${signed(r.bestPlay.points_added)} ${r.bestPlay.detail.who ?? ""}`.trim(), id: r.bestPlay.matchup_id });
+  }
+  if (r.mostReacted?.event.matchup_id) {
+    tiles.push({
+      title: "Most reacted-to moment", big: r.mostReacted.event.headline,
+      small: `${r.mostReacted.count} reaction${r.mostReacted.count === 1 ? "" : "s"} · ${eventTag(r.mostReacted.event)}`,
+      id: r.mostReacted.event.matchup_id,
+    });
+  }
   if (r.lowest) tiles.push({ title: "Lowest score", big: `${who(r.lowest.side)} ${fmt1(r.lowest.side.points)}`, small: r.lowest.side.name, id: r.lowest.card.id });
 
   return (
@@ -193,6 +209,65 @@ export function Recap({ board, onMatchup }: { board: Board; onMatchup: (id: stri
           ))}
         </div>
       )}
+
+      {r.bestChat && (
+        <div className="sun-recap__block">
+          <h3>💬 Best chat moment</h3>
+          <blockquote className="sun-recap__quote">
+            “{r.bestChat.sunday_event_id ? r.bestChat.body.split("\n").slice(1).join("\n") || r.bestChat.body : r.bestChat.body}”
+            <footer>{r.bestChat.who ?? "Somebody"} · {r.bestChat.reactions} reaction{r.bestChat.reactions === 1 ? "" : "s"}</footer>
+          </blockquote>
+        </div>
+      )}
+
+      {r.challenges.length > 0 && (
+        <div className="sun-recap__block">
+          <h3>🥩 Challenge results</h3>
+          <ul className="sun-recap__list">
+            {r.challenges.map((c) => (
+              <li key={c.id}>
+                <b>{c.title}</b>
+                <span>
+                  {c.who} v {c.opp} · {c.stake}
+                  {" — "}
+                  {c.winner ? <strong>{c.winner} won</strong> : c.status === "proposed" ? "never answered" : "still to settle"}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {r.timelines.length > 0 && (
+        <div className="sun-recap__block">
+          <h3>🔁 Lead change timelines</h3>
+          <ul className="sun-recap__list">
+            {r.timelines.map(({ card, steps }) => (
+              <li key={card.id}>
+                <button type="button" className="sun-linkish" onClick={() => onMatchup(card.id)}>
+                  {who(card.away)} v {who(card.home)} · {steps.length} lead change{steps.length === 1 ? "" : "s"}
+                </button>
+                <ol className="sun-timeline">
+                  {steps.map((e) => (
+                    <li key={e.id}>
+                      <time dateTime={e.created_at}>{timeOf(e.created_at)}</time>
+                      <span>
+                        {e.detail.who ?? "?"} in front
+                        {e.new_score != null && e.opp_new_score != null && <> · {fmt1(e.new_score)}–{fmt1(e.opp_new_score)}</>}
+                        {e.player_name && <> · {e.player_name}</>}
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </section>
   );
 }
+
+/** "4:12 PM", in the league's own time zone, as every clock on the page is. */
+const timeOf = (iso: string) =>
+  new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: LEAGUE_TZ });

@@ -916,6 +916,35 @@ export type Recap = {
   lowest: { side: ScoreSide; card: ScoreCard } | null;
   bestPlayer: Placed | null;
   upset: { card: ScoreCard; key: Side; gap: number } | null;
+  /** The winner who was furthest behind on the way. */
+  comeback: { card: ScoreCard; key: Side; down: number } | null;
+  /** The single biggest swing the feed recorded: a touchdown or a big play. */
+  bestPlay: SundayEvent | null;
+  /** The moment the room reacted to most. */
+  mostReacted: { event: SundayEvent; count: number } | null;
+  /** Every table that changed hands, and how, in order. */
+  timelines: { card: ScoreCard; steps: SundayEvent[] }[];
+  challenges: RecapChallenge[];
+  bestChat: RecapExtras["best_chat"];
+};
+
+/** One table's swings, as `ff_sunday_recap` sends them. */
+export type Swing = { matchup_id: string; lead_changes: number; home_worst: number; away_worst: number };
+
+export type RecapChallenge = {
+  id: string; title: string; stake: string; status: string; matchup_id: string | null;
+  who: string | null; opp: string | null; winner: string | null;
+};
+
+/**
+ * What Tuesday's recap needs beyond the board and the feed —
+ * `ff_sunday_recap(league, week)`, fetched once the week is over.
+ */
+export type RecapExtras = {
+  week: number;
+  swings: Swing[];
+  challenges: RecapChallenge[];
+  best_chat: { id: string; who: string | null; body: string; at: string; reactions: number; sunday_event_id: string | null } | null;
 };
 
 /**
@@ -923,7 +952,7 @@ export type Recap = {
  * comeback, the lead changes and the most-reacted moment need the day's
  * events stored as they happened, and are not guessed at here.
  */
-export function recap(b: Board): Recap {
+export function recap(b: SundayBoard, extras: RecapExtras | null = null): Recap {
   const cards = b.matchups.filter((c) => c.home.starters.length + c.away.starters.length > 0);
   const byGap = [...cards].sort((x, y) => Math.abs(margin(x)) - Math.abs(margin(y)));
   const sides = cards.flatMap((card) => [{ side: card.home, card }, { side: card.away, card }]);
@@ -947,8 +976,76 @@ export function recap(b: Board): Recap {
     lowest: bySide.length > 1 ? bySide[bySide.length - 1] : null,
     bestPlayer: players[0] && Number(players[0].p.points) > 0 ? players[0] : null,
     upset,
+    ...dayStory(b, cards, extras),
   };
 }
+
+const reactionCount = (e: SundayEvent) => (e.reactions ?? []).reduce((n, r) => n + r.count, 0);
+
+/**
+ * The parts of the recap that need the day, not just its final scores: who
+ * came furthest back, the biggest play, what the room loved, how each lead
+ * changed hands, the bets and the best line. From the persisted feed and the
+ * recap extras; each part is simply absent when its source is.
+ */
+function dayStory(b: SundayBoard, cards: ScoreCard[], extras: RecapExtras | null) {
+  const events = b.events ?? [];
+
+  let comeback: Recap["comeback"] = null;
+  for (const card of cards) {
+    const sw = extras?.swings.find((s) => s.matchup_id === card.id);
+    const m = margin(card);
+    if (!sw || m === 0) continue;
+    const key: Side = m > 0 ? "home" : "away";
+    const down = Number(key === "home" ? sw.home_worst : sw.away_worst);
+    if (down > 0 && (!comeback || down > comeback.down)) comeback = { card, key, down };
+  }
+
+  const plays = events.filter((e) => (e.type === "touchdown" || e.type === "big_play") && Number(e.points_added ?? 0) > 0);
+  const bestPlay = plays.sort((x, y) => Number(y.points_added) - Number(x.points_added))[0] ?? null;
+
+  const loved = events.map((event) => ({ event, count: reactionCount(event) })).filter((x) => x.count > 0)
+    .sort((x, y) => y.count - x.count || y.event.level - x.event.level)[0] ?? null;
+
+  const timelines = cards.map((card) => ({
+    card,
+    steps: events
+      .filter((e) => e.matchup_id === card.id && (e.type === "lead_change" || (e.lead_change && e.type !== "comeback")))
+      .sort((x, y) => Date.parse(x.created_at) - Date.parse(y.created_at)),
+  })).filter((t) => t.steps.length > 0)
+    .sort((x, y) => y.steps.length - x.steps.length);
+
+  return {
+    comeback,
+    bestPlay,
+    mostReacted: loved,
+    timelines,
+    challenges: extras?.challenges ?? [],
+    bestChat: extras?.best_chat ?? null,
+  };
+}
+
+/* ------------------------------------------------------------- history -- */
+
+/** `ff_sunday_history`: Sunday on the History wall. */
+export type SundayHistory = {
+  moments: {
+    id: string; season: number; week: number; type: EventType; level: number;
+    headline: string; description: string | null; matchup_id: string | null;
+    reactions: number; talk: number; at: string;
+  }[];
+  records: {
+    comeback: { season: number; week: number; matchup_id: string; who: string; opp: string; down: number } | null;
+    lead_changes: { season: number; week: number; matchup_id: string; n: number; home: string; away: string } | null;
+    closest: { season: number; week: number; matchup_id: string; margin: number; who: string; opp: string } | null;
+    play: { season: number; week: number; id: string; headline: string; points: number; who: string | null } | null;
+  };
+  managers: {
+    team_id: string; who: string; moments: number; comebacks: number; lead_changes: number;
+    touchdowns: number; reactions: number;
+  }[];
+  weeks: number;
+};
 
 /* ------------------------------------------------------------- the wire -- */
 
