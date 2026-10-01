@@ -1,7 +1,7 @@
 -- ============================================================================
 -- Steakhouse Sunday, phase 5: the day is kept.
 --
--- `20261002000000_sunday_history` reads the persisted Sunday back two ways:
+-- `20261001163125_sunday_history` reads the persisted Sunday back two ways:
 -- one week's recap extras, and the whole league's Sunday history. The ways a
 -- reading goes wrong are the ones checked here — a chat line from another
 -- week crowned the week's best, a declined bet listed as a result, a
