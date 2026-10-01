@@ -15,11 +15,33 @@ import { useState } from "react";
 import { TopBar } from "@/components/Shell";
 import { GameCenter } from "@/components/sunday/GameCenter";
 import { gcBoard, gcChat, GC_NOW, GC_STAGES, type GcStage } from "@/lib/fixtures/gamecenter";
+import { talkContext, toggleReaction } from "@/lib/sunday";
 
 export default function SundayPreviewPage() {
   const [stage, setStage] = useState<GcStage>("late");
   const [stale, setStale] = useState(false);
   const note = GC_STAGES.find((s) => s.key === stage)!.note;
+
+  // The board and the room, held here so a reaction or a Talk-shit line can be
+  // tried without a session. Nothing leaves the page.
+  const [board, setBoard] = useState(() => gcBoard(stage));
+  const [chat, setChat] = useState(() => gcChat(stage));
+  const go = (next: GcStage) => {
+    setStage(next);
+    setBoard(gcBoard(next));
+    setChat(gcChat(next));
+  };
+  const send = async (body: string, eventId?: string) => {
+    const e = eventId ? board.events?.find((x) => x.id === eventId) : null;
+    const text = e ? `${talkContext(e)}\n${body}` : body;
+    setChat((c) => [{
+      ...c[c.length - 1], id: `local-${Date.now()}`, at: new Date(GC_NOW[stage]).toISOString(),
+      author: "Ray", mine: true, body: text, reactions: [],
+    }, ...c]);
+    if (eventId) {
+      setBoard((b) => ({ ...b, events: (b.events ?? []).map((x) => (x.id === eventId ? { ...x, talk: (x.talk ?? 0) + 1 } : x)) }));
+    }
+  };
 
   return (
     <>
@@ -36,7 +58,7 @@ export default function SundayPreviewPage() {
         <div className="scroll" style={{ overflowX: "auto" }}>
           <div className="segmented" style={{ width: "max-content" }}>
             {GC_STAGES.map((s) => (
-              <button key={s.key} className="segmented__opt" data-on={s.key === stage} onClick={() => setStage(s.key)}>
+              <button key={s.key} className="segmented__opt" data-on={s.key === stage} onClick={() => go(s.key)}>
                 {s.label}
               </button>
             ))}
@@ -46,7 +68,8 @@ export default function SundayPreviewPage() {
           </div>
         </div>
       </div>
-      <GameCenter key={stage} board={gcBoard(stage)} now={GC_NOW[stage]} delayed={stale} chat={gcChat(stage)} />
+      <GameCenter key={stage} board={board} now={GC_NOW[stage]} delayed={stale} chat={chat}
+        onSend={send} onReact={(id, emoji) => setBoard((b) => toggleReaction(b, id, emoji))} unreadChat={3} />
     </>
   );
 }

@@ -61,5 +61,5 @@ export async function loadSunday(sb: SupabaseClient, week: number | null): Promi
 
   // No function, no event engine either: an empty feed, which the page reads
   // as "nothing has happened yet".
-  return { ...board, nfl, events: [] };
+  return { ...board, nfl, events: [], activity: [] };
 }

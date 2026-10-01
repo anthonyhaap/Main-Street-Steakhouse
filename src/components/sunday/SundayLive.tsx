@@ -21,7 +21,8 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 import { useLive, useServerClock } from "@/lib/live";
 import { useSession } from "@/lib/session";
 import { LEAGUE_ID } from "@/lib/config";
-import { delayed, type SundayBoard } from "@/lib/sunday";
+import { delayed, toggleReaction, type SundayBoard } from "@/lib/sunday";
+import { useUnreadCounts } from "@/lib/unread";
 import { loadSunday } from "@/lib/sunday-load";
 import type { ChatFeed } from "@/lib/types";
 import { TopBar } from "@/components/Shell";
@@ -40,10 +41,10 @@ export function SundayLive({ initial, week }: { initial: SundayBoard | null; wee
     return b;
   }, [week]);
 
-  const { data, status, error, refetch } = useLive<SundayBoard>(fetcher, {
+  const { data, status, error, refetch, mutate } = useLive<SundayBoard>(fetcher, {
     // `sunday_events` is the one that matters most: a row there is the
     // server saying something just happened.
-    tables: ["matchups", "rosters", "nfl_games", "sunday_events"],
+    tables: ["matchups", "rosters", "nfl_games", "sunday_events", "reactions", "league_messages", "challenges"],
     channel: "sunday",
     pollMs: hot ? 15000 : 60000,
     enabled: ready,
@@ -65,17 +66,35 @@ export function SundayLive({ initial, week }: { initial: SundayBoard | null; wee
   });
 
   const [chatError, setChatError] = useState<string | null>(null);
-  const send = useCallback(async (body: string) => {
+  const send = useCallback(async (body: string, eventId?: string) => {
     setChatError(null);
-    const { error: e } = await supabaseBrowser().rpc("ff_send_message", {
-      p_league_id: LEAGUE_ID, p_body: body, p_parent_id: null, p_mentions: null,
-    });
+    // Talk shit goes through ff_talk_about, which writes the moment above the
+    // words itself; anything else is an ordinary line in the room.
+    const { error: e } = eventId
+      ? await supabaseBrowser().rpc("ff_talk_about", { p_league_id: LEAGUE_ID, p_event_id: eventId, p_body: body })
+      : await supabaseBrowser().rpc("ff_send_message", {
+          p_league_id: LEAGUE_ID, p_body: body, p_parent_id: null, p_mentions: null,
+        });
     if (e) {
       setChatError(e.message);
       throw new Error(e.message);
     }
-    await chat.refetch();
-  }, [chat]);
+    await Promise.all([chat.refetch(), eventId ? refetch() : Promise.resolve()]);
+  }, [chat, refetch]);
+
+  // One tap, shown at once: the count moves before the server answers, and the
+  // next refetch confirms it — or puts it back if the server said no.
+  const react = useCallback((eventId: string, emoji: string) => {
+    mutate((b) => (b ? toggleReaction(b, eventId, emoji) : b));
+    void supabaseBrowser()
+      .rpc("ff_react", { p_league_id: LEAGUE_ID, p_source: "sunday", p_target_id: eventId, p_emoji: emoji })
+      .then(({ error: e }) => {
+        if (e) setChatError(e.message);
+        void refetch();
+      });
+  }, [mutate, refetch]);
+
+  const unread = useUnreadCounts();
 
   // Server time, the same as every clock in the app.
   const { serverNow, synced } = useServerClock();
@@ -110,6 +129,8 @@ export function SundayLive({ initial, week }: { initial: SundayBoard | null; wee
           chat={chat.data?.items ?? null}
           onSend={send}
           chatError={chatError ?? chat.error}
+          onReact={react}
+          unreadChat={unread?.chat ?? 0}
         />
       )}
     </>

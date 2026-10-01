@@ -20,7 +20,7 @@ import {
   closeOnPaper, inTheRedZone, playersToWatch, recap,
   type Alert, type Phase, type SundayBoard,
 } from "@/lib/sunday";
-import { EventFeed } from "./Feed";
+import { EventFeed, type FeedActions } from "./Feed";
 
 export function WatchRedZone({ compact = false }: { compact?: boolean }) {
   return (
@@ -31,10 +31,10 @@ export function WatchRedZone({ compact = false }: { compact?: boolean }) {
   );
 }
 
-export function RedZoneRail({ board, phase, list, now, onMatchup, onGame }: {
+export function RedZoneRail({ board, phase, list, now, onMatchup, onGame, onReact, onTalk }: {
   board: SundayBoard; phase: Phase; list: Alert[]; now: number;
-  onMatchup: (id: string) => void; onGame: (id: string) => void;
-}) {
+} & FeedActions) {
+  const hasFeed = (board.events?.length ?? 0) + (board.activity?.length ?? 0) > 0;
   return (
     <section className="sun-sec" data-panel="redzone" aria-label="Fantasy RedZone" style={{ display: "grid", gap: "var(--s3)" }}>
       <div className="sun-sec__head">
@@ -46,8 +46,9 @@ export function RedZoneRail({ board, phase, list, now, onMatchup, onGame }: {
         : <Live board={board} list={list} phase={phase} onMatchup={onMatchup} onGame={onGame} />}
       {/* What happened, as opposed to what is true right now. Kept through
           the final whistle and after it, so the day can be scrolled back. */}
-      {(board.events?.length ?? 0) > 0 && (
-        <EventFeed events={board.events!} now={now} onMatchup={onMatchup} onGame={onGame} />
+      {hasFeed && (
+        <EventFeed events={board.events ?? []} activity={board.activity ?? []} now={now}
+          onMatchup={onMatchup} onGame={onGame} onReact={onReact} onTalk={onTalk} />
       )}
       <div className="sun-watch">
         <span>The broadcast is the NFL&apos;s. This is the second screen.</span>
