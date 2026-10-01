@@ -281,3 +281,30 @@ test("the ledger opens the teams it can place, and only those", async ({ page })
   await expect(rows.getByText("Brisket Brigade").first()).toBeVisible();
   await expect(rows.getByRole("link", { name: /Brisket Brigade/ })).toHaveCount(0);
 });
+
+/**
+ * The waiver order is the wire's one list of other teams, and `ff_waiver_board`
+ * gives it as names and priorities — so it resolves the same way the ledger
+ * does, with the same two misses.
+ *
+ * The row already knew which one was the reader's, for the "you" marker. The
+ * door reads that same answer: a row badged "you" whose link opened somebody
+ * else's desk would be the two of them disagreeing in public, so the test
+ * asserts they agree.
+ */
+test("the waiver order opens the teams ahead of you", async ({ page }) => {
+  await page.goto("/preview/waivers");
+  const order = page.locator(".card", { hasText: "Waiver order" }).locator(".rows");
+
+  // Four of the five are in the fixture's league: three visits and the reader.
+  await expect(order.locator("a[href^='/team?id=']")).toHaveCount(3);
+
+  // The row marked "you" is the one that goes home, not to a ?id=.
+  const you = order.locator(".row", { hasText: "you" });
+  await expect(you.locator("a[href='/team']")).toHaveCount(1);
+  await expect(you).toContainText("Gridiron Butchers");
+
+  // And the one the league list cannot place is named without being linked.
+  await expect(order.getByText("Brisket Brigade")).toBeVisible();
+  await expect(order.getByRole("link", { name: /Brisket Brigade/ })).toHaveCount(0);
+});

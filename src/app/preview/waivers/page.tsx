@@ -16,6 +16,7 @@ import { Wire } from "@/components/waivers/Wire";
 import { ClaimSheet } from "@/components/waivers/ClaimSheet";
 import type { Owned } from "@/components/players/DropPicker";
 import type { WaiverBoard, WaiverPlayer } from "@/lib/types";
+import { teamIdsByName } from "@/lib/team-link";
 
 const WEDNESDAY = "2026-09-09T08:00:00.000Z";
 
@@ -64,6 +65,20 @@ const EMPTY: WaiverBoard = {
   recent: [],
 };
 
+/**
+ * The invented league behind the invented wire, so the waiver order resolves to
+ * desks the way the real screen resolves it against the session. "Brisket
+ * Brigade" is left out of it on purpose: a team the list cannot place — renamed
+ * since the order was drawn, in the real thing — has to stay plain text, and
+ * this is where that is asserted.
+ */
+const teamIdOf = teamIdsByName([
+  { id: "t4", name: "Chuck Wagon" },
+  { id: "t8", name: "Filet Force" },
+  { id: "t1", name: "Gridiron Butchers" },
+  { id: "t2", name: "Prime Cut" },
+]);
+
 export default function PreviewWaivers() {
   const [empty, setEmpty] = useState(false);
   const [claiming, setClaiming] = useState<WaiverPlayer | null>(null);
@@ -91,6 +106,7 @@ export default function PreviewWaivers() {
           onClaim={setClaiming}
           onCancelClaim={() => {}}
           onMove={() => {}}
+          teamIdOf={teamIdOf}
         />
       </main>
 
