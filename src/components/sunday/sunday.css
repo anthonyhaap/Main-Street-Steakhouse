@@ -30,7 +30,7 @@
   --sun-ticker: 42px;
 
   position: relative;
-  min-height: calc(100dvh - 68px);
+  min-height: calc(100dvh - var(--topbar));
   background:
     radial-gradient(1200px 400px at 20% -10%, #6a0b2033, transparent 70%),
     var(--sun-bg);
@@ -148,8 +148,8 @@ body:has(.sun) { background: #0d0b0a; }
 .sun-main { display: grid; gap: var(--s5); min-width: 0; }
 .sun-rail {
   display: grid; gap: var(--s4); min-width: 0;
-  position: sticky; top: calc(68px + var(--s4));
-  max-height: calc(100dvh - 68px - var(--sun-ticker) - var(--s6));
+  position: sticky; top: calc(var(--topbar) + var(--s4));
+  max-height: calc(100dvh - var(--topbar) - var(--sun-ticker) - var(--s6));
   overflow-y: auto; overscroll-behavior: contain;
   scrollbar-width: thin; scrollbar-color: var(--sun-3) transparent;
 }
@@ -187,7 +187,7 @@ body:has(.sun) { background: #0d0b0a; }
   border-top: 2px solid var(--sun-gold);
   border-radius: var(--r-sm);
   padding: var(--s4);
-  scroll-margin-top: calc(68px + var(--s3));
+  scroll-margin-top: calc(var(--topbar) + var(--s3));
 }
 .sun-feat__label {
   display: flex; align-items: center; justify-content: space-between; gap: var(--s3); flex-wrap: wrap;
@@ -532,9 +532,9 @@ body:has(.sun) { background: #0d0b0a; }
    the rail's place when there is not — a column of the grid either way, so it
    can never sit on top of the RedZone feed the way an overlay would. */
 .sun-drawer {
-  position: sticky; top: calc(68px + var(--s4));
-  max-height: calc(100dvh - 68px - var(--sun-ticker) - var(--bottom-nav) - var(--s6));
-  min-height: min(520px, calc(100dvh - 68px - var(--sun-ticker) - var(--bottom-nav) - var(--s6)));
+  position: sticky; top: calc(var(--topbar) + var(--s4));
+  max-height: calc(100dvh - var(--topbar) - var(--sun-ticker) - var(--bottom-nav) - var(--s6));
+  min-height: min(520px, calc(100dvh - var(--topbar) - var(--sun-ticker) - var(--bottom-nav) - var(--s6)));
   display: grid; grid-template-rows: auto minmax(0, 1fr);
   padding: var(--s3); gap: var(--s3);
   background: var(--sun-1); border: 1px solid var(--sun-line); border-radius: var(--r-sm);
@@ -620,7 +620,7 @@ body:has(.sun) { background: #0d0b0a; }
 
   .sun-tabs[data-for="desk"] { display: none; }
   .sun-tabs[data-for="phone"] {
-    display: flex; position: sticky; top: 68px; z-index: 30;
+    display: flex; position: sticky; top: var(--topbar); z-index: 30;
     margin: 0 -10px var(--s3); padding: 0 6px;
     background: #0d0b0af2; backdrop-filter: blur(8px);
   }
