@@ -18,7 +18,7 @@
  */
 
 import type { ScoreCard, ScoreSide, ScoreStarter, Talk } from "@/lib/scoreboard";
-import type { NflGame, SundayBoard, SundayEvent } from "@/lib/sunday";
+import type { ActivityItem, NflGame, SundayBoard, SundayEvent } from "@/lib/sunday";
 import type { ChatItem } from "@/lib/types";
 
 export type GcStage = "pre" | "early" | "late" | "final";
@@ -304,6 +304,7 @@ export function gcBoard(stage: GcStage): SundayBoard {
     generated_at: new Date(now).toISOString(),
     nfl,
     events: gcEvents(stage),
+    activity: gcActivity(stage),
   };
 }
 
@@ -347,6 +348,7 @@ const EARLY: [number, Ev][] = [
     matchup_id: "gm1", team_id: "gt0", opponent_team_id: "gt1", points_added: 4.1,
     old_score: 21.7, new_score: 25.8, opp_old_score: 52.4, opp_new_score: 52.4, detail: { who: "Ray", opp: "Dev" } }],
   [6, { type: "touchdown", level: 2, player_name: "Josh Allen", headline: "Josh Allen — rushing touchdown",
+    reactions: [{ emoji: "🔥", count: 3, mine: false }, { emoji: "😂", count: 1, mine: false }], talk: 1,
     matchup_id: "gm1", team_id: "gt0", opponent_team_id: "gt1", player_id: "gc-Josh Allen", espn_id: "3918298",
     points_added: 8.6, old_score: 25.8, new_score: 34.4, opp_old_score: 52.4, opp_new_score: 52.4,
     detail: { who: "Ray", opp: "Dev" } }],
@@ -359,6 +361,7 @@ const EARLY: [number, Ev][] = [
 
 const LATE: [number, Ev][] = [
   [4, { type: "lead_change", level: 4, headline: "Lou takes the lead over Gus", lead_change: true,
+    reactions: [{ emoji: "😂", count: 4, mine: false }, { emoji: "🔥", count: 3, mine: false }, { emoji: "💀", count: 2, mine: false }], talk: 2,
     description: "Late, with 5 still to play",
     matchup_id: "gm5", team_id: "gt8", opponent_team_id: "gt9",
     old_score: 95.0, new_score: 103.6, opp_old_score: 97.1, opp_new_score: 97.1,
@@ -401,4 +404,37 @@ export function gcEvents(stage: GcStage): SundayEvent[] {
     ...(stage === "final" ? stamp(FINAL, GC_NOW.final, "f") : []),
   ];
   return day.sort((a, b) => b.created_at.localeCompare(a.created_at));
+}
+
+/* -------------------------------------------------------------- activity -- */
+
+/**
+ * What the league's people did, invented to sit between the football: a
+ * challenge proposed in the morning and accepted at one o'clock, a line about
+ * Lou's lead the room piled on, and a challenge settled on Tuesday.
+ */
+const ACT_EARLY: [number, Omit<ActivityItem, "at">][] = [
+  [200, { id: "a-1", kind: "challenge", verb: "proposed", who: "Gus", opp: "Hank", title: "Packers -3.5", stake: "Bragging rights" }],
+  [40, { id: "a-2", kind: "challenge", verb: "accepted", who: "Dev", opp: "Ray", title: "Dev outscores Ray", stake: "Steak dinner", matchup_id: "gm1" }],
+  [9, { id: "a-3", kind: "chat", verb: "said", who: "Sal", body: "absolute fraud", reactions: 7 }],
+];
+const ACT_LATE: [number, Omit<ActivityItem, "at">][] = [
+  [3, { id: "a-4", kind: "chat", verb: "said", who: "Gus",
+    body: "🔥 Lou just took the lead over Gus, 103.6–97.1.\nthere's no way", reactions: 3, sunday_event_id: "l-0" }],
+];
+const ACT_FINAL: [number, Omit<ActivityItem, "at">][] = [
+  [20, { id: "a-5", kind: "challenge", verb: "settled", who: "Dev", opp: "Ray", winner: "Dev", title: "Dev outscores Ray", matchup_id: "gm1" }],
+];
+
+function stampAct(list: [number, Omit<ActivityItem, "at">][], at: number): ActivityItem[] {
+  return list.map(([minsAgo, a]) => ({ ...a, at: new Date(at - minsAgo * 60_000).toISOString() }));
+}
+
+export function gcActivity(stage: GcStage): ActivityItem[] {
+  const day = [
+    ...(stage !== "pre" ? stampAct(ACT_EARLY, GC_NOW.early) : stampAct(ACT_EARLY.slice(0, 1), GC_NOW.pre + 60 * 60_000)),
+    ...(stage === "late" || stage === "final" ? stampAct(ACT_LATE, GC_NOW.late) : []),
+    ...(stage === "final" ? stampAct(ACT_FINAL, GC_NOW.final) : []),
+  ];
+  return day.sort((a, b) => b.at.localeCompare(a.at));
 }

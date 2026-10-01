@@ -86,14 +86,46 @@ export type SundayEvent = {
     [k: string]: unknown;
   };
   created_at: string;
+  /** Most-used first; `mine` is the caller's own. Absent a migration behind. */
+  reactions?: EventReaction[];
+  /** How many chat lines were said about this moment. */
+  talk?: number;
+};
+
+export type EventReaction = { emoji: string; count: number; mine: boolean };
+
+/** The six a moment gets, in the order they sit under it. */
+export const MOMENT_REACTIONS = ["😂", "🔥", "💀", "🥩", "🤡", "😡"] as const;
+
+/**
+ * Something the league's people did, from `ff_sunday`'s `activity`: a
+ * challenge move off the audit trail, or a chat line that is part of the
+ * day (said about a moment, or reacted to three times or more).
+ */
+export type ActivityItem = {
+  id: string;
+  kind: "challenge" | "chat";
+  at: string;
+  verb: "proposed" | "accepted" | "declined" | "settled" | "said";
+  who: string | null;
+  opp?: string | null;
+  winner?: string | null;
+  title?: string | null;
+  stake?: string | null;
+  body?: string | null;
+  reactions?: number;
+  challenge_id?: string | null;
+  matchup_id?: string | null;
+  message_id?: string | null;
+  sunday_event_id?: string | null;
 };
 
 /**
- * Shape of ff_sunday(league_id, week). `events` is optional because the
- * browser can be talking to a database a migration behind — every reader
- * treats it being absent and being empty the same way.
+ * Shape of ff_sunday(league_id, week). `events` and `activity` are optional
+ * because the browser can be talking to a database a migration behind —
+ * every reader treats absent and empty the same way.
  */
-export type SundayBoard = Board & { nfl: NflGame[]; events?: SundayEvent[] };
+export type SundayBoard = Board & { nfl: NflGame[]; events?: SundayEvent[]; activity?: ActivityItem[] };
 
 export type Side = "home" | "away";
 
@@ -581,7 +613,24 @@ export type TickerItem = { id: string; text: string; target: TickerTarget; hot: 
  * scores of the tables nobody alerted on, so the rail never goes quiet while
  * there is a board to read.
  */
-export function tickerItems(b: SundayBoard, list: Alert[], phase: Phase, now = 0): TickerItem[] {
+export function tickerItems(b: SundayBoard, list: Alert[], phase: Phase, now = 0, unreadChat = 0): TickerItem[] {
+  // The room: a challenge accepted in the last two hours, and how much has
+  // been said since this reader last looked at the chat.
+  const social: TickerItem[] = (b.activity ?? [])
+    .filter((a) => a.kind === "challenge" && (a.verb === "accepted" || a.verb === "proposed")
+      && (!now || now - new Date(a.at).getTime() <= 2 * 3600_000))
+    .slice(0, 2)
+    .map((a) => ({ id: `act:${a.id}`, text: activityText(a).toUpperCase(), target: a.matchup_id ? { kind: "matchup" as const, id: a.matchup_id } : { kind: "chat" as const }, hot: false }));
+  if (unreadChat > 0) {
+    social.push({ id: "chat:unread", text: `💬 ${unreadChat} NEW CHAT MESSAGE${unreadChat === 1 ? "" : "S"}`, target: { kind: "chat" }, hot: false });
+  }
+  // After what happened and what is true now, before the plain scores.
+  const core = tickerCore(b, list, phase, now);
+  const at = core.findIndex((t) => t.id.startsWith("score:"));
+  return at < 0 ? [...core, ...social] : [...core.slice(0, at), ...social, ...core.slice(at)];
+}
+
+function tickerCore(b: SundayBoard, list: Alert[], phase: Phase, now: number): TickerItem[] {
   // The last half hour's events that mattered, newest first. What happened
   // leads; what is merely true right now follows.
   const recent = eventsOf(b)
@@ -682,6 +731,69 @@ export function eventTickerText(e: SundayEvent): string {
       e.lead_change && "LEAD CHANGE"].filter(Boolean).join(" → ");
   }
   return e.description ? `${e.headline.toUpperCase()} · ${e.description}` : e.headline.toUpperCase();
+}
+
+/* ------------------------------------------------------------- social -- */
+
+const one = (n: number | null | undefined) => Math.abs(Number(n ?? 0)).toFixed(1);
+
+/**
+ * The line Talk shit puts above what a manager types — a preview of what
+ * `ff_sunday_context` writes on the server, which is the one that is posted.
+ */
+export function talkContext(e: SundayEvent): string {
+  const who = e.detail.who;
+  const took = (s: string) => s.replace(" takes the lead over ", " just took the lead over ");
+  switch (e.type) {
+    case "lead_change":
+      return `🔥 ${took(e.headline)}${e.new_score != null && e.opp_new_score != null ? `, ${one(e.new_score)}–${one(e.opp_new_score)}` : ""}.`;
+    case "touchdown":
+      return `🏈 ${e.headline}${who && e.points_added != null ? `, ${signed(e.points_added)} ${who}` : ""}${e.lead_change && e.description ? ` — ${took(e.description)}` : ""}.`;
+    case "big_play":
+      return `💥 ${e.headline}${who && e.points_added != null ? `, +${one(e.points_added)} ${who}` : ""}.`;
+    case "turnover":
+      return `😬 ${e.headline}${who && e.points_added != null ? `, −${one(e.points_added)} ${who}` : ""}.`;
+    case "close_game": return `😬 Close game: ${e.headline}.`;
+    case "upset_watch": return `👀 Upset watch: ${e.headline}${e.description ? ` — ${e.description}` : ""}.`;
+    case "red_zone": return `🔴 ${e.headline}.`;
+    case "final": return `🏁 Final: ${e.headline}.`;
+    default: return e.headline;
+  }
+}
+
+/** "Mike accepted Trav's challenge." — one activity item in a sentence. */
+export function activityText(a: ActivityItem): string {
+  const who = a.who ?? "Someone";
+  if (a.kind === "chat") return `${who}: ${a.body ?? ""}`;
+  switch (a.verb) {
+    case "proposed": return `${who} challenged ${a.opp ?? "someone"}${a.title ? `: ${a.title}` : ""}`;
+    case "accepted": return `${who} accepted ${a.opp ? `${a.opp}'s` : "a"} challenge${a.title ? `: ${a.title}` : ""}`;
+    case "declined": return `${who} declined ${a.opp ? `${a.opp}'s` : "a"} challenge`;
+    default: return a.winner ? `${a.winner} won the challenge${a.title ? `: ${a.title}` : ""}` : `Challenge settled${a.title ? `: ${a.title}` : ""}`;
+  }
+}
+
+/**
+ * Toggle one reaction on one event, the way the server will — for the
+ * optimistic update that makes a tap feel instant. The next refetch confirms
+ * or corrects it.
+ */
+export function toggleReaction(b: SundayBoard, eventId: string, emoji: string): SundayBoard {
+  return {
+    ...b,
+    events: (b.events ?? []).map((e) => {
+      if (e.id !== eventId) return e;
+      const list = [...(e.reactions ?? [])];
+      const i = list.findIndex((r) => r.emoji === emoji);
+      if (i < 0) list.push({ emoji, count: 1, mine: true });
+      else {
+        const r = list[i];
+        const next = { ...r, mine: !r.mine, count: r.count + (r.mine ? -1 : 1) };
+        if (next.count <= 0) list.splice(i, 1); else list[i] = next;
+      }
+      return { ...e, reactions: list };
+    }),
+  };
 }
 
 /* ------------------------------------------------------------- pre-game -- */

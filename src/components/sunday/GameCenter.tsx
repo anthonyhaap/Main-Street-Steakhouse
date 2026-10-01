@@ -21,15 +21,15 @@ import { useCallback, useMemo, useState } from "react";
 import { MessageCircle, X } from "lucide-react";
 import { freshness, slateLine } from "@/lib/scoreboard";
 import {
-  alerts as alertsOf, closeGames, eventContext, featured, liveMoment, sundayPhase, tickerItems,
-  type CardContext, type Phase, type SundayBoard, type TickerTarget,
+  alerts as alertsOf, closeGames, eventContext, featured, liveMoment, sundayPhase, talkContext, tickerItems,
+  type CardContext, type Phase, type SundayBoard, type SundayEvent, type TickerTarget,
 } from "@/lib/sunday";
 import type { ChatItem } from "@/lib/types";
 import { Featured } from "./Featured";
 import { AllMatchups, CloseGames, NflBoard } from "./Boards";
 import { Recap, RedZoneRail, WatchRedZone } from "./RedZone";
 import { SundayTicker } from "./Ticker";
-import { ChatPanel } from "./ChatPanel";
+import { ChatPanel, type TalkContext } from "./ChatPanel";
 import "./sunday.css";
 
 type Desk = "center" | "redzone" | "matchups" | "nfl";
@@ -41,21 +41,28 @@ export type GameCenterProps = {
   /** Live stats are behind: say so, keep everything. */
   delayed?: boolean;
   chat: ChatItem[] | null;
-  onSend?: (body: string) => Promise<void>;
+  /** With an event id, the message is Talk shit about that moment. */
+  onSend?: (body: string, eventId?: string) => Promise<void>;
   chatError?: string | null;
+  /** One tap on a moment. Absent where there is nobody to react as. */
+  onReact?: (eventId: string, emoji: string) => void;
+  /** Chat lines this reader has not seen, for the ticker. */
+  unreadChat?: number;
   /** What the server knows about a table that a snapshot does not. */
   context?: Record<string, CardContext>;
 };
 
 const PHONE = "(max-width: 960px)";
 
-export function GameCenter({ board, now, delayed = false, chat, onSend, chatError, context }: GameCenterProps) {
+export function GameCenter({ board, now, delayed = false, chat, onSend, chatError, context, onReact, unreadChat = 0 }: GameCenterProps) {
   const phase: Phase = sundayPhase(board, now);
   const [desk, setDesk] = useState<Desk>("center");
   const [mob, setMob] = useState<Mob>("feed");
   const [picked, setPicked] = useState<string | null>(null);
   const [openGame, setOpenGame] = useState<string | null>(null);
   const [drawer, setDrawer] = useState(false);
+  // The moment Talk shit attached to the next message, if any.
+  const [talk, setTalk] = useState<TalkContext | null>(null);
 
   const list = useMemo(() => alertsOf(board), [board]);
   const close = useMemo(() => closeGames(board), [board]);
@@ -78,7 +85,8 @@ export function GameCenter({ board, now, delayed = false, chat, onSend, chatErro
   const focus = pickedCard ?? auto?.card ?? null;
   // A minute is plenty of resolution for "the last half hour".
   const minute = Math.floor(now / 60_000);
-  const ticker = useMemo(() => tickerItems(board, list, phase, minute * 60_000), [board, list, phase, minute]);
+  const ticker = useMemo(() => tickerItems(board, list, phase, minute * 60_000, unreadChat),
+    [board, list, phase, minute, unreadChat]);
 
   const phone = () => typeof window !== "undefined" && window.matchMedia(PHONE).matches;
 
@@ -102,6 +110,12 @@ export function GameCenter({ board, now, delayed = false, chat, onSend, chatErro
       window.scrollTo({ top: 0, behavior: "smooth" });
     } else setDrawer(true);
   }, []);
+
+  // Talk shit: the chat opens with the moment already above the composer.
+  const talkAbout = useCallback((e: SundayEvent) => {
+    setTalk({ eventId: e.id, text: talkContext(e) });
+    openChat();
+  }, [openChat, setTalk]);
 
   const onTarget = useCallback((t: TickerTarget) => {
     if (t.kind === "matchup") openMatchup(t.id);
@@ -183,7 +197,8 @@ export function GameCenter({ board, now, delayed = false, chat, onSend, chatErro
             onToggle={(id) => setOpenGame((cur) => (cur === id ? null : id))} />
         </div>
         <aside className="sun-rail" aria-label="Fantasy RedZone rail">
-          <RedZoneRail board={board} phase={phase} list={list} now={now} onMatchup={openMatchup} onGame={openNfl} />
+          <RedZoneRail board={board} phase={phase} list={list} now={now} onMatchup={openMatchup} onGame={openNfl}
+            onReact={onReact} onTalk={onSend ? talkAbout : undefined} />
         </aside>
         {/* The chat is a column of the layout, not a sheet over it: beside the
             rail on a wide screen, in the rail's place on a narrower one, and
@@ -196,13 +211,13 @@ export function GameCenter({ board, now, delayed = false, chat, onSend, chatErro
                 <X size={14} />
               </button>
             </div>
-            <ChatPanel items={chat} onSend={onSend} error={chatError} />
+            <ChatPanel items={chat} onSend={onSend} error={chatError} context={talk} onClearContext={() => setTalk(null)} />
           </aside>
         )}
       </div>
 
       <section className="sun-sec" data-panel="chat" aria-label="League chat">
-        <ChatPanel items={chat} onSend={onSend} error={chatError} />
+        <ChatPanel items={chat} onSend={onSend} error={chatError} context={talk} onClearContext={() => setTalk(null)} />
       </section>
 
       <button type="button" className="sun-fab" hidden={mob === "chat"} aria-label="Open league chat" onClick={openChat}>

@@ -18,14 +18,26 @@ import type { ChatItem } from "@/lib/types";
 const clock = (iso: string) =>
   new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
 
-export function ChatPanel({ items, onSend, error }: {
+/** A moment attached to the next message: Talk shit. */
+export type TalkContext = { eventId: string; text: string };
+
+export function ChatPanel({ items, onSend, error, context, onClearContext }: {
   items: ChatItem[] | null;
-  onSend?: (body: string) => Promise<void>;
+  /** With an event id, the message goes out about that moment. */
+  onSend?: (body: string, eventId?: string) => Promise<void>;
   error?: string | null;
+  context?: TalkContext | null;
+  onClearContext?: () => void;
 }) {
   const [body, setBody] = useState("");
   const [busy, setBusy] = useState(false);
   const log = useRef<HTMLDivElement>(null);
+  const input = useRef<HTMLInputElement>(null);
+
+  // Talk shit lands the cursor under the moment, ready to type.
+  useEffect(() => {
+    if (context) input.current?.focus({ preventScroll: true });
+  }, [context]);
   // Newest at the bottom, the way a chat reads. The feed arrives newest first.
   const lines = [...(items ?? [])].filter((x) => x.source === "message").reverse();
 
@@ -40,8 +52,9 @@ export function ChatPanel({ items, onSend, error }: {
     if (!v || busy || !onSend) return;
     setBusy(true);
     try {
-      await onSend(v);
+      await onSend(v, context?.eventId);
       setBody("");
+      onClearContext?.();
     } finally {
       setBusy(false);
     }
@@ -71,10 +84,20 @@ export function ChatPanel({ items, onSend, error }: {
           </div>
         ))}
       </div>
+      {onSend && context && (
+        <div className="sun-chat__ctx" aria-label="Talking about">
+          <span>{context.text}</span>
+          {onClearContext && (
+            <button type="button" aria-label="Don't attach this moment" onClick={onClearContext}>✕</button>
+          )}
+        </div>
+      )}
       {onSend && (
         <form className="sun-chat__send" onSubmit={send}>
-          <input value={body} onChange={(e) => setBody(e.target.value)} placeholder="Say something to the league"
-            aria-label="Message the league" maxLength={1000} />
+          <input ref={input} value={body} onChange={(e) => setBody(e.target.value)}
+            placeholder={context ? "Talk your talk" : "Say something to the league"}
+            aria-label={context ? "Say something about this moment" : "Message the league"}
+            maxLength={context ? Math.max(1, 999 - context.text.length) : 1000} />
           <button className="sun-btn" data-v="gold" type="submit" disabled={busy || !body.trim()} aria-label="Send">
             <Send size={14} />
           </button>

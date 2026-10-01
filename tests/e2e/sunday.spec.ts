@@ -193,3 +193,84 @@ test("on a desktop the chat takes a column and covers nothing", async ({ page },
     expect(feat.x + feat.width).toBeLessThanOrEqual(main.x + main.width + 1);
   }
 });
+
+/* ---------------------------------------------------------------- phase 3 -- */
+
+test("one tap reacts to a moment, and a second tap takes it back", async ({ page }) => {
+  await page.goto("/preview/sunday");
+  await stage(page, "Late window");
+  const card = page.locator(".sun-event[data-level='4']", { hasText: "Lou takes the lead over Gus" });
+  const laugh = card.locator(".sun-react__btn", { hasText: "😂" });
+  await expect(laugh).toHaveAttribute("aria-label", "😂 4");
+  await laugh.click();
+  await expect(laugh).toHaveAttribute("aria-label", "😂 5");
+  await expect(laugh).toHaveAttribute("aria-pressed", "true");
+  await laugh.click();
+  await expect(laugh).toHaveAttribute("aria-label", "😂 4");
+  // All six, the 😡 included, and no chat had to open for any of it.
+  await expect(card.locator(".sun-react__btn")).toHaveCount(6);
+  await expect(page.locator(".sun-drawer")).toHaveCount(0);
+});
+
+test("Talk shit opens the chat with the moment attached", async ({ page }, info) => {
+  await page.goto("/preview/sunday");
+  await stage(page, "Late window");
+  const td = page.locator(".sun-event[data-kind='touchdown']", { hasText: "Puka Nacua" });
+  await td.getByRole("button", { name: /Talk shit/ }).click();
+
+  const panel = info.project.name === "mobile" ? page.locator("[data-panel='chat']") : page.locator(".sun-drawer");
+  const ctx = panel.locator(".sun-chat__ctx");
+  await expect(ctx).toHaveText(/🏈 Puka Nacua — 40\+ yard receiving touchdown, \+9\.1 Marcus\./);
+  const input = panel.getByRole("textbox", { name: "Say something about this moment" });
+  await expect(input).toBeFocused();
+  await input.fill("no way that counts");
+  await input.press("Enter");
+
+  // The line goes out with the moment above it, the chip clears, and the
+  // card counts the talk.
+  // Newest at the bottom, the way a chat reads.
+  await expect(panel.locator(".sun-msg").last()).toContainText("Puka Nacua");
+  await expect(panel.locator(".sun-msg").last()).toContainText("no way that counts");
+  await expect(ctx).toHaveCount(0);
+
+  // Back to the feed — below 1400px the chat takes the rail's place, and on a
+  // phone it is its own tab — where the card now counts the talk.
+  if (info.project.name === "mobile") {
+    await page.locator(".sun-tabs[data-for='phone']").getByRole("button", { name: /^RedZone/ }).click();
+  } else {
+    await page.getByRole("button", { name: "Close chat" }).click();
+  }
+  await expect(td.getByRole("button", { name: /Talk shit · 1/ })).toBeVisible();
+});
+
+test("the feed carries what the league's people did between the football", async ({ page }) => {
+  await page.goto("/preview/sunday");
+  await stage(page, "One o'clock window");
+  const feed = page.locator(".sun-evfeed");
+  await expect(feed.locator(".sun-activity[data-verb='accepted']")).toContainText("Dev accepted Ray's challenge: Dev outscores Ray");
+  await expect(feed.locator(".sun-activity[data-kind='chat']", { hasText: "absolute fraud" })).toContainText("7 reactions");
+
+  // A Talk-shit line quotes only what was said; its moment is its own card.
+  await stage(page, "Late window");
+  const talk = page.locator(".sun-activity[data-kind='chat']", { hasText: "there's no way" });
+  await expect(talk.locator(".sun-activity__q")).toHaveText("there's no way");
+
+  // Tuesday: the challenge settled.
+  await stage(page, "Tuesday");
+  await expect(page.locator(".sun-activity[data-verb='settled']")).toContainText("Dev won the challenge");
+});
+
+test("the ticker carries the room", async ({ page }, info) => {
+  test.skip(info.project.name === "mobile", "the arrows are a desktop affordance");
+  await page.goto("/preview/sunday");
+  await stage(page, "One o'clock window");
+  const ticker = page.locator(".sun-ticker");
+  const seen: string[] = [];
+  for (let i = 0; i < 20; i++) {
+    seen.push((await ticker.locator(".sun-ticker__item").textContent()) ?? "");
+    if (seen.some((t) => t.includes("NEW CHAT MESSAGES"))) break;
+    await ticker.getByRole("button", { name: "Next" }).click();
+  }
+  expect(seen.join(" | ")).toContain("DEV ACCEPTED RAY'S CHALLENGE");
+  expect(seen.join(" | ")).toContain("💬 3 NEW CHAT MESSAGES");
+});
