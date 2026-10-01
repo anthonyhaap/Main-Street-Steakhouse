@@ -227,3 +227,57 @@ test("a side that is not a team is not a door", async ({ page }) => {
     if (href !== null) expect(href).toMatch(/^\/team/);
   }
 });
+
+/**
+ * The trade desk names teams in three places, and every one of them is a door
+ * built from an id the offer payload already carried — `proposer_team_id` and
+ * `receiver_team_id`, never the name it prints.
+ *
+ * Which end of the offer gets named depends on which way it went, so the test
+ * checks the id as well as the count: a door that opened the wrong side of a
+ * trade would still look right.
+ */
+test("the trade desk opens the team across the table", async ({ page }) => {
+  await page.goto("/preview/trades");
+
+  // The live offer in the fixture came FROM t2 to the reader, so the header
+  // names the proposer, not the reader.
+  await expect(page.getByRole("link", { name: "Open Prime Cut's roster" }).first())
+    .toHaveAttribute("href", "/team?id=t2");
+
+  // The block: a listing of the reader's own goes to plain /team, somebody
+  // else's to their desk.
+  const block = page.locator(".row", { hasText: "want a back" });
+  await expect(block.locator("a[href='/team?id=t2']")).toHaveCount(1);
+
+  // Settled offers the reader sent name the receiver.
+  await expect(page.locator("a[href='/team?id=t8']")).toHaveCount(1);
+  await expect(page.locator("a[href='/team?id=t12']")).toHaveCount(1);
+});
+
+/**
+ * The ledger is the one screen with no team ids to link by — `ff_transactions`
+ * records each side of a move as a name, because the row is read as a sentence.
+ * So the names are resolved against the league's own team list.
+ *
+ * The fixture's list deliberately omits one of the teams in the week, which is
+ * what a team renamed since the move looks like. That name has to stay plain
+ * text: a door built on a near-miss would open a roster that had nothing to do
+ * with the move being read.
+ */
+test("the ledger opens the teams it can place, and only those", async ({ page }) => {
+  await page.goto("/preview/ledger");
+
+  // Scoped to the entries: every team in the week is also an <option> in the
+  // filter above them, and an option is not a door however it reads.
+  const rows = page.locator(".rows");
+
+  // Placed: Chuck Wagon is the reader (plain /team), the Butchers are visited.
+  await expect(rows.locator("a[href='/team?id=t1']").first()).toBeVisible();
+  await expect(rows.locator("a[href='/team']").first()).toBeVisible();
+
+  // Not placed: Brisket Brigade is absent from the fixture's league, so it is
+  // named without being linked — and still rendered.
+  await expect(rows.getByText("Brisket Brigade").first()).toBeVisible();
+  await expect(rows.getByRole("link", { name: /Brisket Brigade/ })).toHaveCount(0);
+});

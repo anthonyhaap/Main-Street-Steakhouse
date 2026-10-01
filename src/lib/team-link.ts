@@ -19,6 +19,41 @@ export function teamHref(teamId: string | null | undefined, mine = false): strin
 }
 
 /**
+ * A team's id from the name it is written under, for the boards that quote a
+ * team by name and nothing else.
+ *
+ * The ledger is the reason this exists. `ff_transactions` records each side of a
+ * move as a name — it is a historical account, and it reads as a sentence — so
+ * there is no id to link by, and the league's own team list is the only place to
+ * recover one. Prefer an id the payload already carries over this: the trade
+ * desk looks like the same problem and is not, because every offer comes with
+ * `proposer_team_id` and `receiver_team_id`.
+ *
+ * Two names that normalise the same resolve to NOTHING rather than to whichever
+ * came first. A wrong door is worse than no door: it would open a roster that
+ * had nothing to do with the move being read, and nothing on the screen would
+ * admit it. An unresolved name is drawn as the plain text it always was.
+ *
+ * A renamed team is the other miss, and the same answer. Last season's entries
+ * keep last season's name, that name is no longer in the league's list, and
+ * those rows simply are not doors — which is honest, because the roster behind
+ * the door is today's, not the one that made the trade.
+ */
+export function teamIdsByName(
+  teams: readonly { id: string; name: string }[],
+): (name: string | null | undefined) => string | null {
+  const key = (n: string) => n.trim().replace(/\s+/g, " ").toLowerCase();
+  const byName = new Map<string, string | null>();
+  for (const t of teams) {
+    const k = key(t.name);
+    // Second sighting of a name poisons it: `has` rather than `get`, so a
+    // duplicate is caught even when the first one resolved to a real id.
+    byName.set(k, byName.has(k) ? null : t.id);
+  }
+  return (name) => (name ? byName.get(key(name)) ?? null : null);
+}
+
+/**
  * What a door to a team's desk says it does.
  *
  * The visible text of one of these links is usually just the team's name, and
