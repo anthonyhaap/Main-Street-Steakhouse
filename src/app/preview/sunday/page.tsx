@@ -14,8 +14,8 @@
 import { useState } from "react";
 import { TopBar } from "@/components/Shell";
 import { GameCenter } from "@/components/sunday/GameCenter";
-import { gcBoard, gcChat, GC_NOW, GC_STAGES, type GcStage } from "@/lib/fixtures/gamecenter";
-import { talkContext, toggleReaction } from "@/lib/sunday";
+import { gcBoard, gcChat, gcIntel, GC_NOW, GC_STAGES, type GcStage } from "@/lib/fixtures/gamecenter";
+import { WEIGHT_DIALS, talkContext, toggleReaction } from "@/lib/sunday";
 
 export default function SundayPreviewPage() {
   const [stage, setStage] = useState<GcStage>("late");
@@ -41,6 +41,23 @@ export default function SundayPreviewPage() {
     if (eventId) {
       setBoard((b) => ({ ...b, events: (b.events ?? []).map((x) => (x.id === eventId ? { ...x, talk: (x.talk ?? 0) + 1 } : x)) }));
     }
+  };
+
+  // The commissioner's dials, kept on the page. Same bounds and words as
+  // ff_set_sunday_weights, so the panel's refusal can be tried here too.
+  const tune = async (changes: Record<string, number | null>) => {
+    const defaults = gcIntel().weights;
+    const next = { ...(board.intel?.weights ?? defaults) };
+    for (const [k, v] of Object.entries(changes)) {
+      const dial = WEIGHT_DIALS.find((d) => d.key === k);
+      if (!dial) throw new Error(`no such weight: ${k}`);
+      if (v === null) { next[k] = defaults[k]; continue; }
+      if (!Number.isInteger(v) || v < dial.lo || v > dial.hi) {
+        throw new Error(`${k} must be a whole number from ${dial.lo} to ${dial.hi}`);
+      }
+      next[k] = v;
+    }
+    setBoard((b) => (b.intel ? { ...b, intel: { ...b.intel, weights: next } } : b));
   };
 
   return (
@@ -69,7 +86,8 @@ export default function SundayPreviewPage() {
         </div>
       </div>
       <GameCenter key={stage} board={board} now={GC_NOW[stage]} delayed={stale} chat={chat}
-        onSend={send} onReact={(id, emoji) => setBoard((b) => toggleReaction(b, id, emoji))} unreadChat={3} />
+        onSend={send} onReact={(id, emoji) => setBoard((b) => toggleReaction(b, id, emoji))} unreadChat={3}
+        onTune={tune} />
     </>
   );
 }

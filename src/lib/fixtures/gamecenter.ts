@@ -18,7 +18,7 @@
  */
 
 import type { ScoreCard, ScoreSide, ScoreStarter, Talk } from "@/lib/scoreboard";
-import type { ActivityItem, NflGame, SundayBoard, SundayEvent } from "@/lib/sunday";
+import type { ActivityItem, Intel, NflGame, SundayBoard, SundayEvent, TableRow } from "@/lib/sunday";
 import type { ChatItem } from "@/lib/types";
 
 export type GcStage = "pre" | "early" | "late" | "final";
@@ -305,6 +305,47 @@ export function gcBoard(stage: GcStage): SundayBoard {
     nfl,
     events: gcEvents(stage),
     activity: gcActivity(stage),
+    intel: gcIntel(),
+  };
+}
+
+/**
+ * What the league knows going into week 12, invented to match the records on
+ * the board: the table those records make, a few streaks, the season high,
+ * three series with history. Ray is on three straight; Lou has lost four;
+ * Tom and Nate are both 5-5; Anthony has beaten Marcus three times running.
+ */
+const STREAK: Record<string, number> = {
+  gt0: 3, gt1: 1, gt2: 2, gt3: -1, gt4: -1, gt5: 1, gt6: -2, gt7: 1, gt8: -4, gt9: 2, gt10: -1, gt11: 1,
+};
+
+export function gcIntel(): Intel {
+  const rows = TEAMS.map(([, , wins], t) => ({ t, wins, pf: 1000 + wins * 40 + t }));
+  rows.sort((a, b) => b.wins - a.wins || b.pf - a.pf);
+  const table: TableRow[] = rows.map((r, i) => ({
+    team_id: `gt${r.t}`, wins: r.wins, losses: 10 - r.wins, ties: 0, pf: r.pf, rank: i + 1,
+    streak: STREAK[`gt${r.t}`] ?? 0,
+  }));
+  return {
+    weights: {
+      touchdown: 20, lead_change: 35, within5: 25, within1: 40, fourth_quarter: 15, rivalry: 10, upset: 15,
+      league_high: 10, playoff: 15, projected_close: 10, standings: 8, in_action: 2, comeback: 30, season_high: 25,
+      big_play_points: 6, scoring_points: 3, close_margin: 5, close_reset: 8, upset_gap: 8, comeback_points: 20,
+    },
+    can_tune: true,
+    rules: {
+      pass_yd: 0.04, pass_td: 4, rush_yd: 0.1, rush_td: 6, rec: 1, rec_yd: 0.1, rec_td: 6,
+      fg_0_39: 3, xp_made: 1, dst_td: 6, dst_int: 2, dst_sack: 1,
+    },
+    playoff_teams: 6,
+    regular_season_weeks: 14,
+    table,
+    season_high: { points: 152.4, team_id: "gt7", week: 9 },
+    h2h: {
+      gm1: { meetings: 9, home_wins: 5, away_wins: 4, ties: 0, streak: 1, since: 2019 },
+      gm2: { meetings: 6, home_wins: 2, away_wins: 4, ties: 0, streak: -3, since: 2021 },
+      gm4: { meetings: 4, home_wins: 1, away_wins: 3, ties: 0, streak: -1, since: 2022 },
+    },
   };
 }
 

@@ -21,7 +21,8 @@ import { useCallback, useMemo, useState } from "react";
 import { MessageCircle, X } from "lucide-react";
 import { freshness, slateLine } from "@/lib/scoreboard";
 import {
-  alerts as alertsOf, closeGames, eventContext, featured, liveMoment, sundayPhase, talkContext, tickerItems,
+  alerts as alertsOf, closeGames, eventContext, excitement, featured, intelContext, liveMoment, storylines,
+  sundayPhase, talkContext, tickerItems, weightsFrom,
   type CardContext, type Phase, type SundayBoard, type SundayEvent, type TickerTarget,
 } from "@/lib/sunday";
 import type { ChatItem } from "@/lib/types";
@@ -30,6 +31,7 @@ import { AllMatchups, CloseGames, NflBoard } from "./Boards";
 import { Recap, RedZoneRail, WatchRedZone } from "./RedZone";
 import { SundayTicker } from "./Ticker";
 import { ChatPanel, type TalkContext } from "./ChatPanel";
+import { ManagerStatusBoard, Storylines, TuneExcitement, WhatDoINeed, WhyFeatured, storiesFor } from "./Intel";
 import "./sunday.css";
 
 type Desk = "center" | "redzone" | "matchups" | "nfl";
@@ -50,11 +52,15 @@ export type GameCenterProps = {
   unreadChat?: number;
   /** What the server knows about a table that a snapshot does not. */
   context?: Record<string, CardContext>;
+  /** The commissioner's save for the excitement weights. */
+  onTune?: (changes: Record<string, number | null>) => Promise<void>;
 };
 
 const PHONE = "(max-width: 960px)";
 
-export function GameCenter({ board, now, delayed = false, chat, onSend, chatError, context, onReact, unreadChat = 0 }: GameCenterProps) {
+export function GameCenter({
+  board, now, delayed = false, chat, onSend, chatError, context, onReact, onTune, unreadChat = 0,
+}: GameCenterProps) {
   const phase: Phase = sundayPhase(board, now);
   const [desk, setDesk] = useState<Desk>("center");
   const [mob, setMob] = useState<Mob>("feed");
@@ -64,16 +70,23 @@ export function GameCenter({ board, now, delayed = false, chat, onSend, chatErro
   // The moment Talk shit attached to the next message, if any.
   const [talk, setTalk] = useState<TalkContext | null>(null);
 
-  const list = useMemo(() => alertsOf(board), [board]);
+  // The league's own weights when the server sent them; the defaults when not.
+  const weights = useMemo(() => weightsFrom(board.intel?.weights), [board]);
+  const list = useMemo(() => alertsOf(board, weights), [board, weights]);
+  const stories = useMemo(() => storylines(board), [board]);
   const close = useMemo(() => closeGames(board), [board]);
   const closeIds = useMemo(() => new Set(close.map((c) => c.id)), [close]);
   // What the day's events know about each table — lead changes, touchdowns —
   // counts toward which one is featured, on top of whatever the page was given.
+  // So does what the league's history knows — a rivalry, playoff stakes.
   const ctx = useMemo(() => {
-    const fromEvents = eventContext(board.events ?? []);
-    return { ...fromEvents, ...(context ?? {}) };
-  }, [board.events, context]);
-  const ranked = featured(board, phase, ctx);
+    const out: Record<string, CardContext> = {};
+    for (const part of [eventContext(board.events ?? []), intelContext(board), context ?? {}]) {
+      for (const [id, c] of Object.entries(part)) out[id] = { ...out[id], ...c };
+    }
+    return out;
+  }, [board, context]);
+  const ranked = useMemo(() => featured(board, phase, ctx, weights), [board, phase, ctx, weights]);
   // A Steakhouse moment takes the featured slot for a few minutes, then gives
   // it back. The reader's own pick always wins over both.
   const moment = liveMoment(board.events ?? [], now);
@@ -83,6 +96,10 @@ export function GameCenter({ board, now, delayed = false, chat, onSend, chatErro
     : ranked && { ...ranked, label: `${phase === "live" ? "🔥" : "🏆"} ${ranked.label}` };
   const pickedCard = picked ? board.matchups.find((c) => c.id === picked) ?? null : null;
   const focus = pickedCard ?? auto?.card ?? null;
+  // Why the page chose it, in the words the score counted. Not for a pick or
+  // a moment: the reader chose the one, and the moment explains itself.
+  const why = useMemo(() => (focus && !pickedCard && !momentCard
+    ? excitement(focus, board, ctx[focus.id], weights).reasons : []), [focus, pickedCard, momentCard, board, ctx, weights]);
   // A minute is plenty of resolution for "the last half hour".
   const minute = Math.floor(now / 60_000);
   const ticker = useMemo(() => tickerItems(board, list, phase, minute * 60_000, unreadChat),
@@ -184,17 +201,22 @@ export function GameCenter({ board, now, delayed = false, chat, onSend, chatErro
             <Featured
               card={focus} label={auto.label} auto={!pickedCard} phase={phase} now={now}
               nfl={board.nfl ?? []} cards={board.matchups} onPick={(id) => (id ? openMatchup(id) : setPicked(null))}
+              stories={storiesFor(stories, focus)} why={<WhyFeatured reasons={why} />}
             />
           )}
+          {phase === "live" && <WhatDoINeed board={board} nfl={board.nfl ?? []} onOpen={openMatchup} />}
+          <Storylines stories={stories} onOpen={openMatchup} />
           {empty && (
             <div className="sun-quiet" data-panel="featured">
               No matchups for week {board.week} yet. Lineups post once the draft is done.
             </div>
           )}
           <CloseGames cards={close} onOpen={openMatchup} />
+          <ManagerStatusBoard board={board} phase={phase} onOpen={openMatchup} />
           <AllMatchups board={board} focusId={focus?.id ?? null} close={closeIds} phase={phase} onOpen={openMatchup} />
           <NflBoard board={board} nfl={board.nfl ?? []} now={now} openId={openGame}
             onToggle={(id) => setOpenGame((cur) => (cur === id ? null : id))} />
+          {board.intel?.can_tune && onTune && <TuneExcitement weights={board.intel.weights} onSave={onTune} />}
         </div>
         <aside className="sun-rail" aria-label="Fantasy RedZone rail">
           <RedZoneRail board={board} phase={phase} list={list} now={now} onMatchup={openMatchup} onGame={openNfl}

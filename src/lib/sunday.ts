@@ -55,7 +55,8 @@ export type NflGame = {
  */
 export type EventType =
   | "touchdown" | "big_play" | "scoring" | "turnover" | "lead_change"
-  | "close_game" | "upset_watch" | "red_zone" | "final";
+  | "close_game" | "upset_watch" | "red_zone" | "final"
+  | "comeback" | "season_high";
 
 export type SundayEvent = {
   id: string;
@@ -125,7 +126,32 @@ export type ActivityItem = {
  * because the browser can be talking to a database a migration behind —
  * every reader treats absent and empty the same way.
  */
-export type SundayBoard = Board & { nfl: NflGame[]; events?: SundayEvent[]; activity?: ActivityItem[] };
+export type SundayBoard = Board & {
+  nfl: NflGame[]; events?: SundayEvent[]; activity?: ActivityItem[]; intel?: Intel;
+};
+
+/** One team's line in the table going into the week. `streak` is signed. */
+export type TableRow = {
+  team_id: string; wins: number; losses: number; ties: number; pf: number; rank: number; streak: number;
+};
+
+/** Two managers' history, from the home chair. `streak` +3: home won the last three. */
+export type H2H = { meetings: number; home_wins: number; away_wins: number; ties: number; streak: number; since: number };
+
+/**
+ * What the league knows that one week's board does not — `ff_sunday`'s
+ * `intel`. Facts only; the sentences are written from them here, live.
+ */
+export type Intel = {
+  weights: Record<string, number>;
+  can_tune: boolean;
+  rules: Record<string, number>;
+  playoff_teams: number;
+  regular_season_weeks: number;
+  table: TableRow[];
+  season_high: { points: number; team_id: string; week: number } | null;
+  h2h: Record<string, H2H>;
+};
 
 export type Side = "home" | "away";
 
@@ -204,7 +230,57 @@ export const EXCITEMENT = {
   standings: 8,
   /** Per starter on the field right now. A tiebreaker, not a reason. */
   inAction: 2,
+  /** A side that was down big has taken the lead. */
+  comeback: 30,
+  /** A score past the season's best. */
+  seasonHigh: 25,
 };
+
+/**
+ * The server's names for the same weights. `ff_sunday_weights` is the one
+ * table — the detector reads it, and `intel.weights` hands it to the page —
+ * so EXCITEMENT above is only the fallback for a database a migration behind.
+ */
+const WEIGHT_KEYS: Record<keyof typeof EXCITEMENT, string> = {
+  touchdown: "touchdown", leadChange: "lead_change", within5: "within5", within1: "within1",
+  fourthQuarter: "fourth_quarter", rivalry: "rivalry", upset: "upset", leagueHigh: "league_high",
+  playoff: "playoff", projectedClose: "projected_close", standings: "standings", inAction: "in_action",
+  comeback: "comeback", seasonHigh: "season_high",
+};
+
+/** The league's weights, over the defaults, ignoring anything that is not a number. */
+export function weightsFrom(server: Record<string, number> | null | undefined): typeof EXCITEMENT {
+  const w = { ...EXCITEMENT };
+  if (!server) return w;
+  for (const k of Object.keys(WEIGHT_KEYS) as (keyof typeof EXCITEMENT)[]) {
+    const v = server[WEIGHT_KEYS[k]];
+    if (typeof v === "number" && Number.isFinite(v)) w[k] = v;
+  }
+  return w;
+}
+
+/**
+ * The commissioner's dials, in the order and words the tuning panel shows
+ * them. `key` is the server's; bounds match `ff_sunday_weight_bounds`, which
+ * is the one that enforces them.
+ */
+export const WEIGHT_DIALS: { key: string; label: string; hint: string; lo: number; hi: number }[] = [
+  { key: "lead_change", label: "Lead change", hint: "A table changing hands", lo: 0, hi: 100 },
+  { key: "within1", label: "Within a point", hint: "Live and inside one", lo: 0, hi: 100 },
+  { key: "within5", label: "Within five", hint: "Live and inside five", lo: 0, hi: 100 },
+  { key: "touchdown", label: "Touchdown", hint: "Each one at the table", lo: 0, hi: 100 },
+  { key: "fourth_quarter", label: "Late", hint: "Fourth quarter, or three men left", lo: 0, hi: 100 },
+  { key: "upset", label: "Upset", hint: "The underdog in front", lo: 0, hi: 100 },
+  { key: "comeback", label: "Comeback", hint: "Down big, now leading", lo: 0, hi: 100 },
+  { key: "rivalry", label: "Rivalry", hint: "A series with history", lo: 0, hi: 100 },
+  { key: "playoff", label: "Playoff stakes", hint: "Near the cut line, late in the year", lo: 0, hi: 100 },
+  { key: "season_high", label: "Season high", hint: "A score past the season's best", lo: 0, hi: 100 },
+  { key: "league_high", label: "Week's high", hint: "The best score this week", lo: 0, hi: 100 },
+  { key: "projected_close", label: "Projected close", hint: "Projected inside five", lo: 0, hi: 100 },
+  { key: "standings", label: "Standings", hint: "Both at .500 or better", lo: 0, hi: 100 },
+  { key: "comeback_points", label: "Comeback means down", hint: "Points behind before it counts", lo: 5, hi: 80 },
+  { key: "upset_gap", label: "Underdog means behind by", hint: "Projected points", lo: 2, hi: 40 },
+];
 
 export type Weights = typeof EXCITEMENT;
 
@@ -214,6 +290,10 @@ export type CardContext = {
   touchdowns?: number;
   rivalry?: boolean;
   playoff?: boolean;
+  /** A side came back from `comeback_points` down to lead. */
+  comeback?: boolean;
+  /** Somebody at the table passed the season's high score. */
+  seasonHigh?: boolean;
 };
 
 export type Excitement = { score: number; reasons: string[] };
@@ -302,6 +382,8 @@ export function excitement(
   add((ctx.touchdowns ?? 0) * w.touchdown, "touchdowns");
   if (ctx.rivalry) add(w.rivalry, "rivalry");
   if (ctx.playoff) add(w.playoff, "playoff stakes");
+  if (ctx.comeback) add(w.comeback, "a comeback");
+  if (ctx.seasonHigh) add(w.seasonHigh, "a season high");
   return { score, reasons };
 }
 
@@ -674,8 +756,12 @@ export function eventContext(events: SundayEvent[]): Record<string, CardContext>
   for (const e of events) {
     if (!e.matchup_id) continue;
     const c = (out[e.matchup_id] ??= { leadChanges: 0, touchdowns: 0 });
-    if (e.type === "lead_change" || e.lead_change) c.leadChanges = (c.leadChanges ?? 0) + 1;
+    // A comeback is told beside the lead change that made it, not instead of
+    // it, so it is not a second lead change.
+    if (e.type === "lead_change" || (e.lead_change && e.type !== "comeback")) c.leadChanges = (c.leadChanges ?? 0) + 1;
     if (e.type === "touchdown") c.touchdowns = (c.touchdowns ?? 0) + 1;
+    if (e.type === "comeback") c.comeback = true;
+    if (e.type === "season_high") c.seasonHigh = true;
   }
   return out;
 }
@@ -699,6 +785,8 @@ export function liveMoment(events: SundayEvent[], now: number): SundayEvent | nu
 
 /** The label on an event card, in the house's broadcast voice. */
 export function eventTag(e: SundayEvent): string {
+  if (e.type === "comeback") return "🚨 Comeback · Steakhouse moment";
+  if (e.type === "season_high") return "🏆 Season high · Steakhouse moment";
   if (e.level === 4 && e.type !== "touchdown") return "🚨 Steakhouse moment";
   switch (e.type) {
     case "touchdown": return e.level === 4 ? "🚨 Touchdown · Steakhouse moment" : "🚨 Touchdown";
@@ -756,7 +844,9 @@ export function talkContext(e: SundayEvent): string {
     case "close_game": return `😬 Close game: ${e.headline}.`;
     case "upset_watch": return `👀 Upset watch: ${e.headline}${e.description ? ` — ${e.description}` : ""}.`;
     case "red_zone": return `🔴 ${e.headline}.`;
-    case "final": return `🏁 Final: ${e.headline}.`;
+    case "final": return `🏁 Final: ${e.headline}${e.description ? ` — ${e.description}` : ""}.`;
+    case "comeback": return `🚨 ${e.headline}${e.description ? ` — ${e.description.toLowerCase()}` : ""}.`;
+    case "season_high": return `🏆 ${e.headline}${e.description ? `: ${e.description}` : ""}.`;
     default: return e.headline;
   }
 }
@@ -882,3 +972,232 @@ export function sideCounts(s: ScoreSide) {
   return { on, toCome: s.starters.length - on - done, done };
 }
 
+
+/* --------------------------------------------------------- intelligence -- */
+
+const rowOf = (b: SundayBoard, teamId: string): TableRow | null =>
+  b.intel?.table.find((r) => r.team_id === teamId) ?? null;
+/** A row with a result in it. Week 1 has a table of zeros, which says nothing. */
+const hasPlayed = (r: TableRow | null): r is TableRow => !!r && r.wins + r.losses + r.ties > 0;
+const record = (r: TableRow) => `${r.wins}-${r.losses}${r.ties ? `-${r.ties}` : ""}`;
+
+/** The team's label wherever it sits on this week's board. */
+function teamWho(b: Board, teamId: string): string | null {
+  for (const c of b.matchups) {
+    if (c.home.team_id === teamId) return who(c.home);
+    if (c.away.team_id === teamId) return who(c.away);
+  }
+  return null;
+}
+
+const WORDS = ["", "first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "ninth", "tenth"];
+const nth = (n: number) => WORDS[n] ?? `${n}th`;
+
+/**
+ * What the league's history makes of each table, for the excitement score: a
+ * rivalry (three meetings or more, and either close or one-sided lately) and
+ * playoff stakes (the last month of the regular season, somebody near the cut).
+ */
+export function intelContext(b: SundayBoard): Record<string, CardContext> {
+  const out: Record<string, CardContext> = {};
+  const i = b.intel;
+  if (!i) return out;
+  const stretch = b.week <= i.regular_season_weeks && b.week > i.regular_season_weeks - 4;
+  const near = (r: TableRow | null) => hasPlayed(r) && r.rank >= i.playoff_teams - 1 && r.rank <= i.playoff_teams + 2;
+  for (const c of b.matchups) {
+    const h = i.h2h[c.id];
+    const rivalry = !!h && h.meetings >= 3 && (Math.abs(h.home_wins - h.away_wins) <= 1 || Math.abs(h.streak) >= 3);
+    const playoff = stretch && (near(rowOf(b, c.home.team_id)) || near(rowOf(b, c.away.team_id)));
+    if (rivalry || playoff) out[c.id] = { rivalry, playoff };
+  }
+  return out;
+}
+
+/** One storyline: a sentence, the table it is about, and how much it matters. */
+export type Story = { id: string; matchupId: string; emoji: string; text: string; weight: number };
+
+/**
+ * The league's storylines, written live from facts the server sent and the
+ * board as it stands. Every sentence is checkable against a number on the
+ * page — a record, a series, a projection — and none is written from a fact
+ * that is not there. When the history is not loaded, only the upset is told,
+ * because the morning's projections are all it needs.
+ */
+export function storylines(b: SundayBoard): Story[] {
+  const out: Story[] = [];
+  const i = b.intel;
+  const last = i && i.table.length ? Math.max(...i.table.map((r) => r.rank)) : 0;
+
+  for (const c of b.matchups) {
+    if (c.home.starters.length + c.away.starters.length === 0) continue;
+    const state = cardState(c);
+    const settled = state === "settled";
+    const push = (id: string, emoji: string, text: string, weight: number) =>
+      out.push({ id: `${id}:${c.id}`, matchupId: c.id, emoji, text, weight });
+
+    const dog = underdog(c);
+    if (dog) {
+      const s = sideOf(c, dog.key), fav = sideOf(c, other(dog.key));
+      const m = margin(c);
+      const dogAhead = dog.key === "home" ? m > 0 : m < 0;
+      if (settled) {
+        if (dogAhead) push("upset", "👀", `${who(s)} pulled off the upset, from ${fmt1(dog.gap)} behind on paper.`, 40);
+      } else if (state !== "pre" && dogAhead) {
+        push("upset", "👀", `${who(s)} is pulling off the upset — projected ${fmt1(dog.gap)} behind ${who(fav)}, and ahead now.`, 45);
+      } else {
+        push("upset", "👀", `Can ${who(s)} pull off the upset? ${who(fav)} is projected ${fmt1(dog.gap)} better.`, state === "pre" ? 30 : 20);
+      }
+    }
+    if (!i) continue;
+
+    for (const key of ["home", "away"] as Side[]) {
+      const s = sideOf(c, key), them = sideOf(c, other(key));
+      const r = rowOf(b, s.team_id);
+
+      if (hasPlayed(r) && !settled) {
+        if (r.streak >= 2) push(`streak-${key}`, "🔥", `${who(s)} is chasing a ${nth(r.streak + 1)} straight win.`, 10 + r.streak * 3);
+        if (r.streak <= -3) push(`skid-${key}`, "🥶", `${who(s)} has lost ${-r.streak} straight.`, 8 + -r.streak * 2);
+        // Exactly .500 and behind: one more loss is below it. Not "in danger"
+        // while winning.
+        const behind = state === "pre" ? Number(s.proj) < Number(them.proj) : Number(s.points) < Number(them.points);
+        if (r.wins === r.losses && r.wins > 0 && behind) {
+          push(`500-${key}`, "😬", `${who(s)} is in danger of dropping below .500.`, 12);
+        }
+      }
+
+      const high = i.season_high;
+      if (high && state !== "pre") {
+        const holder = teamWho(b, high.team_id) ?? "the record";
+        const pts = Number(s.points);
+        const pace = projectedFinal(s);
+        if (pts > high.points) {
+          push(`high-${key}`, "🏆", settled
+            ? `${who(s)} set the season high: ${fmt1(pts)}, past ${holder}'s ${fmt1(high.points)}.`
+            : `${who(s)} has the season high in hand: ${fmt1(pts)}, past ${holder}'s ${fmt1(high.points)} from week ${high.week}.`, 38);
+        } else if (!settled && pace > high.points && remaining(s).length > 0) {
+          push(`high-${key}`, "🏆", `${who(s)} is chasing the highest Steakhouse score this season — on pace for ${fmt1(pace)}; the mark is ${fmt1(high.points)}.`, 25);
+        }
+      }
+    }
+
+    const h = i.h2h[c.id];
+    if (h && h.meetings >= 2) {
+      if (Math.abs(h.streak) >= 3) {
+        const [w, l] = h.streak > 0 ? [c.home, c.away] : [c.away, c.home];
+        push("h2h", "⚔️", `${who(w)} has beaten ${who(l)} ${Math.abs(h.streak)} straight times.`, 18);
+      } else if (h.meetings >= 3) {
+        const ties = h.ties ? `–${h.ties}` : "";
+        if (h.home_wins === h.away_wins) {
+          push("h2h", "⚔️", `${who(c.home)} and ${who(c.away)} are level all-time, ${h.home_wins}–${h.away_wins}${ties}, since ${h.since}.`, 14);
+        } else {
+          const [w, a, z] = h.home_wins > h.away_wins ? [c.home, h.home_wins, h.away_wins] : [c.away, h.away_wins, h.home_wins];
+          push("h2h", "⚔️", `${who(w)} leads the all-time series ${a}–${z}${ties}.`, 10);
+        }
+      }
+    }
+
+    const rh = rowOf(b, c.home.team_id), ra = rowOf(b, c.away.team_id);
+    if (hasPlayed(rh) && hasPlayed(ra) && last > 2) {
+      const [top, bottom] = rh.rank <= ra.rank ? [[c.home, rh], [c.away, ra]] as const : [[c.away, ra], [c.home, rh]] as const;
+      if (top[1].rank === 1 && bottom[1].rank === last) {
+        push("table", "📋", `First plays last: ${who(top[0])} (${record(top[1])}) against ${who(bottom[0])} (${record(bottom[1])}).`, 16);
+      }
+    }
+  }
+  return out.sort((x, y) => y.weight - x.weight);
+}
+
+/* -------------------------------------------------------- manager status -- */
+
+export type ManagerStatus = {
+  key: Side; side: ScoreSide; card: ScoreCard;
+  mood: Mood | null; need: number | null; left: ScoreStarter[]; projected: number;
+};
+
+/** The labels that most want a reader's eye, first. Settled ones last. */
+const MOOD_ORDER = ["comeback", "upset", "miracle", "sweating", "rolling", "comfortable", "cooked", "won", "tied", "lost"];
+
+/**
+ * A status card for every manager: the mood, the score, the projection, who
+ * is left and what is needed. Yours first, then the ones in trouble.
+ */
+export function managerStatuses(b: Board): ManagerStatus[] {
+  const out: ManagerStatus[] = [];
+  for (const card of b.matchups) {
+    if (card.home.starters.length + card.away.starters.length === 0) continue;
+    for (const key of ["home", "away"] as Side[]) {
+      const side = sideOf(card, key);
+      out.push({ key, side, card, mood: moodOf(card, key), need: needs(card, key), left: remaining(side), projected: projectedFinal(side) });
+    }
+  }
+  const rank = (s: ManagerStatus) => (s.mood ? MOOD_ORDER.indexOf(s.mood.key) : MOOD_ORDER.length);
+  return out.sort((x, y) => Number(y.side.mine) - Number(x.side.mine) || rank(x) - rank(y)
+    || Number(y.side.points) - Number(x.side.points));
+}
+
+/* ------------------------------------------------------ what do I need? -- */
+
+/** One way a player turns into points, from this league's rules: "a TD +6". */
+export type Unit = { label: string; pts: number };
+
+const unit = (label: string, pts: number | undefined, per = 1): Unit | null => {
+  const v = round1(Number(pts ?? 0) * per);
+  return v > 0 ? { label, pts: v } : null;
+};
+
+/**
+ * How a player of this position scores, priced with the league's own rules.
+ * The handful of plays a manager actually watches for — a touchdown, a chunk
+ * of yards, a catch — and nothing the rules do not pay for.
+ */
+export function scoringUnits(position: string, rules: Record<string, number>): Unit[] {
+  const r = rules ?? {};
+  const list: (Unit | null)[] = (() => {
+    switch (position) {
+      case "QB": return [unit("a TD pass", r.pass_td), unit("25 passing yds", r.pass_yd, 25), unit("a rushing TD", r.rush_td)];
+      case "RB": return [unit("a TD", r.rush_td), unit("10 rushing yds", r.rush_yd, 10), unit("a catch", r.rec)];
+      case "WR":
+      case "TE": return [unit("a TD", r.rec_td), unit("10 receiving yds", r.rec_yd, 10), unit("a catch", r.rec)];
+      case "K": return [unit("a field goal", r.fg_0_39), unit("an extra point", r.xp_made)];
+      case "DST": return [unit("a defensive TD", r.dst_td), unit("an interception", r.dst_int), unit("a sack", r.dst_sack)];
+      default: return [];
+    }
+  })();
+  return list.filter((u): u is Unit => u !== null);
+}
+
+export type PathToWin = {
+  key: Side;
+  /** Points to the other side's projected finish; null when already on course. */
+  need: number | null;
+  projected: number;
+  oppProjected: number;
+  /** The other side's starters still to play — why none of this is a promise. */
+  oppLeft: number;
+  players: { p: ScoreStarter; units: Unit[] }[];
+  /** The need in touchdowns, at the league's price of one. */
+  tds: number | null;
+};
+
+/**
+ * "What do I need?" — the honest version: the gap to where the other side is
+ * projected to finish, who is left to close it, and what each of them scores
+ * for in this league. Never a combination that "wins", because the other
+ * side's men are still playing too.
+ */
+export function pathToWin(c: ScoreCard, key: Side, rules: Record<string, number> = {}): PathToWin | null {
+  const state = cardState(c);
+  if (state === "pre" || state === "settled") return null;
+  const me = sideOf(c, key), them = sideOf(c, other(key));
+  const need = needs(c, key);
+  const td = Number(rules.rec_td ?? rules.rush_td ?? 6) || 6;
+  return {
+    key,
+    need,
+    projected: projectedFinal(me),
+    oppProjected: projectedFinal(them),
+    oppLeft: them.starters.filter((p) => !p.final).length,
+    players: remaining(me).map((p) => ({ p, units: scoringUnits(p.position, rules) })),
+    tds: need === null ? null : round1(need / td),
+  };
+}

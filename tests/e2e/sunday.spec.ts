@@ -274,3 +274,81 @@ test("the ticker carries the room", async ({ page }, info) => {
   expect(seen.join(" | ")).toContain("DEV ACCEPTED RAY'S CHALLENGE");
   expect(seen.join(" | ")).toContain("💬 3 NEW CHAT MESSAGES");
 });
+
+/* ------------------------------------------------------- phase 4: intel -- */
+
+test("the storylines say only what the league's data supports", async ({ page }) => {
+  await page.goto("/preview/sunday");
+  await stage(page, "Sunday morning");
+  const stories = page.locator("[data-panel='stories']");
+  await expect(stories).toContainText("pull off the upset?");
+
+  await stage(page, "Late window");
+  await expect(stories).toContainText("Ray is chasing a fourth straight win.");
+  await expect(stories).toContainText("Anthony has beaten Marcus 3 straight times.");
+  await expect(stories).toContainText("Lou is pulling off the upset");
+  // A storyline opens the table it is about.
+  await stories.getByRole("button", { name: /Anthony has beaten Marcus/ }).click();
+  await expect(page.locator(".sun-feat .sun-team__who").first()).toContainText(/Anthony|Marcus/);
+
+  // Once it is over, nobody is chasing anything.
+  await stage(page, "Tuesday");
+  await expect(page.locator("body")).not.toContainText("is chasing a fourth straight win");
+});
+
+test("What do I need? gives the gap, who is left, and what they score for", async ({ page }) => {
+  await page.goto("/preview/sunday");
+  await stage(page, "Late window");
+  const need = page.locator("[data-panel='need']");
+  await expect(need).toContainText("About 17.3 more to pass Dev's projected 90.1");
+  await expect(need.locator("li", { hasText: "Trey McBride" })).toContainText("a TD +6.0");
+  await expect(need.locator("li", { hasText: "Trey McBride" })).toContainText("10 receiving yds +1.0");
+  // Never a promise while the other side still has men to play.
+  await expect(need).toContainText("not a guarantee");
+
+  // Nothing to need before kickoff, or after the whistle.
+  await stage(page, "Sunday morning");
+  await expect(need).toHaveCount(0);
+  await stage(page, "Tuesday");
+  await expect(need).toHaveCount(0);
+});
+
+test("every manager has a status card, yours first", async ({ page }, info) => {
+  await page.goto("/preview/sunday");
+  await stage(page, "Late window");
+  if (info.project.name === "mobile") {
+    await page.locator(".sun-tabs[data-for='phone']").getByRole("button", { name: /Matchups/ }).click();
+  } else {
+    await page.locator(".sun-tabs[data-for='desk']").getByRole("button", { name: "Matchups" }).click();
+  }
+  const room = page.locator("[data-panel='room']");
+  await expect(room.locator(".sun-mgr")).toHaveCount(12);
+  await expect(room.locator(".sun-mgr").first()).toHaveAttribute("data-mine", "true");
+  await expect(room.locator(".sun-mgr").first()).toContainText("Ray · You");
+  await expect(room.locator(".sun-mgr").first()).toContainText("Needs about 17.3 more");
+  await expect(room.locator(".sun-mgr .sun-mood").first()).toBeVisible();
+
+  // Before kickoff there is no mood to have.
+  await stage(page, "Sunday morning");
+  await expect(room).toHaveCount(0);
+});
+
+test("the commissioner's weights decide the featured table, and are bounded", async ({ page }, info) => {
+  test.skip(info.project.name === "mobile", "the why line is the desktop panel's; the dials are tested once");
+  await page.goto("/preview/sunday");
+  await stage(page, "Sunday morning");
+  await expect(page.locator(".sun-why")).toContainText("Featured for:");
+
+  const tune = page.locator("[data-panel='tune']");
+  await tune.locator("summary").click();
+  await tune.getByLabel("Lead change").fill("9000");
+  await tune.getByRole("button", { name: "Save weights" }).click();
+  await expect(tune.getByRole("status")).toHaveText("lead_change must be a whole number from 0 to 100");
+
+  // Make history the only thing that matters: a rivalry gets the slot.
+  await tune.getByLabel("Lead change").fill("35");
+  await tune.getByLabel("Rivalry").fill("100");
+  await tune.getByRole("button", { name: "Save weights" }).click();
+  await expect(tune.getByRole("status")).toContainText("Saved");
+  await expect(page.locator(".sun-why")).toContainText("rivalry");
+});
