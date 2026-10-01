@@ -160,7 +160,7 @@ body:has(.sun) { background: #0d0b0a; }
 .sun[data-desk="nfl"] .sun-grid { grid-template-columns: minmax(0, 1fr); }
 .sun[data-desk="redzone"] .sun-rail { position: static; max-height: none; overflow: visible; }
 .sun[data-desk="redzone"] [data-panel]:not([data-panel="redzone"]):not([data-panel="recap"]),
-.sun[data-desk="matchups"] [data-panel]:not([data-panel="matchups"]):not([data-panel="close"]),
+.sun[data-desk="matchups"] [data-panel]:not([data-panel="matchups"]):not([data-panel="close"]):not([data-panel="room"]):not([data-panel="tune"]),
 .sun[data-desk="nfl"] [data-panel]:not([data-panel="nfl"]) { display: none; }
 .sun [data-panel="chat"] { display: none; }
 
@@ -657,11 +657,20 @@ body:has(.sun) { background: #0d0b0a; }
   .sun [data-panel="featured"] { display: block !important; }
   .sun[data-mob="feed"] [data-panel="redzone"],
   .sun[data-mob="feed"] [data-panel="recap"],
+  .sun[data-mob="feed"] [data-panel="need"],
+  .sun[data-mob="feed"] [data-panel="stories"],
   .sun[data-mob="matchups"] [data-panel="close"],
+  .sun[data-mob="matchups"] [data-panel="room"],
   .sun[data-mob="matchups"] [data-panel="matchups"],
+  .sun[data-mob="matchups"] [data-panel="tune"],
   .sun[data-mob="nfl"] [data-panel="nfl"],
   .sun[data-mob="chat"] [data-panel="chat"] { display: grid !important; }
   .sun-tabs[data-for="phone"] { order: -2; margin-top: 0; margin-bottom: 0; }
+  /* The featured strip stays a strip: its stories have their own panel. */
+  .sun .sun-feat__stories, .sun .sun-why { display: none; }
+  .sun .sun-room { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+  .sun .sun-mgr { padding: 8px 10px; }
+  .sun .sun-tune__grid { grid-template-columns: minmax(0, 1fr); }
   .sun [data-panel="recap"] { order: -1; }
 
   .sun-drawer { display: none; }
@@ -703,3 +712,76 @@ body:has(.sun) { background: #0d0b0a; }
   .sun-ticker__brand b { display: none; }
   .sun-ticker__nav { display: none; }
 }
+
+/* ---------------------------------------------------------- intelligence -- */
+
+.sun-feat__stories {
+  list-style: none; margin: var(--s3) 0 0; padding: 0; display: grid; gap: 4px;
+  font-size: var(--t-small); color: var(--sun-muted);
+}
+.sun-why { margin: var(--s2) 0 0; font: 600 var(--t-micro)/1.4 var(--sans); color: var(--sun-dim); }
+
+.sun-stories { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.sun .sun-story {
+  display: flex; gap: 10px; align-items: baseline; width: 100%; text-align: left;
+  padding: 10px 12px; border: 1px solid var(--sun-line); border-radius: var(--r-sm);
+  background: var(--sun-1); color: var(--sun-text); font: 500 var(--t-small)/1.45 var(--sans); cursor: pointer;
+}
+.sun .sun-story:hover { border-color: var(--sun-gold); }
+.sun-story__e { flex-shrink: 0; }
+
+.sun-need {
+  padding: var(--s3); border: 1px solid var(--sun-gold); border-radius: var(--r-lg);
+  background: linear-gradient(180deg, var(--sun-gold-wash), transparent 70%), var(--sun-1);
+  display: grid; gap: var(--s2);
+}
+.sun-need .sun-sec__head { margin: 0; }
+.sun .sun-linkish {
+  background: none; border: 0; padding: 0; cursor: pointer;
+  font: 700 var(--t-micro)/1.2 var(--sans); color: var(--sun-gold);
+}
+.sun-need__lede { margin: 0; font-size: var(--t-body); color: var(--sun-text); }
+.sun-need__lede b { color: var(--sun-gold); font-variant-numeric: tabular-nums; }
+.sun-need__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.sun-need__list li {
+  display: grid; gap: 2px; padding: 8px 10px; border-radius: var(--r-sm); background: var(--sun-2);
+}
+.sun-need__who { font-size: var(--t-small); }
+.sun-need__who span { color: var(--sun-dim); font-size: var(--t-micro); }
+.sun-need__units { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: var(--t-micro); color: var(--sun-muted); }
+.sun-need__units b { color: var(--sun-text); }
+.sun-need__note { margin: 0; font-size: var(--t-micro); color: var(--sun-dim); }
+
+.sun-room { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: var(--s2); }
+.sun .sun-mgr {
+  display: grid; gap: 3px; align-content: start; text-align: left; cursor: pointer;
+  padding: 10px 12px; border: 1px solid var(--sun-line); border-radius: var(--r-sm);
+  background: var(--sun-1); color: var(--sun-text); font: inherit; min-width: 0;
+}
+.sun .sun-mgr:hover { border-color: var(--sun-gold); }
+.sun .sun-mgr[data-mine="true"] { border-color: var(--sun-gold); }
+.sun-mgr__top { display: flex; justify-content: space-between; align-items: center; gap: 6px; min-width: 0; flex-wrap: wrap; }
+.sun-mgr__top b { font-size: var(--t-small); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sun-mgr__pts { font: 800 var(--t-title)/1.1 var(--sans); font-variant-numeric: tabular-nums; }
+.sun-mgr__line { font-size: var(--t-micro); color: var(--sun-muted); }
+.sun-mgr__line b { color: var(--sun-text); }
+.sun-mgr__left { font-size: var(--t-micro); color: var(--sun-dim); }
+
+.sun-tune { border: 1px solid var(--sun-line); border-radius: var(--r-sm); background: var(--sun-1); padding: 10px 12px; }
+.sun-tune summary {
+  cursor: pointer; font: 700 var(--t-small)/1.3 var(--sans); color: var(--sun-text);
+  display: flex; justify-content: space-between; gap: var(--s2);
+}
+.sun-tune summary span { font: 600 var(--t-micro)/1.3 var(--sans); color: var(--sun-gold); }
+.sun-tune[open] { display: grid; gap: var(--s3); }
+.sun-tune__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 6px var(--s3); }
+.sun-tune__row { display: flex; align-items: center; justify-content: space-between; gap: var(--s2); min-width: 0; }
+.sun-tune__row > span { display: grid; min-width: 0; font-size: var(--t-small); }
+.sun-tune__row > span span { font-size: var(--t-micro); color: var(--sun-dim); }
+.sun-tune__row input {
+  width: 64px; flex-shrink: 0; padding: 6px 8px; border-radius: var(--r-sm);
+  border: 1px solid var(--sun-line); background: var(--sun-2); color: var(--sun-text);
+  font: 600 var(--t-small)/1 var(--sans); font-variant-numeric: tabular-nums;
+}
+.sun-tune__foot { display: flex; justify-content: flex-end; align-items: center; gap: var(--s3); flex-wrap: wrap; }
+.sun-tune__foot span { font-size: var(--t-micro); color: var(--sun-muted); }

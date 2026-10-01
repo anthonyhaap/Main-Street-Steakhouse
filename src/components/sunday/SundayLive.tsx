@@ -94,6 +94,15 @@ export function SundayLive({ initial, week }: { initial: SundayBoard | null; wee
       });
   }, [mutate, refetch]);
 
+  // The commissioner's dials. The server holds the bounds; its refusal is the
+  // message the panel shows.
+  const tune = useCallback(async (changes: Record<string, number | null>) => {
+    const { error: e } = await supabaseBrowser()
+      .rpc("ff_set_sunday_weights", { p_league_id: LEAGUE_ID, p_weights: changes });
+    if (e) throw new Error(e.message);
+    await refetch();
+  }, [refetch]);
+
   const unread = useUnreadCounts();
 
   // Server time, the same as every clock in the app.
@@ -130,6 +139,7 @@ export function SundayLive({ initial, week }: { initial: SundayBoard | null; wee
           onSend={send}
           chatError={chatError ?? chat.error}
           onReact={react}
+          onTune={tune}
           unreadChat={unread?.chat ?? 0}
         />
       )}

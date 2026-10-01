@@ -9,7 +9,7 @@
  * tabs: two names, two scores, the split, and a button for the rest.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { ChevronDown } from "lucide-react";
 import { Seal, TeamLink } from "@/components/ui";
@@ -20,7 +20,7 @@ import {
 } from "@/lib/scoreboard";
 import {
   gameFor, lastName, moodOf, needs, remaining, sideCounts,
-  type NflGame, type Phase, type Side,
+  type NflGame, type Phase, type Side, type Story,
 } from "@/lib/sunday";
 import { LiveScore, MoodChip, StateTag } from "./bits";
 
@@ -33,9 +33,13 @@ type Props = {
   nfl: NflGame[];
   cards: ScoreCard[];
   onPick: (id: string | null) => void;
+  /** The storylines about this table, under the score. */
+  stories?: Story[];
+  /** Why the page picked it, when it did. */
+  why?: ReactNode;
 };
 
-export function Featured({ card, label, auto, phase, now, nfl, cards, onPick }: Props) {
+export function Featured({ card, label, auto, phase, now, nfl, cards, onPick, stories = [], why }: Props) {
   const state = cardState(card);
   const pre = state === "pre";
   const odds = winOdds(card);
@@ -101,6 +105,13 @@ export function Featured({ card, label, auto, phase, now, nfl, cards, onPick }: 
         <TeamBlock s={card.home} k="home" card={card} pre={pre} lead={lead} phase={phase}
           flash={flash?.key === "home" ? flash.n : 0} />
       </div>
+
+      {stories.length > 0 && (
+        <ul className="sun-feat__stories">
+          {stories.map((s) => <li key={s.id}><span aria-hidden>{s.emoji}</span> {s.text}</li>)}
+        </ul>
+      )}
+      {auto && why}
 
       <button type="button" className="sun-btn sun-feat__toggle" onClick={() => setOpen((v) => !v)} aria-expanded={open}
         style={{ marginTop: "var(--s3)", width: "100%", justifyContent: "center" }}>
