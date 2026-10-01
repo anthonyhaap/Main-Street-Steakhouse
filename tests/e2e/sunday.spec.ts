@@ -56,8 +56,54 @@ test("the red zone names our players and the close game is lifted", async ({ pag
   await expect(close.locator(".sun-close__card")).toHaveCount(1);
   await expect(close).toContainText("Difference 3.30");
 
-  // And it is the game to watch.
-  await expect(page.locator(".sun-feat .sun-team__who").first()).toHaveText(/Anthony/i);
+  // The close game is lifted; the featured slot, though, belongs for a few
+  // minutes to the Steakhouse moment — Lou retaking the lead late.
+  await expect(page.locator(".sun-feat__label b")).toContainText("Steakhouse moment");
+  await expect(page.locator(".sun-feat .sun-score")).toContainText(/Lou/i);
+  await expect(page.locator(".sun-feat .sun-score")).toContainText(/Gus/i);
+});
+
+test("a touchdown says who it helped, by how much, and what it did to the game", async ({ page }) => {
+  await page.goto("/preview/sunday");
+  await stage(page, "Late window");
+
+  const td = page.locator(".sun-event[data-kind='touchdown']", { hasText: "Puka Nacua" });
+  await expect(td).toBeVisible();
+  await expect(td).toContainText("40+ yard receiving touchdown");
+  await expect(td.locator(".sun-event__pts")).toHaveText("+9.1 Marcus");
+  const impact = td.locator(".sun-impact");
+  await expect(impact).toContainText("Fantasy impact");
+  // Before and after, leader first on each line.
+  await expect(impact.locator(".sun-impact__row").nth(0)).toContainText(/Before\s*Anthony 130\.6\s*Marcus 118\.2/);
+  await expect(impact.locator(".sun-impact__row").nth(1)).toContainText(/After\s*Anthony 130\.6\s*Marcus 127\.3/);
+
+  // The Steakhouse moment carries its level, so it is the loudest card.
+  await expect(page.locator(".sun-event[data-level='4']")).toContainText("Lou takes the lead over Gus");
+});
+
+test("the feed keeps the quiet plays behind a switch, and keeps the day after it ends", async ({ page }) => {
+  await page.goto("/preview/sunday");
+  await stage(page, "One o'clock window");
+  const feed = page.locator(".sun-evfeed");
+  await expect(feed.locator(".sun-event[data-level='1']")).toHaveCount(0);
+  await feed.getByRole("button", { name: /Everything/ }).click();
+  await expect(feed.locator(".sun-event[data-level='1']")).toContainText("Ja'Marr Chase");
+  // No moment in the early window: the featured slot is the ranked game.
+  await expect(page.locator(".sun-feat__label b")).toContainText("Game to watch");
+
+  // Tuesday: every final is there, and so is Sunday afternoon.
+  await stage(page, "Tuesday");
+  await expect(page.locator(".sun-evfeed .sun-event[data-kind='touchdown']", { hasText: "Puka Nacua" })).toBeVisible();
+  await expect(page.locator(".sun-evfeed .sun-event[data-kind='final']", { hasText: "Vic beats Sal" })).toBeVisible();
+});
+
+test("a feed card opens its matchup", async ({ page }) => {
+  await page.goto("/preview/sunday");
+  await stage(page, "Late window");
+  await page.locator(".sun-event[data-kind='touchdown']", { hasText: "Puka Nacua" })
+    .getByRole("button", { name: "View matchup" }).click();
+  await expect(page.locator(".sun-feat__label b")).toHaveText("Your pick");
+  await expect(page.locator(".sun-feat .sun-team__who").nth(1)).toHaveText(/Marcus/i);
 });
 
 test("the win probability is written as well as drawn", async ({ page }) => {

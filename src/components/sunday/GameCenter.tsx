@@ -21,7 +21,7 @@ import { useCallback, useMemo, useState } from "react";
 import { MessageCircle, X } from "lucide-react";
 import { freshness, slateLine } from "@/lib/scoreboard";
 import {
-  alerts as alertsOf, closeGames, featured, sundayPhase, tickerItems,
+  alerts as alertsOf, closeGames, eventContext, featured, liveMoment, sundayPhase, tickerItems,
   type CardContext, type Phase, type SundayBoard, type TickerTarget,
 } from "@/lib/sunday";
 import type { ChatItem } from "@/lib/types";
@@ -60,10 +60,25 @@ export function GameCenter({ board, now, delayed = false, chat, onSend, chatErro
   const list = useMemo(() => alertsOf(board), [board]);
   const close = useMemo(() => closeGames(board), [board]);
   const closeIds = useMemo(() => new Set(close.map((c) => c.id)), [close]);
-  const auto = featured(board, phase, context);
+  // What the day's events know about each table — lead changes, touchdowns —
+  // counts toward which one is featured, on top of whatever the page was given.
+  const ctx = useMemo(() => {
+    const fromEvents = eventContext(board.events ?? []);
+    return { ...fromEvents, ...(context ?? {}) };
+  }, [board.events, context]);
+  const ranked = featured(board, phase, ctx);
+  // A Steakhouse moment takes the featured slot for a few minutes, then gives
+  // it back. The reader's own pick always wins over both.
+  const moment = liveMoment(board.events ?? [], now);
+  const momentCard = moment ? board.matchups.find((c) => c.id === moment.matchup_id) ?? null : null;
+  const auto = momentCard
+    ? { card: momentCard, label: "🚨 Steakhouse moment", score: Infinity }
+    : ranked && { ...ranked, label: `${phase === "live" ? "🔥" : "🏆"} ${ranked.label}` };
   const pickedCard = picked ? board.matchups.find((c) => c.id === picked) ?? null : null;
   const focus = pickedCard ?? auto?.card ?? null;
-  const ticker = useMemo(() => tickerItems(board, list, phase), [board, list, phase]);
+  // A minute is plenty of resolution for "the last half hour".
+  const minute = Math.floor(now / 60_000);
+  const ticker = useMemo(() => tickerItems(board, list, phase, minute * 60_000), [board, list, phase, minute]);
 
   const phone = () => typeof window !== "undefined" && window.matchMedia(PHONE).matches;
 

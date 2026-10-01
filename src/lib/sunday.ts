@@ -48,8 +48,52 @@ export type NflGame = {
   updated_at: string | null;
 };
 
-/** Shape of ff_sunday(league_id, week). */
-export type SundayBoard = Board & { nfl: NflGame[] };
+/**
+ * One Fantasy RedZone event, as `ff_sunday` sends it in `events`: something
+ * that happened between two looks at the week, written once by the server's
+ * `ff_sunday_detect` and never again. See `20260930235409_sunday_events`.
+ */
+export type EventType =
+  | "touchdown" | "big_play" | "scoring" | "turnover" | "lead_change"
+  | "close_game" | "upset_watch" | "red_zone" | "final";
+
+export type SundayEvent = {
+  id: string;
+  type: EventType;
+  level: 1 | 2 | 3 | 4;
+  priority: number;
+  matchup_id: string | null;
+  /** The manager it happened for, and the one across the table. */
+  team_id: string | null;
+  opponent_team_id: string | null;
+  player_id: string | null;
+  player_name: string | null;
+  espn_id: string | null;
+  nfl_game_id: string | null;
+  points_added: number | null;
+  old_score: number | null;
+  new_score: number | null;
+  opp_old_score: number | null;
+  opp_new_score: number | null;
+  lead_change: boolean;
+  headline: string;
+  description: string | null;
+  /** `who` / `opp` (the two managers' names), `late`, `margin`, and per-type extras. */
+  detail: {
+    who?: string; opp?: string; late?: boolean; margin?: number;
+    position?: string; nfl_team?: string; game_detail?: string | null;
+    players?: { name: string; who: string; team_id: string; matchup_id: string }[];
+    [k: string]: unknown;
+  };
+  created_at: string;
+};
+
+/**
+ * Shape of ff_sunday(league_id, week). `events` is optional because the
+ * browser can be talking to a database a migration behind — every reader
+ * treats it being absent and being empty the same way.
+ */
+export type SundayBoard = Board & { nfl: NflGame[]; events?: SundayEvent[] };
 
 export type Side = "home" | "away";
 
@@ -537,13 +581,24 @@ export type TickerItem = { id: string; text: string; target: TickerTarget; hot: 
  * scores of the tables nobody alerted on, so the rail never goes quiet while
  * there is a board to read.
  */
-export function tickerItems(b: SundayBoard, list: Alert[], phase: Phase): TickerItem[] {
-  const items: TickerItem[] = list.slice(0, 8).map((a) => ({
+export function tickerItems(b: SundayBoard, list: Alert[], phase: Phase, now = 0): TickerItem[] {
+  // The last half hour's events that mattered, newest first. What happened
+  // leads; what is merely true right now follows.
+  const recent = eventsOf(b)
+    .filter((e) => e.level >= 2 && (!now || now - new Date(e.created_at).getTime() <= 30 * 60_000))
+    .slice(0, 6)
+    .map((e): TickerItem => ({
+      id: `ev:${e.id}`,
+      text: eventTickerText(e),
+      target: e.matchup_id ? { kind: "matchup", id: e.matchup_id } : e.nfl_game_id ? { kind: "game", id: e.nfl_game_id } : { kind: "chat" },
+      hot: e.level >= 3,
+    }));
+  const items: TickerItem[] = [...recent, ...list.slice(0, 8).map((a): TickerItem => ({
     id: a.id,
     text: `${a.tag.toUpperCase()} · ${a.headline}`,
     target: a.matchupId ? { kind: "matchup", id: a.matchupId } : a.gameId ? { kind: "game", id: a.gameId } : { kind: "chat" },
     hot: a.level >= 3,
-  }));
+  }))];
   const named = new Set(list.map((a) => a.matchupId));
   for (const c of b.matchups) {
     if (named.has(c.id) || c.home.starters.length + c.away.starters.length === 0) continue;
@@ -554,6 +609,79 @@ export function tickerItems(b: SundayBoard, list: Alert[], phase: Phase): Ticker
     items.push({ id: `score:${c.id}`, text, target: { kind: "matchup", id: c.id }, hot: false });
   }
   return items;
+}
+
+/* --------------------------------------------------------------- events -- */
+
+const eventsOf = (b: SundayBoard): SundayEvent[] => b.events ?? [];
+
+/**
+ * What the day's events know about each table that a snapshot does not: how
+ * many times the lead changed hands and how many touchdowns were scored in
+ * it. Fed to `excitement`, which already had the weights waiting for them.
+ */
+export function eventContext(events: SundayEvent[]): Record<string, CardContext> {
+  const out: Record<string, CardContext> = {};
+  for (const e of events) {
+    if (!e.matchup_id) continue;
+    const c = (out[e.matchup_id] ??= { leadChanges: 0, touchdowns: 0 });
+    if (e.type === "lead_change" || e.lead_change) c.leadChanges = (c.leadChanges ?? 0) + 1;
+    if (e.type === "touchdown") c.touchdowns = (c.touchdowns ?? 0) + 1;
+  }
+  return out;
+}
+
+/** How long a Steakhouse moment holds the featured slot. */
+export const MOMENT_MS = 10 * 60_000;
+
+/**
+ * A level-4 event, recent enough to take over the featured table for a few
+ * minutes: a lead change in the final minutes, a game inside a point at the
+ * whistle. Newest wins; nothing older than `MOMENT_MS` counts.
+ */
+export function liveMoment(events: SundayEvent[], now: number): SundayEvent | null {
+  for (const e of events) {
+    const age = now - new Date(e.created_at).getTime();
+    if (age > MOMENT_MS) break;
+    if (e.level === 4 && e.matchup_id && age >= -60_000) return e;
+  }
+  return null;
+}
+
+/** The label on an event card, in the house's broadcast voice. */
+export function eventTag(e: SundayEvent): string {
+  if (e.level === 4 && e.type !== "touchdown") return "🚨 Steakhouse moment";
+  switch (e.type) {
+    case "touchdown": return e.level === 4 ? "🚨 Touchdown · Steakhouse moment" : "🚨 Touchdown";
+    case "big_play": return "🔥 Big play";
+    case "turnover": return "Turnover";
+    case "lead_change": return "Lead change";
+    case "close_game": return "😬 Close game";
+    case "upset_watch": return "⚠️ Upset watch";
+    case "red_zone": return "🔴 Red zone";
+    case "final": return "Final";
+    default: return "Scoring";
+  }
+}
+
+/** "+6.2", "−2.0". */
+export const signed = (n: number | null | undefined) => {
+  const v = Number(n ?? 0);
+  return `${v >= 0 ? "+" : "−"}${Math.abs(v).toFixed(1)}`;
+};
+
+/** The ticker's line for one event: "TD JOSH ALLEN → +6.2 RAY → LEAD CHANGE". */
+export function eventTickerText(e: SundayEvent): string {
+  const who = e.detail.who?.toUpperCase();
+  if (e.type === "touchdown" && e.player_name) {
+    return [`TD ${e.player_name.toUpperCase()}`, who && `${signed(e.points_added)} ${who}`,
+      e.lead_change && "LEAD CHANGE"].filter(Boolean).join(" → ");
+  }
+  if ((e.type === "big_play" || e.type === "turnover") && e.player_name) {
+    return [e.headline.toUpperCase(), who && `${signed(e.points_added)} ${who}`,
+      e.lead_change && "LEAD CHANGE"].filter(Boolean).join(" → ");
+  }
+  return e.description ? `${e.headline.toUpperCase()} · ${e.description}` : e.headline.toUpperCase();
 }
 
 /* ------------------------------------------------------------- pre-game -- */

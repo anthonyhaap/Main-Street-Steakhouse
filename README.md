@@ -402,6 +402,27 @@ here, scoped to `.sun`. Watch NFL RedZone links out to the NFL (`REDZONE_URL`)
 and never embeds it. When the provider goes quiet the page keeps every score,
 the chat and the feed on screen and says the stats are delayed.
 
+**Phase 2: the event engine.** Phase 1 could only say what the board looked
+like; "Allen scored and it put Ray ahead" is a difference between two boards.
+`ff_sunday_detect`, on the `sunday-events` cron every minute, keeps the other
+board — every starter's line and every table's leader in
+`sunday_player_state` / `sunday_matchup_state` / `sunday_game_state` — and
+writes what changed to `sunday_events`: touchdowns (a TD count that went up,
+"40+ yard" only when Sleeper's own `*_td_40p` bucket did), big plays, giveaways,
+lead changes, close games, upsets, red-zone drives and finals. Each carries a
+level (1–4), a priority from `ff_sunday_weights` (overridable per league in
+`settings.sunday_weights`) and a `dedupe_key` that names the thing, not the
+moment it was seen — `td:<week>:<team>:<player>:<n>`, `lead:<matchup>:<n>` —
+so a line seen in three polls is one touchdown and a corrected-then-restored
+one is still one. The first look at a week seeds silently. A touchdown that
+takes the lead is one card, not two. `supabase/tests/sunday_events.sql` plays
+a fourth quarter through it look by look.
+
+The page reads `events` from `ff_sunday`, refetches on a `sunday_events`
+row, shows each play's Fantasy Impact (both sides before and after), lets a
+level-4 moment hold the featured slot for ten minutes, and leads the ticker
+with the last half hour.
+
 `/preview/sunday` runs an invented week (`@/lib/fixtures/gamecenter`) —
 sixteen real fixtures, twelve lineups of real players — from Sunday morning
 to Tuesday, with a switch that takes the provider down.

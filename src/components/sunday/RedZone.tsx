@@ -20,6 +20,7 @@ import {
   closeOnPaper, inTheRedZone, playersToWatch, recap,
   type Alert, type Phase, type SundayBoard,
 } from "@/lib/sunday";
+import { EventFeed } from "./Feed";
 
 export function WatchRedZone({ compact = false }: { compact?: boolean }) {
   return (
@@ -43,6 +44,11 @@ export function RedZoneRail({ board, phase, list, now, onMatchup, onGame }: {
       {phase === "pre"
         ? <PreGame board={board} now={now} onMatchup={onMatchup} />
         : <Live board={board} list={list} phase={phase} onMatchup={onMatchup} onGame={onGame} />}
+      {/* What happened, as opposed to what is true right now. Kept through
+          the final whistle and after it, so the day can be scrolled back. */}
+      {(board.events?.length ?? 0) > 0 && (
+        <EventFeed events={board.events!} now={now} onMatchup={onMatchup} onGame={onGame} />
+      )}
       <div className="sun-watch">
         <span>The broadcast is the NFL&apos;s. This is the second screen.</span>
         <WatchRedZone />
@@ -57,8 +63,15 @@ function Live({ board, list, phase, onMatchup, onGame }: {
 }) {
   const rz = inTheRedZone(board);
   // The red-zone box names every one of ours inside the twenty; the same
-  // drives would only repeat themselves as alerts underneath it.
-  const rest = list.filter((a) => a.kind !== "red_zone");
+  // drives would only repeat themselves as alerts underneath it. Once the
+  // event feed is running, the board's own situations are a short "right
+  // now" strip above it — the league alerts only, three at most — rather
+  // than a second feed saying what the first one already said.
+  const hasFeed = (board.events?.length ?? 0) > 0;
+  const rest = list
+    .filter((a) => a.kind !== "red_zone")
+    .filter((a) => !hasFeed || (a.level >= 3 && a.live))
+    .slice(0, hasFeed ? 3 : undefined);
   return (
     <>
       {rz.length > 0 && (
@@ -73,7 +86,8 @@ function Live({ board, list, phase, onMatchup, onGame }: {
           ))}
         </div>
       )}
-      {rest.length === 0 && rz.length === 0 && (
+      {hasFeed && rest.length > 0 && <div className="sun-sec__head" style={{ margin: 0 }}><h2>Right now</h2></div>}
+      {!hasFeed && rest.length === 0 && rz.length === 0 && (
         <div className="sun-quiet">
           {phase === "final"
             ? "No results on the board yet."

@@ -18,7 +18,7 @@
  */
 
 import type { ScoreCard, ScoreSide, ScoreStarter, Talk } from "@/lib/scoreboard";
-import type { NflGame, SundayBoard } from "@/lib/sunday";
+import type { NflGame, SundayBoard, SundayEvent } from "@/lib/sunday";
 import type { ChatItem } from "@/lib/types";
 
 export type GcStage = "pre" | "early" | "late" | "final";
@@ -303,6 +303,7 @@ export function gcBoard(stage: GcStage): SundayBoard {
     now: new Date(now).toISOString(),
     generated_at: new Date(now).toISOString(),
     nfl,
+    events: gcEvents(stage),
   };
 }
 
@@ -323,4 +324,81 @@ export function gcChat(stage: GcStage): ChatItem[] {
     reactions: i === 3 ? [{ emoji: "😂", count: 7, mine: false }] : [],
     poll: null, matchup: null, parent: null, mentions: [],
   })) as ChatItem[];
+}
+
+/* ---------------------------------------------------------------- events -- */
+
+/**
+ * The day's Fantasy RedZone, invented to agree with the board above: every
+ * score on an impact card is a score the board carries at that stage. Events
+ * accumulate — the one o'clock window's are still in the feed at seven, and
+ * all of Sunday's are there on Tuesday — which is the point of storing them.
+ */
+type Ev = Partial<SundayEvent> & Pick<SundayEvent, "type" | "level" | "headline">;
+
+const EARLY: [number, Ev][] = [
+  [20, { type: "turnover", level: 2, player_name: "Jalen Hurts", headline: "Jalen Hurts — interception thrown",
+    matchup_id: "gm1", team_id: "gt1", opponent_team_id: "gt0", points_added: -2,
+    old_score: 42.1, new_score: 40.1, opp_old_score: 21.6, opp_new_score: 21.6, detail: { who: "Dev", opp: "Ray" } }],
+  [15, { type: "lead_change", level: 3, headline: "Hank takes the lead over Moe", lead_change: true,
+    matchup_id: "gm6", team_id: "gt10", opponent_team_id: "gt11",
+    old_score: 21.0, new_score: 27.9, opp_old_score: 23.8, opp_new_score: 23.8, detail: { who: "Hank", opp: "Moe" } }],
+  [12, { type: "scoring", level: 1, player_name: "Ja'Marr Chase", headline: "Ja'Marr Chase",
+    matchup_id: "gm1", team_id: "gt0", opponent_team_id: "gt1", points_added: 4.1,
+    old_score: 21.7, new_score: 25.8, opp_old_score: 52.4, opp_new_score: 52.4, detail: { who: "Ray", opp: "Dev" } }],
+  [6, { type: "touchdown", level: 2, player_name: "Josh Allen", headline: "Josh Allen — rushing touchdown",
+    matchup_id: "gm1", team_id: "gt0", opponent_team_id: "gt1", player_id: "gc-Josh Allen", espn_id: "3918298",
+    points_added: 8.6, old_score: 25.8, new_score: 34.4, opp_old_score: 52.4, opp_new_score: 52.4,
+    detail: { who: "Ray", opp: "Dev" } }],
+  [3, { type: "upset_watch", level: 3, headline: "Vic leads Sal", description: "Came in projected 10.6 behind",
+    matchup_id: "gm4", team_id: "gt7", opponent_team_id: "gt6", new_score: 51.5, opp_new_score: 50.0,
+    detail: { gap: 10.6 } }],
+  [1, { type: "red_zone", level: 2, headline: "In the red zone: Jahmyr Gibbs, Amon-Ra St. Brown, Jameson Williams",
+    description: "DET ball — 2nd & 6 at GB 14", nfl_game_id: "g-DET-GB", matchup_id: "gm1" , detail: {} }],
+];
+
+const LATE: [number, Ev][] = [
+  [4, { type: "lead_change", level: 4, headline: "Lou takes the lead over Gus", lead_change: true,
+    description: "Late, with 5 still to play",
+    matchup_id: "gm5", team_id: "gt8", opponent_team_id: "gt9",
+    old_score: 95.0, new_score: 103.6, opp_old_score: 97.1, opp_new_score: 97.1,
+    detail: { who: "Lou", opp: "Gus", late: true } }],
+  [3, { type: "touchdown", level: 2, player_name: "Puka Nacua", headline: "Puka Nacua — 40+ yard receiving touchdown",
+    matchup_id: "gm2", team_id: "gt2", opponent_team_id: "gt3", player_id: "gc-Puka Nacua", espn_id: "4426515",
+    points_added: 9.1, old_score: 118.2, new_score: 127.3, opp_old_score: 130.6, opp_new_score: 130.6,
+    detail: { who: "Marcus", opp: "Anthony" } }],
+  [2, { type: "close_game", level: 3, headline: "Marcus 127.30 — Anthony 130.60",
+    description: "Difference 3.3, 4 still to play", matchup_id: "gm2", detail: { margin: 3.3 } }],
+  [1, { type: "red_zone", level: 2, headline: "In the red zone: Patrick Mahomes, Travis Kelce, Rashee Rice, Xavier Worthy",
+    description: "KC ball — 3rd & 4 at DEN 9", nfl_game_id: "g-KC-DEN", matchup_id: "gm3", detail: {} }],
+];
+
+const FINAL: [number, Ev][] = [
+  [30, { type: "final", level: 1, headline: "Dev beats Ray, 92.20–81.50", matchup_id: "gm1", detail: {} }],
+  [29, { type: "final", level: 1, headline: "Marcus beats Anthony, 139.60–130.60", matchup_id: "gm2", detail: {} }],
+  [28, { type: "final", level: 1, headline: "Tom beats Nate, 136.20–89.30", matchup_id: "gm3", detail: {} }],
+  [27, { type: "final", level: 3, headline: "Vic beats Sal, 105.40–91.00",
+    description: "The upset: came in projected 10.6 behind", matchup_id: "gm4", detail: { upset: true } }],
+  [26, { type: "final", level: 1, headline: "Gus beats Lou, 120.70–112.80", matchup_id: "gm5", detail: {} }],
+  [25, { type: "final", level: 1, headline: "Moe beats Hank, 129.50–118.90", matchup_id: "gm6", detail: {} }],
+];
+
+function stamp(list: [number, Ev][], at: number, prefix: string): SundayEvent[] {
+  return list.map(([minsAgo, e], i) => ({
+    id: `${prefix}-${i}`, priority: e.level * 10, matchup_id: null, team_id: null, opponent_team_id: null,
+    player_id: null, player_name: null, espn_id: null, nfl_game_id: null, points_added: null,
+    old_score: null, new_score: null, opp_old_score: null, opp_new_score: null, lead_change: false,
+    description: null, detail: {},
+    ...e,
+    created_at: new Date(at - minsAgo * 60_000).toISOString(),
+  }) as SundayEvent);
+}
+
+export function gcEvents(stage: GcStage): SundayEvent[] {
+  const day = [
+    ...(stage === "early" || stage === "late" || stage === "final" ? stamp(EARLY, GC_NOW.early, "e") : []),
+    ...(stage === "late" || stage === "final" ? stamp(LATE, GC_NOW.late, "l") : []),
+    ...(stage === "final" ? stamp(FINAL, GC_NOW.final, "f") : []),
+  ];
+  return day.sort((a, b) => b.created_at.localeCompare(a.created_at));
 }
