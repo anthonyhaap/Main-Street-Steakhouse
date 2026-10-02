@@ -14,6 +14,7 @@ import {
   type NflGame, type Phase,
 } from "@/lib/sunday";
 import { LiveScore, StateTag } from "./bits";
+import { leagueCount } from "@/lib/gameday";
 
 /* ---------------------------------------------------------- close games -- */
 
@@ -113,16 +114,27 @@ function MatchupCard({ c, focus, close, phase, onOpen }: {
 export function NflBoard({ board, nfl, now, openId, onToggle }: {
   board: Board; nfl: NflGame[]; now: number; openId: string | null; onToggle: (id: string) => void;
 }) {
-  const games = slateOrder(nfl);
+  // Live games first, and among them the ones driving the most of our
+  // scoring; then the rest of the slate in its own order.
+  const rank = new Map(nfl.map((g) => [g.id, leagueCount(board, g).total]));
+  const games = slateOrder(nfl).sort((a, b) =>
+    (a.status === "in" && b.status === "in") ? (rank.get(b.id) ?? 0) - (rank.get(a.id) ?? 0) : 0);
   const on = nfl.filter((g) => g.status === "in").length;
+  const slateKnown = (board.games?.total ?? 0) > 0;
   return (
     <section className="sun-sec" data-panel="nfl" aria-label="NFL games">
       <div className="sun-sec__head">
         <h2>{on > 0 && <i className="sun-dot" aria-hidden />}NFL games</h2>
-        <span>{on > 0 ? `${on} on now · ` : ""}tap a game for our players in it</span>
+        <span>{on > 0 ? `${on} on now · ` : ""}tap a game for the Steakhouse players in it</span>
       </div>
       {games.length === 0
-        ? <div className="sun-quiet">No NFL games on file for this week.</div>
+        ? (
+          <div className="sun-quiet">
+            {slateKnown
+              ? "NFL scores aren't coming through right now. Fantasy scores above are unaffected and keep updating."
+              : "No NFL games on file for this week."}
+          </div>
+        )
         : (
           <div className="sun-nfl">
             {games.map((g) => (
@@ -164,7 +176,10 @@ function GameCard({ g, board, now, open, onToggle }: {
       </button>
       <span className="sun-game__status" data-state={g.status ?? "pre"}>
         <span>{status}</span>
-        <span>{ours.length} of ours</span>
+        <span>
+          {ours.length === 0 ? "No Steakhouse players"
+            : `${ours.length} Steakhouse player${ours.length === 1 ? "" : "s"}`}
+        </span>
       </span>
       {g.status === "in" && g.red_zone && (
         <span className="sun-game__rz">🔴 Red zone · {g.possession}{g.down_distance ? ` · ${g.down_distance}` : ""}</span>

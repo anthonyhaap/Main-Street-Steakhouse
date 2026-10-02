@@ -6,7 +6,10 @@ import { ArrowLeft } from "lucide-react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { useLive, useServerClock } from "@/lib/live";
 import { useSession } from "@/lib/session";
-import { LEAGUE_ID } from "@/lib/config";
+import { LEAGUE_ID, SEASON } from "@/lib/config";
+import { loadWeekEvents } from "@/lib/sunday-load";
+import type { SundayEvent } from "@/lib/sunday";
+import { MatchupMoment } from "@/components/matchup/Moment";
 import { cardLine, type Scoreboard as Board } from "@/lib/scoreboard";
 import { TopBar } from "@/components/Shell";
 import { SkeletonRows } from "@/components/ui";
@@ -74,19 +77,26 @@ export default function MatchupRoute({ params }: PageProps<"/matchups/[id]">) {
 
   // Same fifteen-seconds-live / minute-quiet contract as the list page.
   const [hot, setHot] = useState(false);
+  // The week's events ride along with the board, in parallel: the same
+  // refetch, so the moment under the score never disagrees with the score.
+  const [events, setEvents] = useState<SundayEvent[]>([]);
   const fetcher = useCallback(async (): Promise<Board> => {
-    const { data, error } = await supabaseBrowser()
-      .rpc("ff_scoreboard", { p_league_id: LEAGUE_ID, p_week: week });
+    const sb = supabaseBrowser();
+    const [{ data, error }, evs] = await Promise.all([
+      sb.rpc("ff_scoreboard", { p_league_id: LEAGUE_ID, p_week: week }),
+      week === null ? Promise.resolve([]) : loadWeekEvents(sb, SEASON, week),
+    ]);
     if (error) throw new Error(error.message);
     const board = data as Board;
     setHot((board.games?.in_progress ?? 0) > 0);
+    setEvents(evs);
     return board;
   }, [week]);
 
   const { data: shown, status, error, refetch } = useLive<Board>(fetcher, {
     // `league_messages` is on the list because table talk lives on this screen
     // now, so a line said about this game lights up without a reload.
-    tables: ["matchups", "rosters", "nfl_games", "league_messages"],
+    tables: ["matchups", "rosters", "nfl_games", "league_messages", "sunday_events"],
     channel: "scoreboard",
     pollMs: hot ? 15000 : 60000,
     enabled: ready && week !== null,
@@ -189,6 +199,7 @@ export default function MatchupRoute({ params }: PageProps<"/matchups/[id]">) {
             {/* Where the game stands, in one sentence, written from the
                 reader's side of it — the same line the card on the list page
                 carries, because it is the same game. */}
+            <MatchupMoment card={card} events={events} now={clock} />
             {line && <p className="mv__line">{line}</p>}
 
             <VsLineups away={card.away} home={card.home} now={clock} bench head={null} />

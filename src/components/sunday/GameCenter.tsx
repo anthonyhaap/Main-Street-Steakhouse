@@ -8,17 +8,18 @@
  * `@/lib/sunday`, which is pure, so the two render the same way from the same
  * facts.
  *
- * One DOM for both screens. On a desktop it is a broadcast dashboard — the
- * featured table and the board on the left, the Fantasy RedZone rail on the
- * right, the chat as a drawer, the ticker along the bottom. Under 960px the
- * columns dissolve into one: the featured strip, sticky tabs, and whichever
- * panel the tab names. The two tab rows are separate state on purpose — the
+ * One DOM for both screens, and the reader's own table above both. On a
+ * desktop it is a broadcast dashboard under that — what just happened and the
+ * league pulse, the featured table and the board on the left, the Fantasy
+ * RedZone rail on the right, the chat as a drawer, the ticker along the
+ * bottom. Under 960px the columns dissolve into one: my matchup, sticky tabs,
+ * and whichever panel the tab names (the featured strip moves into Live). The two tab rows are separate state on purpose — the
  * desktop has a "Game center" view a phone has no room for, and a phone opens
- * on the RedZone feed.
+ * on the Live feed.
  */
 
 import { useCallback, useMemo, useState } from "react";
-import { MessageCircle, X } from "lucide-react";
+import { X } from "lucide-react";
 import { freshness, slateLine } from "@/lib/scoreboard";
 import {
   alerts as alertsOf, closeGames, eventContext, excitement, featured, intelContext, liveMoment, storylines,
@@ -32,6 +33,8 @@ import { Recap, RedZoneRail, WatchRedZone } from "./RedZone";
 import { SundayTicker } from "./Ticker";
 import { ChatPanel, type TalkContext } from "./ChatPanel";
 import { ManagerStatusBoard, Storylines, TuneExcitement, WhatDoINeed, WhyFeatured, storiesFor } from "./Intel";
+import { JustHappened, LeaguePulse, MyMatchup, NextUp } from "./GameDay";
+import { justHappened, leaguePulse, matchupMoment, nextUp, pulseTicker, seatOf, weekdayName } from "@/lib/gameday";
 import "./sunday.css";
 
 type Desk = "center" | "redzone" | "matchups" | "nfl";
@@ -94,10 +97,17 @@ export function GameCenter({
     }
     return out;
   }, [board, context]);
-  const ranked = useMemo(() => featured(board, phase, ctx, weights), [board, phase, ctx, weights]);
+  // Your own table has its own panel at the top, so the one the page features
+  // is the best of the *other* five — never the same game twice on one screen.
+  const seat = useMemo(() => seatOf(board), [board]);
+  const others = useMemo(
+    () => (seat ? { ...board, matchups: board.matchups.filter((c) => c.id !== seat.card.id) } : board),
+    [board, seat],
+  );
+  const ranked = useMemo(() => featured(others, phase, ctx, weights), [others, phase, ctx, weights]);
   // A Steakhouse moment takes the featured slot for a few minutes, then gives
   // it back. The reader's own pick always wins over both.
-  const moment = liveMoment(board.events ?? [], now);
+  const moment = liveMoment((board.events ?? []).filter((e) => e.matchup_id !== seat?.card.id), now);
   const momentCard = moment ? board.matchups.find((c) => c.id === moment.matchup_id) ?? null : null;
   const auto = momentCard
     ? { card: momentCard, label: "🚨 Steakhouse moment", score: Infinity }
@@ -110,17 +120,38 @@ export function GameCenter({
     ? excitement(focus, board, ctx[focus.id], weights).reasons : []), [focus, pickedCard, momentCard, board, ctx, weights]);
   // A minute is plenty of resolution for "the last half hour".
   const minute = Math.floor(now / 60_000);
-  const ticker = useMemo(() => tickerItems(board, list, phase, minute * 60_000, unreadChat),
-    [board, list, phase, minute, unreadChat]);
+  const pulse = useMemo(() => leaguePulse(board, minute * 60_000), [board, minute]);
+  const happened = useMemo(() => justHappened(board.events ?? [], minute * 60_000, board.my_team_id), [board, minute]);
+  const myMoment = useMemo(
+    () => (seat ? matchupMoment(seat.card, board.events ?? [], board.nfl ?? [], minute * 60_000) : null),
+    [seat, board, minute],
+  );
+  const upNext = useMemo(() => nextUp(board, minute * 60_000), [board, minute]);
+  // The pulse lines the ticker does not already carry from the events and the
+  // alerts: monster days, bench pain, the table as it stands.
+  const ticker = useMemo(() => {
+    const base = tickerItems(board, list, phase, minute * 60_000, unreadChat);
+    const extra = pulseTicker(pulse.filter((p) => p.kind === "monster" || p.kind === "bench" || p.kind === "playoff"));
+    const at = base.findIndex((t) => !t.id.startsWith("ev:"));
+    return at < 0 ? [...base, ...extra] : [...base.slice(0, at), ...extra, ...base.slice(at)];
+  }, [board, list, phase, minute, unreadChat, pulse]);
 
   const phone = () => typeof window !== "undefined" && window.matchMedia(PHONE).matches;
 
   const openMatchup = useCallback((id: string) => {
+    // Your own table is the panel at the top, not a pick.
+    if (seat && id === seat.card.id) {
+      setPicked(null);
+      requestAnimationFrame(() => document.getElementById("sun-mine")?.scrollIntoView({ behavior: "smooth", block: "start" }));
+      return;
+    }
     setPicked(id === auto?.card.id ? null : id);
+    // On a phone the featured strip lives on the feed tab.
+    if (phone() && seat) setMob("feed");
     // The featured panel lives in the game center view; take the reader there.
     if (!phone() && desk !== "center") setDesk("center");
     requestAnimationFrame(() => document.getElementById("sun-featured")?.scrollIntoView({ behavior: "smooth", block: "start" }));
-  }, [auto?.card.id, desk]);
+  }, [auto?.card.id, desk, seat]);
 
   const openNfl = useCallback((id: string) => {
     setOpenGame(id);
@@ -148,15 +179,24 @@ export function GameCenter({
     else openChat();
   }, [openMatchup, openNfl, openChat]);
 
-  const feedLabel = phase === "pre" ? "Pregame" : phase === "final" ? "Recap" : "RedZone";
+  const feedLabel = phase === "pre" ? "Pregame" : phase === "final" ? "Recap" : "Live";
   const phaseWord = phase === "live" ? "Live" : phase === "pre" ? "Pre-game" : "Final";
   const empty = board.matchups.length === 0;
+  // Between windows: still Sunday, nothing on this minute.
+  const between = phase === "live" && (board.games?.in_progress ?? 0) === 0;
+  const day = now ? weekdayName(now) : "";
+  const title = phase === "final" ? "Week in the books" : /^(Sunday|Monday|Thursday|Saturday)$/.test(day) ? `${day} Game Center` : "Game Center";
+  const needPanel = () => {
+    setMob("feed");
+    requestAnimationFrame(() => document.querySelector("[data-panel='need']")?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  };
 
   return (
-    <div className="sun" data-phase={phase} data-desk={desk} data-mob={mob} data-chat={drawer}>
+    <div className="sun" data-phase={phase} data-desk={desk} data-mob={mob} data-chat={drawer} data-seat={!!seat}>
       <header className="sun-head">
         <div className="sun-head__title">
-          <h1><span aria-hidden>🥩 </span>{phase === "final" ? "Sunday at the Steakhouse" : "Steakhouse Sunday"}</h1>
+          <span className="gd-eyebrow">Main Street Steakhouse</span>
+          <h1>{title}</h1>
           <div className="sun-head__meta">
             {weeks?.prev && <a className="sun-week" href={weeks.prev} aria-label={`Week ${board.week - 1}`}>‹</a>}
             <span>Week {board.week}</span>
@@ -180,6 +220,12 @@ export function GameCenter({
           Live stats temporarily delayed. The scores below are the last we had, and they will pick up where they left off.
         </div>
       )}
+
+      {seat && <MyMatchup seat={seat} moment={myMoment} onNeed={phase === "live" ? needPanel : undefined} />}
+      {!seat && !empty && phase !== "final" && (
+        <p className="gd-noseat">You don&apos;t have a matchup this week — here&apos;s the whole league.</p>
+      )}
+      <NextUp next={upNext} phase={phase} betweenWindows={between} />
 
       <nav className="sun-tabs" data-for="desk" aria-label="Game center sections">
         {([
@@ -208,6 +254,10 @@ export function GameCenter({
       <div className="sun-grid">
         <div className="sun-main">
           {phase === "final" && <Recap board={board} extras={recapExtras} onMatchup={openMatchup} />}
+          <div className="sun-pair">
+            <JustHappened events={happened} now={now} phase={phase} onOpen={openMatchup} />
+            <LeaguePulse items={pulse} phase={phase} onOpen={openMatchup} />
+          </div>
           {focus && auto && (
             <Featured
               card={focus} label={auto.label} auto={!pickedCard} phase={phase} now={now}
@@ -253,9 +303,6 @@ export function GameCenter({
         <ChatPanel items={chat} onSend={onSend} error={chatError} context={talk} onClearContext={() => setTalk(null)} />
       </section>
 
-      <button type="button" className="sun-fab" hidden={mob === "chat"} aria-label="Open league chat" onClick={openChat}>
-        <MessageCircle size={22} aria-hidden />
-      </button>
 
       <SundayTicker items={ticker} onTarget={onTarget} />
     </div>
@@ -268,7 +315,8 @@ export function GameCenterSkeleton() {
     <div className="sun" data-phase="pre" data-desk="center" data-mob="feed" aria-busy="true">
       <header className="sun-head">
         <div className="sun-head__title">
-          <h1><span aria-hidden>🥩 </span>Steakhouse Sunday</h1>
+          <span className="gd-eyebrow">Main Street Steakhouse</span>
+          <h1>Game Center</h1>
           <div className="sun-head__meta"><span>Loading the board…</span></div>
         </div>
       </header>

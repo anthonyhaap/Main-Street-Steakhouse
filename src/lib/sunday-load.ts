@@ -18,7 +18,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { LEAGUE_ID } from "@/lib/config";
 import type { Scoreboard } from "@/lib/scoreboard";
-import type { NflGame, SundayBoard } from "@/lib/sunday";
+import type { NflGame, SundayBoard, SundayEvent } from "@/lib/sunday";
 
 /** PostgREST's "no such function", in either of the shapes it arrives in. */
 function missingFunction(e: { code?: string; message?: string }): boolean {
@@ -62,4 +62,33 @@ export async function loadSunday(sb: SupabaseClient, week: number | null): Promi
   // No function, no event engine either: an empty feed, which the page reads
   // as "nothing has happened yet".
   return { ...board, nfl, events: [], activity: [] };
+}
+
+type EventRow = {
+  id: string; event_type: SundayEvent["type"]; level: SundayEvent["level"]; priority: number;
+  matchup_id: string | null; team_id: string | null; opponent_team_id: string | null;
+  player_id: string | null; nfl_game_id: string | null; points_added: number | null;
+  old_score: number | null; new_score: number | null; opp_old_score: number | null; opp_new_score: number | null;
+  lead_change: boolean; headline: string; description: string | null;
+  detail: SundayEvent["detail"] | null; created_at: string;
+};
+
+/**
+ * One week's events straight off `sunday_events`, for a screen that reads
+ * `ff_scoreboard` rather than `ff_sunday` — the single matchup. Members may
+ * read the table; the player's name is in the headline, so nothing is joined.
+ * A database without the table, or any failure, is an empty story rather than
+ * a broken page.
+ */
+export async function loadWeekEvents(sb: SupabaseClient, season: number, week: number): Promise<SundayEvent[]> {
+  const { data, error } = await sb
+    .from("sunday_events")
+    .select("id, event_type, level, priority, matchup_id, team_id, opponent_team_id, player_id, nfl_game_id, points_added, old_score, new_score, opp_old_score, opp_new_score, lead_change, headline, description, detail, created_at")
+    .eq("league_id", LEAGUE_ID).eq("season", season).eq("week", week)
+    .order("created_at", { ascending: false })
+    .limit(300);
+  if (error || !data) return [];
+  return (data as EventRow[]).map(({ event_type, detail, ...r }) => ({
+    ...r, type: event_type, detail: detail ?? {}, player_name: null, espn_id: null,
+  }));
 }

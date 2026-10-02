@@ -611,3 +611,23 @@ export function matchupText(b: Briefing, origin: string): string {
     : `${me} (proj. ${fmt(m.my_proj)}) vs. ${opp} (proj. ${fmt(m.opp_proj)})`;
   return `${b.league.name} · Week ${b.week}\n${line}\n${origin}/share/matchup/${m.id}`;
 }
+
+/* ---------------------------------------------------------- playing today -- */
+
+/** The league's calendar day for an instant: "2026-09-24". */
+export const leagueDay = (t: number | string, tz = LEAGUE_TZ) =>
+  new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(t));
+
+/**
+ * Who on my table plays today, on the league's calendar, and has not
+ * finished: Thursday's one receiver, Monday's tight end, Sunday's eight.
+ * Mine and his, so "Tonight: Pickens for you, Judkins for Dev" can be said.
+ */
+export function playingToday(b: Briefing, now: number): { mine: BriefStarter[]; theirs: BriefStarter[] } {
+  const m = b.matchup;
+  if (!m) return { mine: [], theirs: [] };
+  const today = leagueDay(now);
+  const on = (p: BriefStarter) => !p.final && !!p.kickoff_at && leagueDay(p.kickoff_at) === today;
+  const byKick = (a: BriefStarter, c: BriefStarter) => (a.kickoff_at ?? "").localeCompare(c.kickoff_at ?? "");
+  return { mine: m.my_starters.filter(on).sort(byKick), theirs: m.opp_starters.filter(on).sort(byKick) };
+}

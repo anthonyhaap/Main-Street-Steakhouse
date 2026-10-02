@@ -17,6 +17,7 @@ import { Carousel } from "@/components/tonight/Carousel";
 import { Room } from "@/components/tonight/Room";
 import { Statement } from "@/components/tonight/Statement";
 import { TonightSkeleton, TonightsTable, type Flash } from "@/components/tonight/TonightsTable";
+import { HomeGameDay, PlayingToday } from "@/components/tonight/GameDay";
 
 /**
  * The first screen, live.
@@ -125,6 +126,10 @@ export function Tonight({ initial, serverNow }: { initial: Briefing | null; serv
             </section>
           )}
           {b && <TonightsTable b={b} now={clock} flash={flash} onShare={share} />}
+          {/* Game day: who plays today, and — once the football is on — the
+              latest in my game and the rest of the league, right under it. */}
+          {b && phase && <PlayingToday b={b} now={clock} phase={phase} />}
+          {b && phase && <HomeGameDay b={b} now={clock} phase={phase} enabled={ready} />}
 
           <Statement />
 

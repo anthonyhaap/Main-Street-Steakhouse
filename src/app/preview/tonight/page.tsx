@@ -15,6 +15,8 @@ import { TonightsTable } from "@/components/tonight/TonightsTable";
 import { Carousel } from "@/components/tonight/Carousel";
 import { RoomBoard } from "@/components/tonight/Room";
 import { Statement } from "@/components/tonight/Statement";
+import { HomeGameDayView, PlayingToday } from "@/components/tonight/GameDay";
+import { gcBoard, gcSeat, GC_MY_TEAM, GC_NOW } from "@/lib/fixtures/gamecenter";
 import { phaseOf, type Briefing, type BriefStarter, type RoomFeed } from "@/lib/briefing";
 import { DRAFT_STARTS_AT } from "@/lib/config";
 
@@ -262,6 +264,12 @@ export default function TonightPreview() {
       </div>
       <main className="page tonight">
         <TonightsTable b={b} now={now} onShare={() => alert("Share sheet")} />
+        <PlayingToday b={b} now={now} phase={phase} />
+        {/* The live panel reads the game center's own fixture — a different
+            invented league from the card's, so the names differ. */}
+        {(key === "sun" || key === "mon") && (
+          <HomeGameDayView board={gcSeat(gcBoard(key === "sun" ? "late" : "monday"), GC_MY_TEAM)} now={GC_NOW[key === "sun" ? "late" : "monday"]} />
+        )}
         <Statement />
         <Carousel b={b} live={phase === "live"} />
         <RoomBoard feed={room(now)} now={now} />

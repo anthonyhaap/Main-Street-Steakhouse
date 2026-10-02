@@ -231,8 +231,8 @@ his, and taps an Android wrist through `navigator.vibrate`.
 `/splash/<w>x<h>.png` draws the ink launch screen at whatever size an iPhone
 asks for (Satori, no PNGs in the repo), the layout lists them per device, and
 `InstallNudge` shows the two taps once on a first mobile visit. The tab bar
-carries four items — Tonight, Matchups, My Team, Standings — with everything
-else behind More; pull to refresh works in the installed app only, where the
+carries Tonight, Matchups, Game Center and Chat, with everything else behind
+More (see Game Day 2.0 below); pull to refresh works in the installed app only, where the
 browser's own is absent. Fraunces and Inter arrive through `next/font`, so the
 headline has an optical-size axis and every score sits in tabular figures.
 
@@ -427,6 +427,94 @@ with the last half hour.
 sixteen real fixtures, twelve lineups of real players — from Sunday morning
 to Tuesday, with a switch that takes the provider down.
 `tests/e2e/sunday.spec.ts` holds it.
+
+### Game Day 2.0
+
+Phases 1–5 built the game center as a broadcast: the game to watch, the red
+zone, the close games. Game Day 2.0 turns it to face the reader. The question
+every screen answers on a game day is "what matters to *me* right now", and
+the order down the page is the order that question is asked in.
+
+**My matchup first.** `/sunday` opens on the reader's own table, the widest and
+loudest thing on the page: both managers, both scores at hero size, Winning or
+Losing with the board's own win probability (`winOdds`, the model the
+scoreboard already documents — no new one, and none at all with no lineups or
+no projections), each side's projection, players remaining and live. Under it
+sits the **matchup moment** — the one thing worth saying right now, or nothing:
+a lead that changed hands in the last quarter hour (from the event, and only
+while that side still leads), a side down to its last one or two men ("Needs
+13.9 · Ray has one player left · Justin Jefferson — MIN"), one man each, a
+deficit cut close, or a game inside two. The featured "game to watch" is now
+chosen from the *other* tables, so no game is on screen twice. A manager with
+no game that week is told so and gets the league.
+
+**What just happened** is the last 45 minutes of `sunday_events`, told
+fantasy-first: the NFL fact is the title, the points and who they went to are
+the loudest line, and what it did to the game is the sentence under it
+("Marcus trails Anthony 127.3–130.6."). Anything that moved the reader's own
+score qualifies, however small.
+
+**League Pulse** is every other table in a line each, ranked the way the brief
+ranks them: lead changes and comebacks, games within five, big scoring plays,
+upsets (with the table's own ranks when there are results: "12th-place Lou is
+leading 5th-place Gus"), monster days, playoff consequences, bench pain, and
+the week's high — two lines a table at most. A line about something that
+*happened* is only written from an event; a line about something that *is*
+comes from the board in the present tense. "As it stands" re-ranks the table
+by the standings' own rule (wins, ties, points for) with every current leader
+winning, and speaks only when someone crosses the playoff line or moves three
+places. Bench pain waits until both the reserve's and the starter's games are
+over, and needs a ten-point swing at a slot the reserve could have filled.
+
+All of it is `src/lib/gameday.ts`, pure, over the same `ff_sunday` payload — the
+front page and the matchup page use the same functions, so the three screens
+cannot disagree about one game.
+
+**The ticker crawls** at a fixed reading speed (48px a second, so a long Sunday
+is not a faster one), pauses under a pointer or keyboard focus, and under
+`prefers-reduced-motion` stands still as a swipeable strip. The copy that
+makes the loop seamless is `aria-hidden` and out of the tab order. It now
+carries the pulse's monster days, bench pain and playoff lines too.
+
+**Two new events.** `20261002150000_sunday_swings` adds `ff_sunday_swings`,
+run after the detector and the moments pass: `monster_game` (a starter past
+`monster_points`, 30 by default — in this week's lineup, so a benched 33
+counts for nobody) and `tightening` (a side once down `tightening_from`, 15,
+now within `close_margin`: "Toby cuts Mike's lead to 4.7 / Was down 18.2",
+from the worst deficits the moments pass already keeps — once per lead). Both
+thresholds are commissioner dials. Until it is applied the page says the same
+things from the board, without the past tense. `supabase/tests/sunday_swings.sql`
+holds it.
+
+**NFL games** are ordered live-first by how many Steakhouse starters are in
+them, each card says how many, and when the slate cannot be read the panel
+says the NFL feed is down while every fantasy score stays on screen. Before
+kickoff the page names the real next game off the slate and when the board
+starts moving.
+
+**The front page on a game day.** Under Tonight's Table: who plays today, mine
+and his by name (Thursday night's receiver, Monday's tight end); and once
+football is on, the latest event in my game, its moment, the league pulse and
+the door to the game center. That half is `ff_sunday` as a second call, made
+only on a day it can say something, and refetched on `sunday_events`.
+
+**The matchup page** carries the same moment under its scoreboard and this
+game's own events below it, read from `sunday_events` in the same refetch as
+the board.
+
+**The tab bar** is Tonight, Matchups, Game Center, Chat and More — the two
+places a manager reaches for during football and the room, one tap each.
+Game Center's red dot means an NFL game is in progress (`useNflLive`, one
+head-only count of `nfl_games` shared by every page, every two minutes while
+visible), not that it is Sunday. Chat carries its unread count. My Team is the
+crest in the top bar and in More; Standings is on Tonight and in More. The
+desktop nav keeps every destination where it was.
+
+`/preview/sunday` now has a **seat** switch (cruising, getting crushed, a
+tight one, a fresh lead change, no matchup), a **Monday night** stage, and an
+**NFL feed down** switch; `tests/e2e/gameday.spec.ts` walks the brief's
+scenarios through them and checks nothing scrolls sideways at 375, 390, 430,
+820 and 1280.
 
 ### The room, on the front page
 

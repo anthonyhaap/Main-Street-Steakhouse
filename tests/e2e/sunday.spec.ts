@@ -140,12 +140,21 @@ test("a quiet provider keeps the board and says so", async ({ page }) => {
   await expect(page.locator(".sun-card")).toHaveCount(6);
 });
 
-test("the ticker runs and every line is a way in", async ({ page }) => {
+test("the ticker crawls, holds still for reduced motion, and every line is a way in", async ({ page }) => {
   await page.goto("/preview/sunday");
   await stage(page, "Late window");
-  const item = page.locator(".sun-ticker__item");
-  await expect(item).toHaveCount(1);
-  await expect(item).toContainText(/CLOSE GAME|UPSET WATCH|RED ZONE/);
+  // It moves, and the copy that makes the loop seamless is hidden from a
+  // screen reader and from the tab order.
+  const ticker = page.locator(".sun-ticker");
+  await expect(ticker).toHaveAttribute("data-motion", "crawl");
+  await expect(ticker.locator(".sun-ticker__list[data-copy]")).toHaveAttribute("aria-hidden", "true");
+  await expect(ticker.locator(".sun-ticker__list[data-copy] .sun-ticker__item").first()).toHaveAttribute("tabindex", "-1");
+
+  // Reduced motion: no crawl, no copy, one swipeable strip.
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await expect(ticker).toHaveAttribute("data-motion", "still");
+  await expect(ticker.locator(".sun-ticker__list")).toHaveCount(1);
+  const item = ticker.locator(".sun-ticker__item", { hasText: /CLOSE GAME|UPSET WATCH|RED ZONE/ }).first();
   await item.click();
   await expect(page.locator("#sun-featured")).toBeInViewport();
 });
@@ -160,16 +169,21 @@ test("Watch NFL RedZone links out and embeds nothing", async ({ page }) => {
 
 test("the game center is one tap from any screen", async ({ page }, info) => {
   await page.goto("/preview/tonight");
-  const pill = page.locator(".gc-pill");
   if (info.project.name === "mobile") {
-    // A phone: the button in the top bar, on every page, never behind More.
-    await expect(pill).toBeVisible();
-    await expect(pill).toHaveAttribute("href", "/sunday");
-    const box = (await pill.boundingBox())!;
-    expect(box.height).toBeGreaterThanOrEqual(34);
+    // A phone: a tab of its own, beside Matchups and Chat, never behind More.
+    const bar = page.locator(".tabbar");
+    const gc = bar.getByRole("link", { name: /Game Center/ });
+    await expect(gc).toBeVisible();
+    await expect(gc).toHaveAttribute("href", "/sunday");
+    await expect(bar.getByRole("link", { name: /Matchups/ })).toHaveAttribute("href", "/matchups");
+    await expect(bar.getByRole("link", { name: /Chat/ })).toHaveAttribute("href", "/chat");
+    expect((await gc.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    // Nothing that left the bar is lost: More has My Team and Standings.
+    await bar.getByRole("button", { name: "More" }).click();
+    await expect(page.getByRole("dialog").getByRole("link", { name: "My Team" })).toHaveAttribute("href", "/team");
+    await expect(page.getByRole("dialog").getByRole("link", { name: "Standings" })).toHaveAttribute("href", "/standings");
   } else {
     // A laptop: the nav has no room for it, so it is in the League menu.
-    await expect(pill).toBeHidden();
     await page.getByRole("button", { name: "League" }).click();
     await expect(page.getByRole("link", { name: "Game Center" })).toHaveAttribute("href", "/sunday");
   }
@@ -236,7 +250,7 @@ test("Talk shit opens the chat with the moment attached", async ({ page }, info)
   // Back to the feed — below 1400px the chat takes the rail's place, and on a
   // phone it is its own tab — where the card now counts the talk.
   if (info.project.name === "mobile") {
-    await page.locator(".sun-tabs[data-for='phone']").getByRole("button", { name: /^RedZone/ }).click();
+    await page.locator(".sun-tabs[data-for='phone']").getByRole("button", { name: /^Live/ }).click();
   } else {
     await page.getByRole("button", { name: "Close chat" }).click();
   }
@@ -260,17 +274,11 @@ test("the feed carries what the league's people did between the football", async
   await expect(page.locator(".sun-activity[data-verb='settled']")).toContainText("Dev won the challenge");
 });
 
-test("the ticker carries the room", async ({ page }, info) => {
-  test.skip(info.project.name === "mobile", "the arrows are a desktop affordance");
+test("the ticker carries the room", async ({ page }) => {
   await page.goto("/preview/sunday");
   await stage(page, "One o'clock window");
   const ticker = page.locator(".sun-ticker");
-  const seen: string[] = [];
-  for (let i = 0; i < 20; i++) {
-    seen.push((await ticker.locator(".sun-ticker__item").textContent()) ?? "");
-    if (seen.some((t) => t.includes("NEW CHAT MESSAGES"))) break;
-    await ticker.getByRole("button", { name: "Next" }).click();
-  }
+  const seen = await ticker.locator(".sun-ticker__list:not([data-copy]) .sun-ticker__item").allTextContents();
   expect(seen.join(" | ")).toContain("DEV ACCEPTED RAY'S CHALLENGE");
   expect(seen.join(" | ")).toContain("💬 3 NEW CHAT MESSAGES");
 });

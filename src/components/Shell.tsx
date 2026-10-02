@@ -12,6 +12,7 @@ import type { WireStatus } from "@/lib/live";
 import { useUnreadCounts } from "@/lib/unread";
 import { Seal } from "@/components/ui";
 import { isGameDay } from "@/lib/sunday";
+import { useNflLive } from "@/lib/gamelive";
 
 /**
  * The first four are the tab bar on a phone, in thumb order: the briefing,
@@ -93,8 +94,23 @@ const LEAGUE_PAGES: NavItem[] = [
   { href: "/recap",       label: "Recap",       Icon: Newspaper },
 ];
 
-/** Four thumb-reachable tabs; everything else lives behind More. */
-const TAB_COUNT = 4;
+/**
+ * The phone's tab bar is its own list, not the first four of the desktop nav.
+ *
+ * On a phone the app is mostly opened during football, and the two places a
+ * manager reaches for then — his matchup and the game center — have to be
+ * one tap from anywhere; so does the room, where the arguing is. So the bar
+ * is Tonight, Matchups, Game Center, Chat and More. My Team is the crest in
+ * the top bar (one tap, on every screen) and in More; Standings is the place
+ * card on Tonight and in More. The desktop nav, which has the width, keeps
+ * every destination where it was.
+ */
+const PHONE_TABS: NavItem[] = [
+  { href: "/",         label: "Tonight",     Icon: UtensilsCrossed },
+  { href: "/matchups", label: "Matchups",    Icon: Swords },
+  { href: "/sunday",   label: "Game Center", Icon: Radio, live: true },
+  { href: "/chat",     label: "Chat",        Icon: MessageCircle, badge: "chat" },
+];
 
 const isOn = (path: string, href: string) =>
   href === "/" ? path === "/" : path.startsWith(href);
@@ -211,7 +227,10 @@ export function TopBar({ status }: { status?: WireStatus }) {
   const standalone = useStandalone();
   const close = () => setMore(false);
   const counts = useUnreadCounts();
-  const gameDay = useGameDay();
+  const calendarDay = useGameDay();
+  // The red dot means football is on, not that it is Sunday.
+  const nflLive = useNflLive();
+  const gameDay = calendarDay || nflLive;
 
   // Commish tools are not an everyday manager destination, and sitting them at
   // the same weight as My Team told eleven people to read past that whole end
@@ -223,17 +242,15 @@ export function TopBar({ status }: { status?: WireStatus }) {
     { href: "/league", label: "League", Icon: Crown },
     ...(showAdmin ? [{ href: "/admin", label: "Commish", Icon: Crown, commish: true }] : []),
   ];
-  const tabs = items.slice(0, TAB_COUNT);
-  const rest = items.slice(TAB_COUNT);
-  const restActive = rest.some((i) => isOn(path, i.href)) || LEAGUE_PAGES.some((i) => isOn(path, i.href));
-  // The sheet groups Draft/History/The House/Recap under their own "League"
-  // heading rather than listing League itself as one more flat tile.
-  const sheetRest: NavItem[] = [
-    ...rest.filter((i) => i.href !== "/league"),
-    gameDay
-      ? { href: "/matchups", label: "Matchups", Icon: Radio }
-      : { href: "/sunday", label: "Game Center", Icon: Radio },
-  ];
+  const tabs = PHONE_TABS;
+  const onTab = (href: string) => tabs.some((t) => t.href !== "/" && isOn(href, t.href));
+  // Everything the bar does not carry, in desktop order, minus the hub (the
+  // sheet's League section is the hub) and anything already a tab.
+  const sheetRest: NavItem[] = NAV.concat(showAdmin ? [{ href: "/admin", label: "Commish", Icon: Crown, commish: true }] : [])
+    .filter((i) => i.href !== "/" && !onTab(i.href));
+  const sheetLeague = LEAGUE_PAGES.filter((i) => !onTab(i.href));
+  const restActive = sheetRest.some((i) => isOn(path, i.href)) || isOn(path, "/league")
+    || sheetLeague.some((i) => isOn(path, i.href));
 
   return (
     <>
@@ -260,35 +277,24 @@ export function TopBar({ status }: { status?: WireStatus }) {
               >
                 {commish && <Crown size={12} aria-hidden />}
                 {label}
-                {live && <i className="nav__live" aria-label="live today" />}
+                {live && nflLive && <i className="nav__live" aria-label="NFL games live now" />}
               </Link>
             )
           )}
         </nav>
 
         <div className="topbar__actions">
-          {/* The game center, one tap from anywhere on a phone. The desktop
-              nav has no width to spare, so there it lives in the League menu
-              and, on a Sunday, in the Matchups slot. */}
-          <Link
-            href="/sunday"
-            className="gc-pill"
-            data-live={gameDay}
-            data-on={isOn(path, "/sunday")}
-            aria-label={gameDay ? "Game Center, live today" : "Game Center"}
-            onTouchStart={() => router.prefetch("/sunday")}
-          >
-            {gameDay ? <i className="gc-pill__dot" aria-hidden /> : <Radio size={14} strokeWidth={2} aria-hidden />}
-            <span>{gameDay ? "Live" : "Game Center"}</span>
-          </Link>
           <Wire status={status} />
+          {/* Your crest is the door to your team: My Team left the phone's
+              tab bar for the game center, and this keeps it one tap away. */}
           {team && (
-            <div style={{ display: "flex", alignItems: "center", gap: "var(--s2)" }}>
+            <Link href="/team" className="topbar__team" aria-label={`My Team — ${team.name}`}
+              data-on={isOn(path, "/team")} style={{ display: "flex", alignItems: "center", gap: "var(--s2)", textDecoration: "none" }}>
               <Seal name={team.name} src={crestOf(team.id)} mine size={30} />
               <span className="hide-sm" style={{ fontSize: "var(--t-small)", color: "var(--muted)", fontWeight: 600 }}>
                 {team.name}
               </span>
-            </div>
+            </Link>
           )}
           <button
             className="btn"
@@ -314,7 +320,7 @@ export function TopBar({ status }: { status?: WireStatus }) {
       </header>
 
       <nav className="tabbar" aria-label="Primary">
-        {tabs.map(({ href, label, Icon, live }) => (
+        {tabs.map(({ href, label, Icon, live, badge }) => (
           <Link
             key={href}
             href={href}
@@ -326,7 +332,10 @@ export function TopBar({ status }: { status?: WireStatus }) {
           >
             <Icon strokeWidth={1.75} />
             <span>{label}</span>
-            {live && <i className="nav__live nav__live--tab" aria-label="live today" />}
+            {live && nflLive && <i className="nav__live nav__live--tab" aria-label="NFL games live now" />}
+            {badge && (counts?.[badge] ?? 0) > 0 && (
+              <span className="tabbar__badge" aria-label={`${counts![badge]} unread`}>{counts![badge] > 99 ? "99+" : counts![badge]}</span>
+            )}
           </Link>
         ))}
         <button
@@ -335,7 +344,7 @@ export function TopBar({ status }: { status?: WireStatus }) {
           data-on={more || restActive}
           aria-expanded={more}
           onClick={() => setMore((v) => !v)}
-          style={{ border: 0, background: "none", cursor: "pointer", font: "inherit" }}
+          style={{ border: 0, background: "none", cursor: "pointer" }}
         >
           <MoreHorizontal strokeWidth={1.75} />
           <span>More</span>
@@ -358,7 +367,7 @@ export function TopBar({ status }: { status?: WireStatus }) {
                   <Crown strokeWidth={1.75} />
                   League Home
                 </Link>
-                {LEAGUE_PAGES.map(({ href, label, Icon, badge }) => (
+                {sheetLeague.map(({ href, label, Icon, badge }) => (
                   <Link key={href} href={href} className="qa__btn" data-on={isOn(path, href)} onClick={close}>
                     <Icon strokeWidth={1.75} />
                     {label}
@@ -439,25 +448,14 @@ export function TopBar({ status }: { status?: WireStatus }) {
           animation: nav-live 1.6s ease-in-out infinite;
         }
         .tabbar__item { position: relative; }
+        .tabbar__badge {
+          position: absolute; top: 6px; left: calc(50% + 6px);
+          min-width: 16px; height: 16px; padding: 0 4px; border-radius: 999px;
+          background: var(--wine); color: #fff;
+          font: 700 9px/16px var(--sans); text-align: center;
+        }
+        .topbar__team[data-on="true"] .seal { outline: 2px solid var(--gold-lit); outline-offset: 2px; border-radius: 50%; }
 
-        /* The top-bar door to the game center: ink, like the room it opens.
-           Phones and tablets only — past 1180px the nav carries it. */
-        .gc-pill {
-          display: none; align-items: center; gap: 6px;
-          min-height: 34px; padding: 0 12px; border-radius: 999px;
-          background: var(--ink-deep); color: var(--ink-text);
-          font: 800 var(--t-micro)/1 var(--sans); letter-spacing: 0.1em; text-transform: uppercase;
-          text-decoration: none; white-space: nowrap;
-          box-shadow: 0 1px 0 #0000000d, 0 4px 14px #1b181426;
-        }
-        .gc-pill[data-live="true"] { background: #b3213f; color: #fff; }
-        .gc-pill[data-on="true"] { outline: 2px solid var(--gold-lit); outline-offset: 2px; }
-        .gc-pill__dot {
-          width: 8px; height: 8px; border-radius: 50%; background: #fff;
-          animation: nav-live 1.6s ease-in-out infinite;
-        }
-        @media (max-width: 1180px) { .gc-pill { display: inline-flex; } }
-        @media (prefers-reduced-motion: reduce) { .gc-pill__dot { animation: none; } }
         .nav__live--tab { position: absolute; top: 10px; left: calc(50% + 10px); margin: 0; }
         @keyframes nav-live { 0%, 100% { opacity: 1 } 50% { opacity: .4 } }
         @media (prefers-reduced-motion: reduce) { .nav__live { animation: none; } }
