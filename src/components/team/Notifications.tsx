@@ -22,7 +22,26 @@ import { useToast } from "@/components/ui";
 export type Prefs = {
   trades: boolean; waivers: boolean; challenges: boolean; recaps: boolean;
   announcements: boolean; devices: number;
+  /**
+   * Optional because each arrives with its own migration and the browser
+   * ships ahead of them: a switch the server has not reported is not shown,
+   * and its key is not sent back.
+   */
+  mentions?: boolean; gameday?: boolean; moments?: boolean;
 };
+
+type Switch = keyof Omit<Prefs, "devices">;
+
+const SWITCHES: [Switch, string][] = [
+  ["gameday", "Game day: my matchup — lead changes, comebacks, the final"],
+  ["moments", "League moments — the big swings in other games"],
+  ["announcements", "League announcements"],
+  ["mentions", "When somebody @mentions me"],
+  ["trades", "Trade offers and answers"],
+  ["waivers", "Waiver results"],
+  ["challenges", "Challenges and stakes"],
+  ["recaps", "The Weekly Special, with your line in it"],
+];
 
 /** Each state needs its own sentence — "denied" in particular, because script
  *  cannot re-ask and the manager has to go to the browser's own settings. */
@@ -85,17 +104,11 @@ export function NotificationsCard({
         {prefs && (
           <div style={{ display: "grid", gap: 8, borderTop: "1px solid var(--rule)", paddingTop: 12 }}>
             <span className="eyebrow">Tell me about</span>
-            {([
-              ["announcements", "League announcements"],
-              ["trades", "Trade offers and answers"],
-              ["waivers", "Waiver results"],
-              ["challenges", "Challenges and stakes"],
-              ["recaps", "The Weekly Special, with your line in it"],
-            ] as [keyof Omit<Prefs, "devices">, string][]).map(([k, label]) => (
+            {SWITCHES.filter(([k]) => typeof prefs[k] === "boolean").map(([k, label]) => (
               <label key={k} style={{ display: "flex", gap: 9, alignItems: "center", cursor: "pointer" }}>
                 <input
                   type="checkbox"
-                  checked={prefs[k]}
+                  checked={!!prefs[k]}
                   disabled={saving}
                   onChange={(e) => onSet({ [k]: e.target.checked } as Partial<Prefs>)}
                 />
@@ -104,7 +117,7 @@ export function NotificationsCard({
             ))}
             <span className="eyebrow" style={{ color: "var(--faint)", lineHeight: 1.5 }}>
               These follow your account, not this device. Nothing else pushes —
-              scores, chat and the feed are all yours to look up.
+              ordinary scoring, chat and the feed are all yours to look up.
             </span>
           </div>
         )}
@@ -135,6 +148,11 @@ export function Notifications() {
       p_trades: merged.trades, p_waivers: merged.waivers,
       p_challenges: merged.challenges, p_recaps: merged.recaps,
       p_announcements: merged.announcements,
+      // Only the switches this database knows about: naming a parameter the
+      // function does not have is a "no such function" from PostgREST.
+      ...(merged.mentions !== undefined ? { p_mentions: merged.mentions } : {}),
+      ...(merged.gameday !== undefined ? { p_gameday: merged.gameday } : {}),
+      ...(merged.moments !== undefined ? { p_moments: merged.moments } : {}),
     });
     setSaving(false);
     if (rpcError) {

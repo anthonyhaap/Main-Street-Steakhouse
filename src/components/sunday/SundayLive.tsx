@@ -24,6 +24,7 @@ import { LEAGUE_ID } from "@/lib/config";
 import { delayed, toggleReaction, type RecapExtras, type SundayBoard } from "@/lib/sunday";
 import { useUnreadCounts } from "@/lib/unread";
 import { loadSunday } from "@/lib/sunday-load";
+import { usePush } from "@/lib/push";
 import type { ChatFeed } from "@/lib/types";
 import { TopBar } from "@/components/Shell";
 import { GameCenter, GameCenterSkeleton } from "./GameCenter";
@@ -123,6 +124,7 @@ export function SundayLive({ initial, week }: { initial: SundayBoard | null; wee
   });
 
   const unread = useUnreadCounts();
+  const push = usePush();
 
   // Server time, the same as every clock in the app.
   const { serverNow, synced } = useServerClock();
@@ -168,6 +170,7 @@ export function SundayLive({ initial, week }: { initial: SundayBoard | null; wee
             current: week !== null ? "/sunday" : null,
           }}
           unreadChat={unread?.chat ?? 0}
+          push={{ state: push.state, busy: push.busy, error: push.error, onEnable: () => void push.enable() }}
         />
       )}
     </>
