@@ -476,14 +476,13 @@ is not a faster one), pauses under a pointer or keyboard focus, and under
 makes the loop seamless is `aria-hidden` and out of the tab order. It now
 carries the pulse's monster days, bench pain and playoff lines too.
 
-**Two new events.** `20261002150000_sunday_swings` adds `ff_sunday_swings`,
+**Two new events.** `20261002023710_sunday_swings` adds `ff_sunday_swings`,
 run after the detector and the moments pass: `monster_game` (a starter past
 `monster_points`, 30 by default — in this week's lineup, so a benched 33
 counts for nobody) and `tightening` (a side once down `tightening_from`, 15,
 now within `close_margin`: "Toby cuts Mike's lead to 4.7 / Was down 18.2",
 from the worst deficits the moments pass already keeps — once per lead). Both
-thresholds are commissioner dials. Until it is applied the page says the same
-things from the board, without the past tense. `supabase/tests/sunday_swings.sql`
+thresholds are commissioner dials. Applied 2026-10-02. `supabase/tests/sunday_swings.sql`
 holds it.
 
 **NFL games** are ordered live-first by how many Steakhouse starters are in
