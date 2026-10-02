@@ -1,7 +1,7 @@
 -- ============================================================================
 -- Game Day 2.0: monster games and deficits cut close.
 --
--- `20261002150000_sunday_swings` writes two events after the detector and the
+-- `20261002023710_sunday_swings` writes two events after the detector and the
 -- moments pass. The ways that goes wrong are the usual quiet ones: a monster
 -- game credited to the team that benched him, the same squeeze told every
 -- minute, a squeeze told for a game that is already over, a threshold tuned
