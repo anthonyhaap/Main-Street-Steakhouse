@@ -175,3 +175,16 @@ for (const width of [375, 390, 430, 820, 1280]) {
     }
   });
 }
+
+test("the monster-game line follows the commissioner's dial", async ({ page }, info) => {
+  test.skip(info.project.name === "mobile", "the dials are tested once, on the desktop panel");
+  await go(page, "Tuesday");
+  const pulse = page.locator("[data-panel='pulse']");
+  await expect(pulse).toContainText("Jared Goff has 32.5 for Marcus");
+  const tune = page.locator("[data-panel='tune']");
+  await tune.locator("summary").click();
+  await tune.getByLabel("Monster game").fill("40");
+  await tune.getByRole("button", { name: "Save weights" }).click();
+  await expect(tune.getByRole("status")).toContainText("Saved");
+  await expect(pulse).not.toContainText("Jared Goff");
+});

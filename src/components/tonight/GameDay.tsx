@@ -39,14 +39,17 @@ export function PlayingToday({ b, now, phase }: { b: Briefing; now: number; phas
   if (phase !== "lineup" && phase !== "preseason" && phase !== "waivers") return null;
   const { mine, theirs } = playingToday(b, now);
   if (mine.length + theirs.length === 0 || !b.matchup) return null;
+  // The day's first kickoff on either side of the table, not just mine: an
+  // afternoon game of his makes it "Today", whatever time mine kicks.
+  const first = [mine[0], theirs[0]].filter(Boolean).map((p) => p.kickoff_at!).sort()[0];
   const evening = new Intl.DateTimeFormat("en-US", { timeZone: LEAGUE_TZ, hour: "numeric", hourCycle: "h23" })
-    .format(new Date(mine[0]?.kickoff_at ?? theirs[0].kickoff_at!));
+    .format(new Date(first));
   const label = Number(evening) >= 18 ? "Tonight" : "Today";
   const names = (s: BriefStarter[]) =>
     s.length === 0 ? "nobody" : s.length > 3 ? `${s.slice(0, 3).map((p) => p.full_name).join(", ")} +${s.length - 3}` : s.map((p) => p.full_name).join(", ");
   return (
     <section className="today" aria-label={`${label}'s players`}>
-      <span className="eyebrow" data-tone="gold">{label} · from {fmtKick(mine[0]?.kickoff_at ?? theirs[0].kickoff_at)}</span>
+      <span className="eyebrow" data-tone="gold">{label} · from {fmtKick(first)}</span>
       <p><b>You:</b> {names(mine)}</p>
       <p><b>{who(b.matchup.opponent)}:</b> {names(theirs)}</p>
     </section>

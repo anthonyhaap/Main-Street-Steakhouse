@@ -358,7 +358,7 @@ export type PulseItem = {
   mine: boolean;
 };
 
-/** A starter's afternoon worth its own line. Tunable by the server's `monster_points`. */
+/** A starter's afternoon worth its own line, when the league has not tuned `monster_points`. */
 export const MONSTER_POINTS = 30;
 /** Bench pain must beat the starter it could have replaced by at least this. */
 export const BENCH_PAIN = 10;
@@ -460,7 +460,9 @@ export function leaguePulse(b: SundayBoard, now: number, limit = 7): PulseItem[]
     }
   }
 
-  // 2. What is true right now, table by table.
+  // 2. What is true right now, table by table. A monster day is the league's
+  // own dial, the same one the server's monster_game event reads.
+  const monster = Number(b.intel?.weights?.monster_points) || MONSTER_POINTS;
   const table = b.intel?.table ?? [];
   const rankOf = (id: string) => table.find((r) => r.team_id === id && r.wins + r.losses + r.ties > 0)?.rank ?? null;
   for (const c of b.matchups) {
@@ -489,9 +491,9 @@ export function leaguePulse(b: SundayBoard, now: number, limit = 7): PulseItem[]
 
     for (const s of [c.home, c.away]) {
       for (const p of s.starters) {
-        if (Number(p.points) < MONSTER_POINTS || told.has(`monster:${p.full_name}`)) continue;
+        if (Number(p.points) < monster || told.has(`monster:${p.full_name}`)) continue;
         told.add(`monster:${p.full_name}`);
-        push({ id: `monster:${p.player_id}`, kind: "monster", emoji: "💥", matchupId: c.id, weight: 60 + Math.min(15, Number(p.points) - MONSTER_POINTS),
+        push({ id: `monster:${p.player_id}`, kind: "monster", emoji: "💥", matchupId: c.id, weight: 60 + Math.min(15, Number(p.points) - monster),
           text: `${p.full_name} has ${fmt1(p.points)} for ${who(s)}${p.game_status === "in" ? " and is still going" : ""}` });
       }
       const pain = benchPain(s);
