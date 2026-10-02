@@ -33,7 +33,7 @@ import { Recap, RedZoneRail, WatchRedZone } from "./RedZone";
 import { SundayTicker } from "./Ticker";
 import { ChatPanel, type TalkContext } from "./ChatPanel";
 import { ManagerStatusBoard, Storylines, TuneExcitement, WhatDoINeed, WhyFeatured, storiesFor } from "./Intel";
-import { JustHappened, LeaguePulse, MyMatchup, NextUp } from "./GameDay";
+import { JustHappened, LeaguePulse, MyMatchup, NextUp, PushPrompt, type PushOffer } from "./GameDay";
 import { justHappened, leaguePulse, matchupMoment, nextUp, pulseTicker, seatOf, weekdayName } from "@/lib/gameday";
 import "./sunday.css";
 
@@ -64,13 +64,15 @@ export type GameCenterProps = {
    * nowhere to go — the preview runs one invented week.
    */
   weeks?: { prev: string | null; next: string | null; current: string | null };
+  /** This device's push state, for the offer under your matchup. Absent: no offer. */
+  push?: PushOffer;
 };
 
 const PHONE = "(max-width: 960px)";
 
 export function GameCenter({
   board, now, delayed = false, chat, onSend, chatError, context, onReact, onTune, unreadChat = 0,
-  recapExtras = null, weeks,
+  recapExtras = null, weeks, push,
 }: GameCenterProps) {
   const phase: Phase = sundayPhase(board, now);
   const [desk, setDesk] = useState<Desk>("center");
@@ -222,6 +224,7 @@ export function GameCenter({
       )}
 
       {seat && <MyMatchup seat={seat} moment={myMoment} onNeed={phase === "live" ? needPanel : undefined} />}
+      {seat && push && phase !== "final" && <PushPrompt push={push} />}
       {!seat && !empty && phase !== "final" && (
         <p className="gd-noseat">You don&apos;t have a matchup this week — here&apos;s the whole league.</p>
       )}
