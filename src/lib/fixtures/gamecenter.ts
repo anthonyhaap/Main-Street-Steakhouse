@@ -21,12 +21,13 @@ import type { ScoreCard, ScoreSide, ScoreStarter, Talk } from "@/lib/scoreboard"
 import type { ActivityItem, Intel, NflGame, RecapExtras, SundayBoard, SundayEvent, SundayHistory, TableRow } from "@/lib/sunday";
 import type { ChatItem } from "@/lib/types";
 
-export type GcStage = "pre" | "early" | "late" | "final";
+export type GcStage = "pre" | "early" | "late" | "monday" | "final";
 
 export const GC_STAGES: { key: GcStage; label: string; note: string }[] = [
   { key: "pre", label: "Sunday morning", note: "Thursday's game is in the books and nothing else has kicked. The page is a preview: projections, the game of the week, who to watch." },
   { key: "early", label: "One o'clock window", note: "Ten games on. Two of ours are inside the twenty. The game center is live." },
   { key: "late", label: "Late window", note: "The early games are final and the four o'clocks are in the fourth quarter. The hour the page exists for." },
+  { key: "monday", label: "Monday night", note: "Every Sunday game is final. Chicago at Minnesota is under way, and a few managers are down to their Monday men." },
   { key: "final", label: "Tuesday", note: "Every game final. The page becomes the day's recap and keeps the board." },
 ];
 
@@ -37,6 +38,7 @@ export const GC_NOW: Record<GcStage, number> = {
   pre: Date.parse("2026-11-22T16:30:00Z"),   // Sun 11:30am ET
   early: Date.parse("2026-11-22T19:50:00Z"), // Sun 2:50pm ET
   late: Date.parse("2026-11-22T23:55:00Z"),  // Sun 6:55pm ET
+  monday: Date.parse("2026-11-24T02:40:00Z"), // Mon 9:40pm ET
   final: Date.parse("2026-11-25T02:00:00Z"), // Mon night, after the late game
 };
 
@@ -61,6 +63,7 @@ const PROGRESS: Record<GcStage, number[]> = {
   pre: [1, 0, 0, 0, 0],
   early: [1, 0.66, 0, 0, 0],
   late: [1, 1, 0.9, 0, 0],
+  monday: [1, 1, 1, 1, 0.55],
   final: [1, 1, 1, 1, 1],
 };
 
@@ -157,6 +160,13 @@ function hash(s: string): number {
  */
 const SWING: Record<string, number> = {
   "Puka Nacua": 1.55,
+  "Rhamondre Stevenson": 2.3,
+};
+
+/** Who sat, for the two benches the fixture bothers to fill. */
+const BENCH: Record<number, [string, string, string][]> = {
+  5: [["Rhamondre Stevenson", "RB", "NE"], ["Khalil Shakir", "WR", "BUF"]],
+  0: [["Tyjae Spears", "RB", "TEN"]],
 };
 
 const RANGE: Record<string, [number, number]> = {
@@ -241,7 +251,7 @@ function side(t: number, stage: GcStage): ScoreSide {
     empty_slots: 0,
     top: best ? { full_name: best.full_name, position: best.position, nfl_team: best.nfl_team, points: best.points, game_status: best.game_status } : null,
     starters,
-    bench: [],
+    bench: (BENCH[t] ?? []).map(([n, pos, club]) => starter(n, pos, club, null, "BN", stage)),
     mine: `gt${t}` === GC_MY_TEAM,
   };
 }
@@ -272,6 +282,33 @@ function nflGames(stage: GcStage): NflGame[] {
 }
 
 const QUIET: Talk = { count: 0, last: null };
+
+/**
+ * The same week from another manager's chair: who is "mine" moves, nothing
+ * else does. It is how the preview shows a comfortable win, a blowout loss
+ * and a one-point sweat without inventing three more Sundays.
+ */
+export function gcSeat(b: SundayBoard, teamId: string | null): SundayBoard {
+  const mark = (s: ScoreSide) => ({ ...s, mine: s.team_id === teamId });
+  return {
+    ...b,
+    my_team_id: teamId,
+    matchups: b.matchups.map((c) => {
+      const home = mark(c.home), away = mark(c.away);
+      return { ...c, home, away, mine: home.mine || away.mine };
+    }),
+  };
+}
+
+/** A seat for each scenario the brief asks to see, in the late window or on Monday. */
+export const GC_SEATS: { team: string | null; label: string }[] = [
+  { team: "gt0", label: "Ray" },
+  { team: "gt4", label: "Tom (cruising)" },
+  { team: "gt5", label: "Nate (getting crushed)" },
+  { team: "gt3", label: "Anthony (tight)" },
+  { team: "gt8", label: "Lou (just took the lead)" },
+  { team: null, label: "No matchup" },
+];
 
 export function gcBoard(stage: GcStage): SundayBoard {
   const now = GC_NOW[stage];
@@ -331,6 +368,7 @@ export function gcIntel(): Intel {
       touchdown: 20, lead_change: 35, within5: 25, within1: 40, fourth_quarter: 15, rivalry: 10, upset: 15,
       league_high: 10, playoff: 15, projected_close: 10, standings: 8, in_action: 2, comeback: 30, season_high: 25,
       big_play_points: 6, scoring_points: 3, close_margin: 5, close_reset: 8, upset_gap: 8, comeback_points: 20,
+      monster_points: 30, tightening_from: 15,
     },
     can_tune: true,
     rules: {
@@ -401,6 +439,15 @@ const EARLY: [number, Ev][] = [
 ];
 
 const LATE: [number, Ev][] = [
+  [10, { type: "monster_game", level: 3, player_name: "Jared Goff", headline: "Jared Goff — monster game",
+    description: "32.5 points for Marcus", matchup_id: "gm2", team_id: "gt2", opponent_team_id: "gt3", player_id: "gc-Jared Goff",
+    new_score: 104.3, opp_new_score: 130.6, detail: { who: "Marcus", opp: "Anthony", points: 32.5 } }],
+  [4, { type: "lead_change", level: 3, headline: "Vic takes the lead over Sal", lead_change: true,
+    matchup_id: "gm4", team_id: "gt7", opponent_team_id: "gt6",
+    old_score: 84.0, new_score: 92.1, opp_old_score: 85.5, opp_new_score: 85.5, detail: { who: "Vic", opp: "Sal" } }],
+  [3, { type: "tightening", level: 3, headline: "Marcus cuts Anthony's lead to 3.3", description: "Was down 38.4",
+    matchup_id: "gm2", team_id: "gt2", opponent_team_id: "gt3", new_score: 127.3, opp_new_score: 130.6,
+    detail: { who: "Marcus", opp: "Anthony", from: 38.4, to: 3.3 } }],
   [4, { type: "lead_change", level: 4, headline: "Lou takes the lead over Gus", lead_change: true,
     reactions: [{ emoji: "😂", count: 4, mine: false }, { emoji: "🔥", count: 3, mine: false }, { emoji: "💀", count: 2, mine: false }], talk: 2,
     description: "Late, with 5 still to play",
@@ -415,6 +462,16 @@ const LATE: [number, Ev][] = [
     description: "Difference 3.3, 4 still to play", matchup_id: "gm2", detail: { margin: 3.3 } }],
   [1, { type: "red_zone", level: 2, headline: "In the red zone: Patrick Mahomes, Travis Kelce, Rashee Rice, Xavier Worthy",
     description: "KC ball — 3rd & 4 at DEN 9", nfl_game_id: "g-KC-DEN", matchup_id: "gm3", detail: {} }],
+];
+
+const MONDAY: [number, Ev][] = [
+  [140, { type: "final", level: 1, headline: "Marcus beats Anthony, 139.60–130.60", matchup_id: "gm2", detail: {} }],
+  [6, { type: "lead_change", level: 4, headline: "Gus takes the lead over Lou", lead_change: true,
+    description: "Late, with 2 still to play", matchup_id: "gm5", team_id: "gt9", opponent_team_id: "gt8",
+    old_score: 106.1, new_score: 109.9, opp_old_score: 109.6, opp_new_score: 109.6, detail: { who: "Gus", opp: "Lou", late: true } }],
+  [2, { type: "scoring", level: 1, player_name: "Justin Jefferson", headline: "Justin Jefferson",
+    matchup_id: "gm1", team_id: "gt0", opponent_team_id: "gt1", points_added: 1.4,
+    old_score: 77.0, new_score: 78.4, opp_old_score: 92.2, opp_new_score: 92.2, detail: { who: "Ray", opp: "Dev" } }],
 ];
 
 const FINAL: [number, Ev][] = [
@@ -440,8 +497,9 @@ function stamp(list: [number, Ev][], at: number, prefix: string): SundayEvent[] 
 
 export function gcEvents(stage: GcStage): SundayEvent[] {
   const day = [
-    ...(stage === "early" || stage === "late" || stage === "final" ? stamp(EARLY, GC_NOW.early, "e") : []),
-    ...(stage === "late" || stage === "final" ? stamp(LATE, GC_NOW.late, "l") : []),
+    ...(stage !== "pre" ? stamp(EARLY, GC_NOW.early, "e") : []),
+    ...(stage === "late" || stage === "monday" || stage === "final" ? stamp(LATE, GC_NOW.late, "l") : []),
+    ...(stage === "monday" ? stamp(MONDAY, GC_NOW.monday, "m") : []),
     ...(stage === "final" ? stamp(FINAL, GC_NOW.final, "f") : []),
   ];
   return day.sort((a, b) => b.created_at.localeCompare(a.created_at));
@@ -474,7 +532,7 @@ function stampAct(list: [number, Omit<ActivityItem, "at">][], at: number): Activ
 export function gcActivity(stage: GcStage): ActivityItem[] {
   const day = [
     ...(stage !== "pre" ? stampAct(ACT_EARLY, GC_NOW.early) : stampAct(ACT_EARLY.slice(0, 1), GC_NOW.pre + 60 * 60_000)),
-    ...(stage === "late" || stage === "final" ? stampAct(ACT_LATE, GC_NOW.late) : []),
+    ...(stage === "late" || stage === "monday" || stage === "final" ? stampAct(ACT_LATE, GC_NOW.late) : []),
     ...(stage === "final" ? stampAct(ACT_FINAL, GC_NOW.final) : []),
   ];
   return day.sort((a, b) => b.at.localeCompare(a.at));

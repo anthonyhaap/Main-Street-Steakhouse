@@ -14,17 +14,21 @@
 import { useState } from "react";
 import { TopBar } from "@/components/Shell";
 import { GameCenter } from "@/components/sunday/GameCenter";
-import { gcBoard, gcChat, gcIntel, gcRecapExtras, GC_NOW, GC_STAGES, type GcStage } from "@/lib/fixtures/gamecenter";
+import { gcBoard, gcChat, gcIntel, gcRecapExtras, gcSeat, GC_MY_TEAM, GC_NOW, GC_SEATS, GC_STAGES, type GcStage } from "@/lib/fixtures/gamecenter";
 import { WEIGHT_DIALS, talkContext, toggleReaction } from "@/lib/sunday";
 
 export default function SundayPreviewPage() {
   const [stage, setStage] = useState<GcStage>("late");
   const [stale, setStale] = useState(false);
+  // Whose chair, and whether the NFL feed is answering at all.
+  const [seat, setSeat] = useState<string | null>(GC_MY_TEAM);
+  const [nflDown, setNflDown] = useState(false);
   const note = GC_STAGES.find((s) => s.key === stage)!.note;
 
   // The board and the room, held here so a reaction or a Talk-shit line can be
   // tried without a session. Nothing leaves the page.
   const [board, setBoard] = useState(() => gcBoard(stage));
+  const shown = gcSeat(nflDown ? { ...board, nfl: [] } : board, seat);
   const [chat, setChat] = useState(() => gcChat(stage));
   const go = (next: GcStage) => {
     setStage(next);
@@ -82,10 +86,22 @@ export default function SundayPreviewPage() {
             <button className="segmented__opt" data-on={stale} onClick={() => setStale((v) => !v)}>
               Provider down
             </button>
+            <button className="segmented__opt" data-on={nflDown} onClick={() => setNflDown((v) => !v)}>
+              NFL feed down
+            </button>
+          </div>
+        </div>
+        <div className="scroll" style={{ overflowX: "auto" }}>
+          <div className="segmented" role="group" aria-label="Whose seat" style={{ width: "max-content" }}>
+            {GC_SEATS.map((x) => (
+              <button key={x.label} className="segmented__opt" data-on={x.team === seat} onClick={() => setSeat(x.team)}>
+                Seat: {x.label}
+              </button>
+            ))}
           </div>
         </div>
       </div>
-      <GameCenter key={stage} board={board} now={GC_NOW[stage]} delayed={stale} chat={chat}
+      <GameCenter key={`${stage}:${seat}`} board={shown} now={GC_NOW[stage]} delayed={stale || nflDown} chat={chat}
         onSend={send} onReact={(id, emoji) => setBoard((b) => toggleReaction(b, id, emoji))} unreadChat={3}
         onTune={tune} recapExtras={stage === "final" ? gcRecapExtras() : null} />
     </>

@@ -56,7 +56,9 @@ export type NflGame = {
 export type EventType =
   | "touchdown" | "big_play" | "scoring" | "turnover" | "lead_change"
   | "close_game" | "upset_watch" | "red_zone" | "final"
-  | "comeback" | "season_high";
+  | "comeback" | "season_high"
+  /** A starter past `monster_points`, and a deficit cut close. See `sunday_swings`. */
+  | "monster_game" | "tightening";
 
 export type SundayEvent = {
   id: string;
@@ -280,6 +282,8 @@ export const WEIGHT_DIALS: { key: string; label: string; hint: string; lo: numbe
   { key: "standings", label: "Standings", hint: "Both at .500 or better", lo: 0, hi: 100 },
   { key: "comeback_points", label: "Comeback means down", hint: "Points behind before it counts", lo: 5, hi: 80 },
   { key: "upset_gap", label: "Underdog means behind by", hint: "Projected points", lo: 2, hi: 40 },
+  { key: "monster_points", label: "Monster game", hint: "Points for one starter", lo: 15, hi: 80 },
+  { key: "tightening_from", label: "Getting interesting", hint: "Deficit cut to within five, from", lo: 6, hi: 60 },
 ];
 
 export type Weights = typeof EXCITEMENT;
@@ -797,6 +801,8 @@ export function eventTag(e: SundayEvent): string {
     case "upset_watch": return "⚠️ Upset watch";
     case "red_zone": return "🔴 Red zone";
     case "final": return "Final";
+    case "monster_game": return "💥 Monster game";
+    case "tightening": return "📈 Getting interesting";
     default: return "Scoring";
   }
 }

@@ -366,6 +366,9 @@ body {
    a renamed tab must never scroll the phone sideways. */
 .tabbar__item > span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tabbar__item svg { width: 20px; height: 20px; }
+/* Five tabs on a 375px phone is 75px a label; "Game Center" fits in that at
+   a tighter track, and nothing else in the bar needs the air. */
+@media (max-width: 420px) { .tabbar__item { letter-spacing: 0.03em; } }
 
 .page {
   flex: 1;
@@ -5142,3 +5145,45 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
 @media (max-width: 480px) {
   .pickem-team { min-height: 84px; padding: var(--s3) var(--s1); }
 }
+
+/* --- the matchup moment, and this game's story ------------------------- */
+/* One box under the scoreboard when something is worth saying — a lead that
+   just changed hands, a side down to its last man — and the game's own
+   events below it. Wine for what is live, brass for what is merely tense. */
+.mmoment {
+  display: grid; gap: 2px;
+  padding: 10px 14px; border-radius: var(--r-sm);
+  background: var(--gold-haze); border: 1px solid var(--gold-dim); border-left: 3px solid var(--gold);
+}
+.mmoment[data-tone="hot"] { background: var(--wine-wash); border-color: var(--wine); border-left-color: var(--wine); }
+.mmoment__tag { font: 800 var(--t-nano)/1.3 var(--sans); letter-spacing: 0.18em; text-transform: uppercase; color: var(--gold); }
+.mmoment[data-tone="hot"] .mmoment__tag { color: var(--wine); }
+.mmoment__title { font: 600 var(--t-body)/1.3 var(--serif); color: var(--cream); }
+.mmoment__line { font-size: var(--t-small); color: var(--muted); }
+
+.mstory { display: grid; gap: var(--s2); }
+.mstory__head { display: flex; justify-content: space-between; align-items: baseline; }
+.mstory__more { border: 0; background: none; padding: 4px 0; cursor: pointer; font: 700 var(--t-micro)/1 var(--sans); color: var(--wine); }
+.mstory__list { list-style: none; margin: 0; padding: 0; display: grid; }
+.mstory__list li {
+  display: grid; gap: 1px; padding: 8px 0 8px 12px;
+  border-left: 2px solid var(--rule-soft); border-bottom: 1px solid var(--rule-soft);
+}
+.mstory__list li[data-tone="hot"] { border-left-color: var(--wine); }
+.mstory__list li[data-tone="gold"] { border-left-color: var(--gold); }
+.mstory__tag { display: flex; gap: 8px; font: 800 var(--t-nano)/1.3 var(--sans); letter-spacing: 0.16em; text-transform: uppercase; color: var(--dim); }
+.mstory__tag time { margin-left: auto; letter-spacing: 0.02em; text-transform: none; font-weight: 600; }
+.mstory__list b { font-size: var(--t-small); font-weight: 700; color: var(--cream); }
+.mstory__list b em { font-style: normal; color: var(--win); }
+.mstory__list b em[data-neg="true"] { color: var(--lose); }
+.mstory__list span:not(.mstory__tag) { font-size: var(--t-micro); color: var(--muted); }
+
+/* --- the front page on a game day: who plays today ---------------------- */
+.today {
+  display: grid; gap: 4px;
+  padding: var(--s3) var(--s4);
+  border: 1px solid var(--gold-dim); border-left: 3px solid var(--gold);
+  border-radius: var(--r-sm); background: var(--gold-haze);
+}
+.today p { margin: 0; font: 400 var(--t-body)/1.4 var(--serif); color: var(--cream); }
+.today b { font-family: var(--sans); font-size: var(--t-small); letter-spacing: 0.04em; }

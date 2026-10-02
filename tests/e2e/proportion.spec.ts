@@ -41,7 +41,9 @@ test.describe("proportion", () => {
       const spill = await page.evaluate((w) => {
         const out: string[] = [];
         for (const el of Array.from(document.querySelectorAll<HTMLElement>("body *"))) {
-          if (el.closest(".scroll, .segmented, .h2h, .carousel, .modal, .toasts, .ticker, [aria-hidden='true']")) continue;
+          // `.sun-ticker__stage` clips the game center's crawl, which is two
+          // copies of the line side by side and wider than any screen on purpose.
+          if (el.closest(".scroll, .segmented, .h2h, .carousel, .modal, .toasts, .ticker, .sun-ticker__stage, [aria-hidden='true']")) continue;
           const r = el.getBoundingClientRect();
           if (r.width === 0) continue;
           if (r.right > w + 1) out.push(`${el.tagName.toLowerCase()}.${String(el.className).split(" ")[0]} right=${Math.round(r.right)}`);
