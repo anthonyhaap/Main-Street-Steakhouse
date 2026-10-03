@@ -188,3 +188,26 @@ test("the monster-game line follows the commissioner's dial", async ({ page }, i
   await expect(tune.getByRole("status")).toContainText("Saved");
   await expect(pulse).not.toContainText("Jared Goff");
 });
+
+test("the game center offers push under your matchup, once, and means it", async ({ page }) => {
+  await go(page, "Late window");
+  const offer = page.locator(".gd-push");
+  await expect(offer).toContainText("Get buzzed when your matchup swings.");
+  await expect(offer).toContainText("not every catch");
+  await offer.getByRole("button", { name: "Turn on" }).click();
+  await expect(offer).toHaveCount(0);
+
+  // "Not now" is remembered on this device.
+  await page.reload();
+  await click(page, "Late window");
+  await page.locator(".gd-push").getByRole("button", { name: "Not now" }).click();
+  await expect(page.locator(".gd-push")).toHaveCount(0);
+  await page.reload();
+  await click(page, "Late window");
+  await expect(page.locator(".gd-push")).toHaveCount(0);
+});
+
+test("no offer without a matchup of your own", async ({ page }) => {
+  await go(page, "Late window", "Seat: No matchup");
+  await expect(page.locator(".gd-push")).toHaveCount(0);
+});

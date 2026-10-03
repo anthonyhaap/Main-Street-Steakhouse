@@ -14,7 +14,8 @@
  */
 
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { useState, useSyncExternalStore } from "react";
+import { ArrowRight, Bell } from "lucide-react";
 import { Seal } from "@/components/ui";
 import { crestUrl } from "@/lib/crest";
 import { cardState, fmt1, pctLabel, projectedFinal, who, type ScoreSide } from "@/lib/scoreboard";
@@ -216,6 +217,62 @@ export function NextUp({ next, phase, betweenWindows }: { next: Next | null; pha
       ) : (
         <span>No more kickoffs on the slate this week.</span>
       )}
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------ push prompt -- */
+
+/**
+ * The one place the app asks for push without being asked: under your own
+ * matchup, on a game day, while push is off on this device. It says exactly
+ * what will buzz — your game, not every catch — and goes away for good on
+ * "Not now" (per device; a manager who wants it later has the settings).
+ */
+export type PushOffer = {
+  state: "unsupported" | "ios-needs-install" | "denied" | "off" | "on" | null;
+  busy: boolean;
+  error: string | null;
+  onEnable: () => void;
+};
+
+const DISMISS_KEY = "gd-push-offer-dismissed";
+
+const dismissListeners = new Set<() => void>();
+const readDismissed = () => {
+  try { return window.localStorage.getItem(DISMISS_KEY) === "1"; } catch { return false; }
+};
+
+export function PushPrompt({ push }: { push: PushOffer }) {
+  // Read after hydration, never during the server render, so a dismissed offer
+  // cannot make the client's first paint disagree with the HTML.
+  const dismissed = useSyncExternalStore(
+    (on) => { dismissListeners.add(on); return () => { dismissListeners.delete(on); }; },
+    readDismissed,
+    () => false,
+  );
+  // Remembered for this visit even where storage is refused.
+  const [gone, setGone] = useState(false);
+  if (gone || dismissed || push.state !== "off") return null;
+  const dismiss = () => {
+    try { window.localStorage.setItem(DISMISS_KEY, "1"); } catch { /* private window: it comes back next visit */ }
+    setGone(true);
+    dismissListeners.forEach((f) => f());
+  };
+  return (
+    <section className="gd-push" aria-label="Game-day notifications">
+      <Bell size={16} aria-hidden />
+      <span className="gd-push__text">
+        <b>Get buzzed when your matchup swings.</b>
+        <span>Lead changes, comebacks and the final — not every catch.</span>
+        {push.error && <span className="gd-push__err" role="alert">{push.error}</span>}
+      </span>
+      <span className="gd-push__act">
+        <button type="button" className="sun-btn" data-v="gold" disabled={push.busy} onClick={push.onEnable}>
+          {push.busy ? "…" : "Turn on"}
+        </button>
+        <button type="button" className="sun-linkbtn" onClick={dismiss}>Not now</button>
+      </span>
     </section>
   );
 }
