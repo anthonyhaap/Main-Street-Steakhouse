@@ -1409,6 +1409,11 @@ a.kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); border-c
 .plr[data-empty="true"]    { background: #b3341f08; }
 
 .plr__match, .plr__form, .plr__use { display: none; min-width: 0; }
+.plr__when { color: var(--muted); white-space: nowrap; }
+
+@container (min-width: 540px) {
+  .plr__when { display: none; }
+}
 
 @container (min-width: 540px) {
   .plr { gap: var(--s3); padding: 9px var(--s4); grid-template-columns: 44px minmax(0, 1fr) 152px 66px 30px; }
