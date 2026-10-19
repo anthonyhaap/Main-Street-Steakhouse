@@ -515,6 +515,48 @@ tight one, a fresh lead change, no matchup), a **Monday night** stage, and an
 scenarios through them and checks nothing scrolls sideways at 375, 390, 430,
 820 and 1280.
 
+### Game day, on the lock screen
+
+Push was built for what a manager cannot look up in time — an offer, a claim,
+a bet, his name in the chat. A Sunday is the other thing: the game center says
+what every play meant to your matchup, but only while you are looking at it,
+and on a Sunday you are looking at the television.
+
+`20261002160000_gameday_push` puts a trigger on `sunday_events`, so the
+server's own record of what happened also writes to the outbox — inside the
+detector's transaction, drained by the existing `/api/push/drain` like every
+other kind. Two kinds, each with its own switch on the account:
+
+| kind | for | default |
+|------|-----|---------|
+| `gameday` | your own matchup: a lead changing hands (either way, with the play that did it), a comeback, a deficit cut close, a monster game on either roster, a season high, a game inside a point late, the final | on |
+| `moment` | the league's Steakhouse moments (level 4) in other people's games | **off** |
+
+`ff_gameday_words` writes each event from the reader's side of the table —
+"You take the lead over Ada · You 110.8, Ada 109.0. Push Star +6.8." to one
+manager, "Bo takes the lead · Bo 110.8, you 109.0." to the other — and every
+seat at the team hears it, co-owners included, each by their own switch.
+
+**Restraint.** An ordinary touchdown is not a push; one that takes the lead is,
+as the lead change it is. A lead change and a final always go out; a squeeze,
+a monster game or a comeback (which is written straight after its lead change)
+waits if this manager was pushed about game day in the last two minutes.
+Moments are at most one every ten minutes. The service worker tags by kind, so
+a new game-day push replaces the last on the lock screen instead of stacking.
+
+**Safety.** The trigger swallows its own failures into `ingest_log`
+(`push / gameday_failed`): `ff_sunday_detect_all` runs a league's whole pass
+in one block, and a push problem must never cost the league its events.
+
+**Asking.** One device in the league had push on, so the game center now asks
+— once, under your own matchup, on a game day, while push is off on that
+device: "Get buzzed when your matchup swings. Lead changes, comebacks and the
+final — not every catch." *Not now* is remembered per device. The settings
+card gains both switches, and the @mentions switch that had been missing from
+it since mentions shipped; a switch the database has not reported yet is
+neither shown nor sent, so the page works ahead of the migration.
+`supabase/tests/gameday_push.sql` holds the restraint.
+
 ### The room, on the front page
 
 Tonight's Table answers three questions in the first second. The clubhouse is

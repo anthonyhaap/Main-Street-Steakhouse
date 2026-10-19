@@ -23,6 +23,11 @@ export default function SundayPreviewPage() {
   // Whose chair, and whether the NFL feed is answering at all.
   const [seat, setSeat] = useState<string | null>(GC_MY_TEAM);
   const [nflDown, setNflDown] = useState(false);
+  // Push on this device, faked: the offer under the matchup, and what turning
+  // it on looks like, without a push service.
+  const [pushOn, setPushOn] = useState(false);
+  // A manager who switched game day off in his settings is not offered it here.
+  const [gamedayOff, setGamedayOff] = useState(false);
   const note = GC_STAGES.find((s) => s.key === stage)!.note;
 
   // The board and the room, held here so a reaction or a Talk-shit line can be
@@ -89,6 +94,9 @@ export default function SundayPreviewPage() {
             <button className="segmented__opt" data-on={nflDown} onClick={() => setNflDown((v) => !v)}>
               NFL feed down
             </button>
+            <button className="segmented__opt" data-on={gamedayOff} onClick={() => setGamedayOff((v) => !v)}>
+              Game-day push off
+            </button>
           </div>
         </div>
         <div className="scroll" style={{ overflowX: "auto" }}>
@@ -103,7 +111,8 @@ export default function SundayPreviewPage() {
       </div>
       <GameCenter key={`${stage}:${seat}`} board={shown} now={GC_NOW[stage]} delayed={stale || nflDown} chat={chat}
         onSend={send} onReact={(id, emoji) => setBoard((b) => toggleReaction(b, id, emoji))} unreadChat={3}
-        onTune={tune} recapExtras={stage === "final" ? gcRecapExtras() : null} />
+        onTune={tune} recapExtras={stage === "final" ? gcRecapExtras() : null}
+        push={{ state: pushOn ? "on" : "off", busy: false, error: null, onEnable: () => setPushOn(true), gamedayOff }} />
     </>
   );
 }
