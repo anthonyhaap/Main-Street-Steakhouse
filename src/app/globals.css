@@ -1397,14 +1397,13 @@ a.kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); border-c
   align-items: center;
   gap: var(--s2);
   padding: 9px var(--s3);
-  grid-template-columns: 38px minmax(0, 1fr) 58px 30px;
+  grid-template-columns: 38px minmax(0, 1fr) 58px auto;
   border-left: 2px solid transparent;
   transition: background 0.15s var(--ease), border-color 0.15s var(--ease);
 }
 .plr + .plr { border-top: 1px solid var(--rule-soft); }
 .plr:hover { background: var(--ink-2); }
 .plr[data-selected="true"] { background: var(--gold-wash); border-left-color: var(--gold-lit); }
-.plr[data-target="true"]   { background: var(--gold-haze); border-left-color: var(--gold-dim); }
 .plr[data-locked="true"]   { opacity: 0.55; }
 .plr[data-empty="true"]    { background: #b3341f08; }
 
@@ -1416,15 +1415,15 @@ a.kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); border-c
 }
 
 @container (min-width: 540px) {
-  .plr { gap: var(--s3); padding: 9px var(--s4); grid-template-columns: 44px minmax(0, 1fr) 152px 66px 30px; }
+  .plr { gap: var(--s3); padding: 9px var(--s4); grid-template-columns: 44px minmax(0, 1fr) 152px 66px auto; }
   .plr__match { display: flex; align-items: center; }
 }
 @container (min-width: 700px) {
-  .plr { grid-template-columns: 44px minmax(0, 1fr) 152px 108px 66px 30px; }
+  .plr { grid-template-columns: 44px minmax(0, 1fr) 152px 108px 66px auto; }
   .plr__form { display: block; }
 }
 @container (min-width: 880px) {
-  .plr { grid-template-columns: 44px minmax(0, 1fr) 152px 108px minmax(120px, 158px) 66px 30px; }
+  .plr { grid-template-columns: 44px minmax(0, 1fr) 152px 108px minmax(120px, 158px) 66px auto; }
   .plr__use { display: block; }
 }
 
@@ -1464,19 +1463,51 @@ a.kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); border-c
   color: var(--gold); white-space: nowrap;
 }
 .plr__act {
-  display: grid; place-items: center;
-  width: 30px; height: 30px;
-  border: 1px solid transparent; border-radius: 50%;
-  background: none; color: var(--faint); cursor: pointer;
+  display: inline-flex; align-items: center; gap: 4px;
+  height: 28px; padding: 0 10px;
+  border: 1px solid var(--rule-hard); border-radius: 999px;
+  background: none; color: var(--muted); cursor: pointer;
+  font: 600 var(--t-micro)/1 var(--sans); letter-spacing: 0.04em; text-transform: uppercase;
   transition: background 0.15s var(--ease), color 0.15s var(--ease), border-color 0.15s var(--ease);
 }
-.plr__act:hover:not(:disabled) { background: var(--ink-1); border-color: var(--rule-hard); color: var(--wine); }
+.plr__act:hover:not(:disabled) { background: var(--ink-1); color: var(--wine); }
+.plr__act[data-on="true"] { background: var(--gold-wash); border-color: var(--gold-lit); color: var(--gold); }
 .plr__act:disabled { opacity: 0.25; cursor: not-allowed; }
-/* While a move is in flight the whole row is one big drop target. */
-.plr__drop {
-  position: absolute; inset: 0; z-index: 1;
-  border: 0; background: none; cursor: pointer; font: inherit; color: transparent;
+
+/* The options that drop open under a row when its Swap is pressed. Indented
+   past the slot pill and edged in gold so it reads as belonging to the row
+   above it, not as another roster line. */
+.swap {
+  margin: 0 var(--s3) var(--s2) calc(var(--s3) + 12px);
+  padding: var(--s2);
+  border-left: 2px solid var(--gold-lit);
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+  background: var(--gold-haze);
 }
+.swap__head {
+  display: flex; justify-content: space-between; align-items: center; gap: var(--s2);
+  padding: 2px 4px var(--s2);
+  font-size: var(--t-small); color: var(--muted);
+}
+.swap__none { padding: 4px; font-size: var(--t-small); color: var(--faint); font-style: italic; }
+.swap__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.swap__opt {
+  display: grid; align-items: center; gap: var(--s2);
+  grid-template-columns: 38px minmax(0, 1fr) auto auto;
+  width: 100%; padding: 7px var(--s2);
+  border: 1px solid var(--rule-soft); border-radius: var(--r-sm);
+  background: var(--ink-1); color: inherit; font: inherit; text-align: left; cursor: pointer;
+  transition: background 0.15s var(--ease), border-color 0.15s var(--ease);
+}
+.swap__opt:hover:not(:disabled) { background: var(--gold-wash); border-color: var(--gold-lit); }
+.swap__opt:disabled { opacity: 0.5; cursor: not-allowed; }
+.swap__who { min-width: 0; }
+.swap__who b {
+  display: block; font-weight: 600; font-size: var(--t-small);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.swap__who span { display: block; margin-top: 2px; font-size: var(--t-micro); color: var(--dim); letter-spacing: 0.04em; }
+.swap__proj { font-size: var(--t-micro); font-weight: 600; color: var(--gold); white-space: nowrap; }
 
 /* --- the lineup coach --------------------------------------------------- */
 /* A change is two players and the reasons for both, so the unit here is a pair
