@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowLeftRight, Lock, Plane } from "lucide-react";
-import { InjuryBadge, Kickoff, Spark, usageLine } from "@/components/nfl";
+import { InjuryBadge, Kickoff, Spark, kickoffLine, usageLine } from "@/components/nfl";
 import { PlayerBadge } from "@/components/PlayerBadge";
 import { fmtPts } from "@/components/ui";
 import type { HubPlayer, WireInjury } from "@/lib/nfl/types";
@@ -75,6 +75,9 @@ export function PlayerRow({
                   {player.position}{player.pos_rank.rank} of {player.pos_rank.of}
                 </span>
               ) : null}
+              {/* The kickoff column is only drawn once the row is wide
+                  enough for it; on a phone the game time rides here. */}
+              <span className="plr__when">{kickoffLine(player.game)}</span>
               {locked && <Lock size={11} color="var(--faint)" aria-label="Locked" />}
               {player.on_bye && <Plane size={11} color="var(--warn)" aria-label="On bye" />}
               {injury && <InjuryBadge injury={injury} />}
