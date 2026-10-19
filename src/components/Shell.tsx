@@ -97,18 +97,16 @@ const LEAGUE_PAGES: NavItem[] = [
 /**
  * The phone's tab bar is its own list, not the first four of the desktop nav.
  *
- * On a phone the app is mostly opened during football, and the two places a
- * manager reaches for then — his matchup and the game center — have to be
- * one tap from anywhere; so does the room, where the arguing is. So the bar
- * is Tonight, Matchups, Game Center, Chat and More. My Team is the crest in
- * the top bar (one tap, on every screen) and in More; Standings is the place
- * card on Tonight and in More. The desktop nav, which has the width, keeps
- * every destination where it was.
+ * The bar is Tonight, Matchups, My Team, Chat and More: the matchup, the
+ * lineup and the room are what a manager reaches for from anywhere. The game
+ * center is in More, beside League Home, and on the front page's live card
+ * once football is on; Standings is the place card on Tonight and in More.
+ * The desktop nav, which has the width, keeps every destination where it was.
  */
 const PHONE_TABS: NavItem[] = [
   { href: "/",         label: "Tonight",     Icon: UtensilsCrossed },
   { href: "/matchups", label: "Matchups",    Icon: Swords },
-  { href: "/sunday",   label: "Game Center", Icon: Radio, live: true },
+  { href: "/team",     label: "My Team",     Icon: Shield },
   { href: "/chat",     label: "Chat",        Icon: MessageCircle, badge: "chat" },
 ];
 
@@ -249,7 +247,7 @@ export function TopBar({ status }: { status?: WireStatus }) {
   const sheetRest: NavItem[] = NAV.concat(showAdmin ? [{ href: "/admin", label: "Commish", Icon: Crown, commish: true }] : [])
     .filter((i) => i.href !== "/" && !onTab(i.href));
   const sheetLeague = LEAGUE_PAGES.filter((i) => !onTab(i.href));
-  const restActive = sheetRest.some((i) => isOn(path, i.href)) || isOn(path, "/league")
+  const restActive = sheetRest.some((i) => isOn(path, i.href)) || isOn(path, "/league") || isOn(path, "/sunday")
     || sheetLeague.some((i) => isOn(path, i.href));
 
   return (
@@ -285,8 +283,7 @@ export function TopBar({ status }: { status?: WireStatus }) {
 
         <div className="topbar__actions">
           <Wire status={status} />
-          {/* Your crest is the door to your team: My Team left the phone's
-              tab bar for the game center, and this keeps it one tap away. */}
+          {/* Your crest is the door to your team, on every screen. */}
           {team && (
             <Link href="/team" className="topbar__team" aria-label={`My Team — ${team.name}`}
               data-on={isOn(path, "/team")} style={{ display: "flex", alignItems: "center", gap: "var(--s2)", textDecoration: "none" }}>
@@ -366,6 +363,10 @@ export function TopBar({ status }: { status?: WireStatus }) {
                 <Link href="/league" className="qa__btn" data-on={isOn(path, "/league")} onClick={close}>
                   <Crown strokeWidth={1.75} />
                   League Home
+                </Link>
+                <Link href="/sunday" className="qa__btn" data-on={isOn(path, "/sunday")} onClick={close}>
+                  <Radio strokeWidth={1.75} />
+                  Game Center
                 </Link>
                 {sheetLeague.map(({ href, label, Icon, badge }) => (
                   <Link key={href} href={href} className="qa__btn" data-on={isOn(path, href)} onClick={close}>

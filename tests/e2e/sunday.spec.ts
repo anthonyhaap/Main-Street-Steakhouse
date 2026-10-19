@@ -167,20 +167,21 @@ test("Watch NFL RedZone links out and embeds nothing", async ({ page }) => {
   await expect(page.locator(".sun iframe, .sun video")).toHaveCount(0);
 });
 
-test("the game center is one tap from any screen", async ({ page }, info) => {
+test("the game center is reachable from any screen", async ({ page }, info) => {
   await page.goto("/preview/tonight");
   if (info.project.name === "mobile") {
-    // A phone: a tab of its own, beside Matchups and Chat, never behind More.
+    // A phone: My Team holds the tab, beside Matchups and Chat.
     const bar = page.locator(".tabbar");
-    const gc = bar.getByRole("link", { name: /Game Center/ });
-    await expect(gc).toBeVisible();
-    await expect(gc).toHaveAttribute("href", "/sunday");
+    const mine = bar.getByRole("link", { name: /My Team/ });
+    await expect(mine).toBeVisible();
+    await expect(mine).toHaveAttribute("href", "/team");
     await expect(bar.getByRole("link", { name: /Matchups/ })).toHaveAttribute("href", "/matchups");
     await expect(bar.getByRole("link", { name: /Chat/ })).toHaveAttribute("href", "/chat");
-    expect((await gc.boundingBox())!.height).toBeGreaterThanOrEqual(44);
-    // Nothing that left the bar is lost: More has My Team and Standings.
+    await expect(bar.getByRole("link", { name: /Game Center/ })).toHaveCount(0);
+    expect((await mine.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    // Nothing that left the bar is lost: More has Game Center and Standings.
     await bar.getByRole("button", { name: "More" }).click();
-    await expect(page.getByRole("dialog").getByRole("link", { name: "My Team" })).toHaveAttribute("href", "/team");
+    await expect(page.getByRole("dialog").getByRole("link", { name: "Game Center" })).toHaveAttribute("href", "/sunday");
     await expect(page.getByRole("dialog").getByRole("link", { name: "Standings" })).toHaveAttribute("href", "/standings");
   } else {
     // A laptop: the nav has no room for it, so it is in the League menu.
