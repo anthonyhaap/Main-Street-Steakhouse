@@ -125,6 +125,17 @@ export function SundayLive({ initial, week }: { initial: SundayBoard | null; wee
 
   const unread = useUnreadCounts();
   const push = usePush();
+  // Whether game day is switched off on the account, for the push offer.
+  // Absent — a database a migration behind — means on, the kind's default.
+  const [gamedayOff, setGamedayOff] = useState(false);
+  useEffect(() => {
+    if (!ready) return;
+    let live = true;
+    void supabaseBrowser().rpc("ff_notification_prefs").then(({ data }) => {
+      if (live && data) setGamedayOff((data as { gameday?: boolean }).gameday === false);
+    });
+    return () => { live = false; };
+  }, [ready]);
 
   // Server time, the same as every clock in the app.
   const { serverNow, synced } = useServerClock();
@@ -170,7 +181,7 @@ export function SundayLive({ initial, week }: { initial: SundayBoard | null; wee
             current: week !== null ? "/sunday" : null,
           }}
           unreadChat={unread?.chat ?? 0}
-          push={{ state: push.state, busy: push.busy, error: push.error, onEnable: () => void push.enable() }}
+          push={{ state: push.state, busy: push.busy, error: push.error, onEnable: () => void push.enable(), gamedayOff }}
         />
       )}
     </>

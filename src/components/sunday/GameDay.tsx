@@ -234,6 +234,12 @@ export type PushOffer = {
   busy: boolean;
   error: string | null;
   onEnable: () => void;
+  /**
+   * The manager switched game day off on his account. Subscribing this device
+   * would then deliver nothing the offer promises, so it is not made — the
+   * choice is his, and it lives in the settings where he made it.
+   */
+  gamedayOff?: boolean;
 };
 
 const DISMISS_KEY = "gd-push-offer-dismissed";
@@ -253,7 +259,7 @@ export function PushPrompt({ push }: { push: PushOffer }) {
   );
   // Remembered for this visit even where storage is refused.
   const [gone, setGone] = useState(false);
-  if (gone || dismissed || push.state !== "off") return null;
+  if (gone || dismissed || push.gamedayOff || push.state !== "off") return null;
   const dismiss = () => {
     try { window.localStorage.setItem(DISMISS_KEY, "1"); } catch { /* private window: it comes back next visit */ }
     setGone(true);

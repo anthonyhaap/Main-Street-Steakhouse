@@ -211,3 +211,10 @@ test("no offer without a matchup of your own", async ({ page }) => {
   await go(page, "Late window", "Seat: No matchup");
   await expect(page.locator(".gd-push")).toHaveCount(0);
 });
+
+test("a manager who switched game day off is not offered it", async ({ page }) => {
+  await go(page, "Late window");
+  await expect(page.locator(".gd-push")).toBeVisible();
+  await click(page, "Game-day push off");
+  await expect(page.locator(".gd-push")).toHaveCount(0);
+});
