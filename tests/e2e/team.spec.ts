@@ -89,9 +89,9 @@ test("another manager's desk can be read and not touched", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
 
-  // The owner's desk, for the contrast: the arrows are there.
+  // The owner's desk, for the contrast: the swap buttons are there.
   await page.goto("/preview/team");
-  await expect(page.getByRole("button", { name: /^Move / }).first()).toBeVisible();
+  await expect(page.getByRole("button", { name: /^Swap / }).first()).toBeVisible();
   await expect(page.getByRole("button", { name: "Edit team" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "What changed for you" })).toBeVisible();
 
@@ -100,7 +100,7 @@ test("another manager's desk can be read and not touched", async ({ page }) => {
 
   // The roster is all there to read, and none of it can be picked up.
   await expect(page.locator(".lineup").first()).toContainText("Patrick Mahomes");
-  await expect(page.getByRole("button", { name: /^Move / })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /^Swap / })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Edit team" })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Notifications" })).toHaveCount(0);
 
@@ -307,4 +307,32 @@ test("the waiver order opens the teams ahead of you", async ({ page }) => {
   // And the one the league list cannot place is named without being linked.
   await expect(order.getByText("Brisket Brigade")).toBeVisible();
   await expect(order.getByRole("link", { name: /Brisket Brigade/ })).toHaveCount(0);
+});
+
+/**
+ * Swapping is one button and one pick. Pressing Swap on a row opens the men
+ * who could take his place right underneath it — only the legal ones — and
+ * pressing one makes the swap.
+ */
+test("swap opens the eligible replacements under the row", async ({ page }) => {
+  await page.goto("/preview/team");
+
+  await page.getByRole("button", { name: "Swap Patrick Mahomes" }).click();
+  const options = page.getByRole("region", { name: "Swap options for Patrick Mahomes" });
+  await expect(options).toBeVisible();
+  // A quarterback can only be swapped for a quarterback, or sent to the bench.
+  await expect(options.getByRole("button", { name: /Josh Allen/ })).toBeVisible();
+  await expect(options.getByRole("button", { name: /Move to bench/ })).toBeVisible();
+  await expect(options).not.toContainText("Jahmyr Gibbs");
+
+  // Pressing Swap again closes it.
+  await page.getByRole("button", { name: "Swap Patrick Mahomes" }).click();
+  await expect(options).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Swap Patrick Mahomes" }).click();
+  await options.getByRole("button", { name: /Josh Allen/ }).click();
+  await expect(options).toHaveCount(0);
+  const [lineup, bench] = [page.locator(".lineup").nth(0), page.locator(".lineup").nth(1)];
+  await expect(lineup).toContainText("Josh Allen");
+  await expect(bench).toContainText("Patrick Mahomes");
 });
