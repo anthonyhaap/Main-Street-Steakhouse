@@ -26,7 +26,7 @@ export function HowItHappened({ story, week }: { story: WeekStory; week: number 
       <div className="card__body">
         {story.games.length > 0 && (
           <ul className="recap__games">
-            {story.games.map((g) => <Game key={g.matchupId} g={g} week={week} />)}
+            {story.games.map((g) => <Game key={g.key} g={g} week={week} />)}
           </ul>
         )}
         {story.moments.length > 0 && (
@@ -48,12 +48,17 @@ export function HowItHappened({ story, week }: { story: WeekStory; week: number 
 const TIMES = ["", "once", "twice"];
 
 function Game({ g, week }: { g: GameStory; week: number }) {
+  const result = (
+    <>
+      <b>{g.final.headline}</b>
+      {g.mine && <span className="badge" data-tone="wine" data-size="sm">Your game</span>}
+    </>
+  );
   return (
     <li data-mine={g.mine}>
-      <Link href={`/matchups/${g.matchupId}?week=${week}`} className="recap__result">
-        <b>{g.final.headline}</b>
-        {g.mine && <span className="badge" data-tone="wine" data-size="sm">Your game</span>}
-      </Link>
+      {g.matchupId
+        ? <Link href={`/matchups/${g.matchupId}?week=${week}`} className="recap__result">{result}</Link>
+        : <span className="recap__result">{result}</span>}
       {g.final.description && <span className="recap__note">{g.final.description}.</span>}
       {g.leadChanges > 0 && (
         <span className="recap__note">

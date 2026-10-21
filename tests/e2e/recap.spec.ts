@@ -110,3 +110,12 @@ test("signed out, no table is called yours", async ({ page }) => {
   await page.getByRole("button", { name: "Signed out" }).click();
   await expect(page.getByRole("region", { name: "How it happened" }).getByText("Your game")).toHaveCount(0);
 });
+
+test("a final whose matchup was rebuilt keeps its line, with nothing to link to", async ({ page }) => {
+  await page.goto("/preview/recap");
+  const how = page.getByRole("region", { name: "How it happened" });
+  const orphan = how.locator(".recap__games > li", { hasText: "Ike beats Jo, 101.10–99.40" });
+  await expect(orphan).toBeVisible();
+  await expect(orphan.getByRole("link")).toHaveCount(0);
+  await expect(orphan).not.toContainText("changed hands");
+});

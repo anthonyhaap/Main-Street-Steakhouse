@@ -104,7 +104,9 @@ export function recapHeading(recap: RecapRow): string {
  *             came
  */
 export type GameStory = {
-  matchupId: string;
+  /** The matchup, or the final's own id once its matchup is gone (see `weekStory`). */
+  key: string;
+  matchupId: string | null;
   final: SundayEvent;
   leadChanges: number;
   decider: SundayEvent | null;
@@ -127,13 +129,22 @@ const changesLead = (e: SundayEvent) => e.type === "lead_change" || (e.lead_chan
 const at = (e: SundayEvent) => Date.parse(e.created_at);
 
 export function weekStory(events: SundayEvent[], myTeamId: string | null | undefined): WeekStory | null {
+  // Regenerating the schedule deletes the matchups and nulls `matchup_id` on
+  // the events, which are kept. A final like that still has its headline and
+  // teams, so it keeps its line, keyed by its own id; what it cannot keep is
+  // the lead changes, which nothing ties to it any more.
   const finals = new Map<string, SundayEvent>();
-  for (const e of events) if (e.type === "final" && e.matchup_id && !finals.has(e.matchup_id)) finals.set(e.matchup_id, e);
+  for (const e of events) {
+    if (e.type !== "final") continue;
+    const key = e.matchup_id ?? `event:${e.id}`;
+    if (!finals.has(key)) finals.set(key, e);
+  }
 
   const involves = (e: SundayEvent) => !!myTeamId && (e.team_id === myTeamId || e.opponent_team_id === myTeamId);
   let total = 0;
-  const games: GameStory[] = Array.from(finals, ([matchupId, final]) => {
-    const changes = events.filter((e) => e.matchup_id === matchupId && changesLead(e) && at(e) <= at(final))
+  const games: GameStory[] = Array.from(finals, ([key, final]) => {
+    const matchupId = final.matchup_id;
+    const changes = events.filter((e) => matchupId && e.matchup_id === matchupId && changesLead(e) && at(e) <= at(final))
       .sort((x, y) => at(x) - at(y));
     total += changes.length;
     const last = changes[changes.length - 1] ?? null;
@@ -141,7 +152,7 @@ export function weekStory(events: SundayEvent[], myTeamId: string | null | undef
     // Only a change the winner made can be the one that stood. Without a winner
     // on the final (a dead heat, or an older row) there is no "stood" to tell.
     const decider = last && !level && final.team_id && last.team_id === final.team_id ? last : null;
-    return { matchupId, final, leadChanges: changes.length, decider, mine: involves(final) };
+    return { key, matchupId, final, leadChanges: changes.length, decider, mine: involves(final) };
   });
   games.sort((x, y) => Number(y.mine) - Number(x.mine) || y.leadChanges - x.leadChanges
     || Number(x.final.detail.margin ?? Infinity) - Number(y.final.detail.margin ?? Infinity)

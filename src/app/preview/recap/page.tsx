@@ -21,7 +21,13 @@ import { recapWeekOutlook, weekStory, type RecapRow, type SettledBet, type WireC
 import type { Reaction } from "@/lib/types";
 
 const OUTLOOK = recapWeekOutlook(buildOutlook(), 10);
-const EVENTS = gcEvents("final");
+// Plus a final from a matchup the schedule generator has since rebuilt: its
+// matchup_id is null, and the result must still be told.
+const EVENTS = [...gcEvents("final"), {
+  ...gcEvents("final").find((e) => e.type === "final")!,
+  id: "orphan-final", matchup_id: null, team_id: "gx1", opponent_team_id: "gx2",
+  headline: "Ike beats Jo, 101.10–99.40", detail: { margin: 1.7 },
+}];
 
 const RECAP: RecapRow = {
   week: 10,
