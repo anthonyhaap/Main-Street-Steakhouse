@@ -369,6 +369,10 @@ body {
 /* Five tabs on a 375px phone is 75px a label; "Game Center" fits in that at
    a tighter track, and nothing else in the bar needs the air. */
 @media (max-width: 420px) { .tabbar__item { letter-spacing: 0.03em; } }
+/* At 320 a fifth is 64px, and "Game Center" (the tab while football is on)
+   needs about 70. Below 360 each tab starts from its own label and the spare
+   width is shared, so Chat and More give up what they never used. */
+@media (max-width: 360px) { .tabbar__item { flex: 1 1 auto; } }
 
 .page {
   flex: 1;

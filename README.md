@@ -501,12 +501,22 @@ only on a day it can say something, and refetched on `sunday_events`.
 game's own events below it, read from `sunday_events` in the same refetch as
 the board.
 
-**The tab bar** is Tonight, Matchups, Game Center, Chat and More — the two
-places a manager reaches for during football and the room, one tap each.
-Game Center's red dot means an NFL game is in progress (`useNflLive`, one
-head-only count of `nfl_games` shared by every page, every two minutes while
-visible), not that it is Sunday. Chat carries its unread count. My Team is the
-crest in the top bar and in More; Standings is on Tonight and in More. The
+**The tab bar** on a phone is Tonight, Matchups, My Team, Chat and More.
+While an NFL game is live, Game Center takes My Team's slot. This is
+`phoneTabs` in `Shell.tsx`, which asks the same question as the red dot
+(`useNflLive`: one head-only count of in-progress `nfl_games`, shared by every
+page, every two minutes while visible). The calendar is not the trigger:
+Sunday morning before kickoff is not live, and Thursday night is. The lineup
+is set by then, and the afternoon is spent on the game center.
+
+- My Team stays one tap away: the crest in the top bar, and More.
+- More drops its own Game Center link while the tab carries it.
+- The tab also stays while you are on the game center after the last game
+  ends, so the screen you are on never loses its tab under your thumb.
+- On a phone narrower than 360px each tab starts from its own label, so "Game
+  Center" fits at 320.
+
+Chat carries its unread count, and Standings is on Tonight and in More. The
 desktop nav keeps every destination where it was.
 
 `/preview/sunday` now has a **seat** switch (cruising, getting crushed, a
