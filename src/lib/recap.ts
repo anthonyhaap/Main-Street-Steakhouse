@@ -1,5 +1,6 @@
 import type { Challenge, Outlook, OutlookTeam, Reaction } from "./types";
 import { stakeText } from "./settlement";
+import type { SundayEvent } from "./sunday";
 
 /**
  * The recap page's arithmetic, kept pure so /preview/recap can render every
@@ -84,4 +85,69 @@ export function recapShareText(recap: RecapRow, origin: string): string {
 /** "The Weekly Special · Week 3" → 3, from the column's own first line. */
 export function recapHeading(recap: RecapRow): string {
   return recap.body.split("\n")[0] || `The Weekly Special · Week ${recap.week}`;
+}
+
+/* ------------------------------------------------------ how it happened -- */
+
+/**
+ * The column is written from final scores, and a final score is the one fact
+ * about a Sunday that says nothing about it: 120.7–112.8 reads the same whether
+ * it was never close or changed hands four times. The detector kept the rest
+ * in `sunday_events` as it happened. This reads it back — nothing here is
+ * inferred from the board, and a week from before the feed existed simply has
+ * no story to tell.
+ *
+ *   games     each table's result as the detector wrote it, how many times the
+ *             lead changed hands, and the change that stood: the last one,
+ *             taken by the side that won
+ *   moments   comebacks, monster games and season highs, in the order they
+ *             came
+ */
+export type GameStory = {
+  matchupId: string;
+  final: SundayEvent;
+  leadChanges: number;
+  decider: SundayEvent | null;
+  mine: boolean;
+};
+
+export type WeekStory = { games: GameStory[]; moments: SundayEvent[]; leadChanges: number };
+
+/** The kinds the story is told from. `loadWeekStory` asks for these, and for any play that changed a lead. */
+export const STORY_TYPES = ["lead_change", "final", "comeback", "monster_game", "season_high"] as const;
+
+const MOMENT_TYPES = new Set(["comeback", "monster_game", "season_high"]);
+
+/**
+ * A comeback rides on the lead change that explains it, and is told as a
+ * moment rather than counted twice.
+ */
+const changesLead = (e: SundayEvent) => e.type === "lead_change" || (e.lead_change && e.type !== "comeback");
+
+const at = (e: SundayEvent) => Date.parse(e.created_at);
+
+export function weekStory(events: SundayEvent[], myTeamId: string | null | undefined): WeekStory | null {
+  const finals = new Map<string, SundayEvent>();
+  for (const e of events) if (e.type === "final" && e.matchup_id && !finals.has(e.matchup_id)) finals.set(e.matchup_id, e);
+
+  const involves = (e: SundayEvent) => !!myTeamId && (e.team_id === myTeamId || e.opponent_team_id === myTeamId);
+  let total = 0;
+  const games: GameStory[] = Array.from(finals, ([matchupId, final]) => {
+    const changes = events.filter((e) => e.matchup_id === matchupId && changesLead(e) && at(e) <= at(final))
+      .sort((x, y) => at(x) - at(y));
+    total += changes.length;
+    const last = changes[changes.length - 1] ?? null;
+    const level = final.new_score != null && final.new_score === final.opp_new_score;
+    // Only a change the winner made can be the one that stood. Without a winner
+    // on the final (a dead heat, or an older row) there is no "stood" to tell.
+    const decider = last && !level && final.team_id && last.team_id === final.team_id ? last : null;
+    return { matchupId, final, leadChanges: changes.length, decider, mine: involves(final) };
+  });
+  games.sort((x, y) => Number(y.mine) - Number(x.mine) || y.leadChanges - x.leadChanges
+    || Number(x.final.detail.margin ?? Infinity) - Number(y.final.detail.margin ?? Infinity)
+    || x.final.headline.localeCompare(y.final.headline));
+
+  const moments = events.filter((e) => MOMENT_TYPES.has(e.type)).sort((x, y) => at(x) - at(y));
+  if (games.length === 0 && moments.length === 0) return null;
+  return { games, moments, leadChanges: total };
 }

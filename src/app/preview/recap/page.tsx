@@ -6,16 +6,22 @@
  * The invented season from /preview/standings, written up as of week 10, with
  * a wire, two decided bets, the league's reactions and — behind the switch —
  * the signed-in seat's own line, or none for a seat that did not play.
+ *
+ * "How it happened" is told from the Game Center fixture's stored Sunday
+ * (/preview/sunday, Tuesday), so its names are that league's, not this one's;
+ * the second switch takes it away, as for a week from before the feed.
  */
 
 import { useState } from "react";
 import { TopBar } from "@/components/Shell";
 import { RecapPage } from "@/components/recap/RecapPage";
 import { buildOutlook } from "@/lib/fixtures/outlook";
-import { recapWeekOutlook, type RecapRow, type SettledBet, type WireCount } from "@/lib/recap";
+import { GC_MY_TEAM, gcEvents } from "@/lib/fixtures/gamecenter";
+import { recapWeekOutlook, weekStory, type RecapRow, type SettledBet, type WireCount } from "@/lib/recap";
 import type { Reaction } from "@/lib/types";
 
 const OUTLOOK = recapWeekOutlook(buildOutlook(), 10);
+const EVENTS = gcEvents("final");
 
 const RECAP: RecapRow = {
   week: 10,
@@ -51,6 +57,7 @@ const SETTLED: SettledBet[] = [
 
 export default function PreviewRecap() {
   const [seated, setSeated] = useState(true);
+  const [stored, setStored] = useState(true);
   const [reactions, setReactions] = useState<Reaction[]>([
     { emoji: "🔥", count: 4, mine: false }, { emoji: "💀", count: 2, mine: false },
   ]);
@@ -74,6 +81,10 @@ export default function PreviewRecap() {
               <button className="segmented__opt" data-on={seated} onClick={() => setSeated(true)}>Signed in</button>
               <button className="segmented__opt" data-on={!seated} onClick={() => setSeated(false)}>Signed out</button>
             </div>
+            <div className="segmented" role="group" aria-label="Stored events">
+              <button className="segmented__opt" data-on={stored} onClick={() => setStored(true)}>Events stored</button>
+              <button className="segmented__opt" data-on={!stored} onClick={() => setStored(false)}>Before the feed</button>
+            </div>
           </div>
           {shared && <div className="card__body"><span className="eyebrow" data-testid="shared">shared</span></div>}
         </div>
@@ -83,6 +94,7 @@ export default function PreviewRecap() {
           mine={seated ? { title: "You beat Mike by 13.5.", body: "Up to 2nd. Two straight." } : null}
           reactions={reactions} busy={false} onReact={react} onShare={() => setShared(true)}
           wire={WIRE} settled={SETTLED}
+          story={stored ? weekStory(EVENTS, seated ? GC_MY_TEAM : null) : null}
         />
       </main>
     </>

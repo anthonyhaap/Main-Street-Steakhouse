@@ -19,6 +19,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { LEAGUE_ID } from "@/lib/config";
 import type { Scoreboard } from "@/lib/scoreboard";
 import type { NflGame, SundayBoard, SundayEvent } from "@/lib/sunday";
+import { STORY_TYPES } from "@/lib/recap";
 
 /** PostgREST's "no such function", in either of the shapes it arrives in. */
 function missingFunction(e: { code?: string; message?: string }): boolean {
@@ -80,15 +81,38 @@ type EventRow = {
  * A database without the table, or any failure, is an empty story rather than
  * a broken page.
  */
+const EVENT_COLUMNS = "id, event_type, level, priority, matchup_id, team_id, opponent_team_id, player_id, nfl_game_id, points_added, old_score, new_score, opp_old_score, opp_new_score, lead_change, headline, description, detail, created_at";
+
+const toEvent = ({ event_type, detail, ...r }: EventRow): SundayEvent => ({
+  ...r, type: event_type, detail: detail ?? {}, player_name: null, espn_id: null,
+});
+
 export async function loadWeekEvents(sb: SupabaseClient, season: number, week: number): Promise<SundayEvent[]> {
   const { data, error } = await sb
     .from("sunday_events")
-    .select("id, event_type, level, priority, matchup_id, team_id, opponent_team_id, player_id, nfl_game_id, points_added, old_score, new_score, opp_old_score, opp_new_score, lead_change, headline, description, detail, created_at")
+    .select(EVENT_COLUMNS)
     .eq("league_id", LEAGUE_ID).eq("season", season).eq("week", week)
     .order("created_at", { ascending: false })
     .limit(300);
   if (error || !data) return [];
-  return (data as EventRow[]).map(({ event_type, detail, ...r }) => ({
-    ...r, type: event_type, detail: detail ?? {}, player_name: null, espn_id: null,
-  }));
+  return (data as EventRow[]).map(toEvent);
+}
+
+/**
+ * The part of a finished week the recap tells (`weekStory`): its finals, every
+ * play that changed a lead, and its comebacks, monster games and season highs.
+ * Asked for by kind rather than as the newest few hundred, because a busy
+ * Sunday writes hundreds of scoring rows and the lead changes that matter
+ * most are the oldest. Same failure rule as above.
+ */
+export async function loadWeekStory(sb: SupabaseClient, season: number, week: number): Promise<SundayEvent[]> {
+  const { data, error } = await sb
+    .from("sunday_events")
+    .select(EVENT_COLUMNS)
+    .eq("league_id", LEAGUE_ID).eq("season", season).eq("week", week)
+    .or(`event_type.in.(${STORY_TYPES.join(",")}),lead_change.eq.true`)
+    .order("created_at", { ascending: true })
+    .limit(500);
+  if (error || !data) return [];
+  return (data as EventRow[]).map(toEvent);
 }

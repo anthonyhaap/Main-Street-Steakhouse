@@ -673,6 +673,37 @@ signed. The alternative was posting as the commissioner, which is a lie about
 who wrote it. It renders in Overheard and in the clubhouse as a column: a gold
 rule, the serif, and the line breaks it was composed with.
 
+#### How it happened
+
+The column is written from final scores. A final score says nothing about how
+the game went: 120.7–112.8 reads the same whether it was never close or
+changed hands four times. The detector stored the rest in `sunday_events` as
+it happened. `/recap/N` now reads it back under the column, in a card called
+**How it happened**:
+
+- every table's result, in the words the detector wrote it, with yours first;
+- how many times the lead changed hands, and the change that held (**for good**): the last one,
+  made by the side that won;
+- the comebacks, monster games and season highs, in the order they came;
+- a link to that Sunday in the Game Center (`/sunday?week=N`).
+
+All of it is `weekStory` in `src/lib/recap.ts`, over `loadWeekStory`
+(`src/lib/sunday-load.ts`). The loader asks for the week's finals, comebacks,
+monster games and season highs by kind, plus every play that changed a lead.
+It does not take the newest few hundred rows, because a busy Sunday writes
+hundreds of scoring rows and the oldest lead changes are the ones it would
+lose. Its rules:
+
+- **No invented sentences.** Every line is a stored event's own, told through
+  `eventStory`, the same words the Game Center used on the day.
+- **No guessed decider.** A lead the loser took is counted, never told as the
+  one that decided it. A dead heat has no "for good".
+- **No story for a week with nothing stored.** A week from before the feed
+  existed shows no card at all.
+
+No migration. `/preview/recap` tells it from the Game Center test data's
+Tuesday; its second switch shows a week from before the feed.
+
 ### Odds that admit what they don't know
 
 The playoff simulation on `/standings` did exactly what it was asked before the
