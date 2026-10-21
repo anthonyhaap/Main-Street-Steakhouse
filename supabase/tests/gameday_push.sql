@@ -1,7 +1,7 @@
 -- ============================================================================
 -- Game day on the lock screen: who is buzzed about what, and who is not.
 --
--- `20261002160000_gameday_push` turns sunday_events into pushes for the two
+-- `20261021001736_gameday_push` turns sunday_events into pushes for the two
 -- managers at the table. As with every push test here, most of the checks are
 -- restraint: the third manager is not told about somebody else's lead change,
 -- a squeeze a minute after a lead change waits, an ordinary touchdown is
