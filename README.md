@@ -522,10 +522,16 @@ a bet, his name in the chat. A Sunday is the other thing: the game center says
 what every play meant to your matchup, but only while you are looking at it,
 and on a Sunday you are looking at the television.
 
-`20261002160000_gameday_push` puts a trigger on `sunday_events`, so the
+`20261021001736_gameday_push` puts a trigger on `sunday_events`, so the
 server's own record of what happened also writes to the outbox — inside the
 detector's transaction, drained by the existing `/api/push/drain` like every
 other kind. Two kinds, each with its own switch on the account:
+
+(In production it was applied in parts, because the Supabase connector holds
+any statement containing `drop` for a confirmation that never arrives. So the
+old six-argument `ff_set_notification_prefs` was renamed to
+`ff_set_notification_prefs_retired` with every grant revoked, not dropped.
+Drop it from the SQL editor whenever convenient; nothing calls it.)
 
 | kind | for | default |
 |------|-----|---------|
