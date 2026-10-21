@@ -98,10 +98,14 @@ const LEAGUE_PAGES: NavItem[] = [
  * The phone's tab bar is its own list, not the first four of the desktop nav.
  *
  * The bar is Tonight, Matchups, My Team, Chat and More: the matchup, the
- * lineup and the room are what a manager reaches for from anywhere. The game
- * center is in More, beside League Home, and on the front page's live card
- * once football is on; Standings is the place card on Tonight and in More.
- * The desktop nav, which has the width, keeps every destination where it was.
+ * lineup and the room are what a manager reaches for from anywhere. While an
+ * NFL game is live — the red dot's signal, not the calendar — the game center
+ * takes My Team's slot (`phoneTabs`): that is the screen the afternoon is
+ * spent on, and the lineup is set by then. My Team stays one tap away as the
+ * crest in the top bar, and in More. Otherwise the game center is in More,
+ * beside League Home, and on the front page's live card; Standings is the
+ * place card on Tonight and in More. The desktop nav, which has the width,
+ * keeps every destination where it was.
  */
 const PHONE_TABS: NavItem[] = [
   { href: "/",         label: "Tonight",     Icon: UtensilsCrossed },
@@ -109,6 +113,18 @@ const PHONE_TABS: NavItem[] = [
   { href: "/team",     label: "My Team",     Icon: Shield },
   { href: "/chat",     label: "Chat",        Icon: MessageCircle, badge: "chat" },
 ];
+
+const GAME_CENTER: NavItem = { href: "/sunday", label: "Game Center", Icon: Radio, live: true };
+
+/**
+ * The bar for this moment. The tab also stays while you are on the game center
+ * after the last game ends, so the screen you are looking at never loses its
+ * tab under your thumb; it gives My Team its slot back on the next page.
+ */
+function phoneTabs(nflLive: boolean, path: string): NavItem[] {
+  const football = nflLive || isOn(path, GAME_CENTER.href);
+  return football ? PHONE_TABS.map((t) => (t.href === "/team" ? GAME_CENTER : t)) : PHONE_TABS;
+}
 
 const isOn = (path: string, href: string) =>
   href === "/" ? path === "/" : path.startsWith(href);
@@ -240,14 +256,15 @@ export function TopBar({ status }: { status?: WireStatus }) {
     { href: "/league", label: "League", Icon: Crown },
     ...(showAdmin ? [{ href: "/admin", label: "Commish", Icon: Crown, commish: true }] : []),
   ];
-  const tabs = PHONE_TABS;
+  const tabs = phoneTabs(nflLive, path);
   const onTab = (href: string) => tabs.some((t) => t.href !== "/" && isOn(href, t.href));
   // Everything the bar does not carry, in desktop order, minus the hub (the
   // sheet's League section is the hub) and anything already a tab.
   const sheetRest: NavItem[] = NAV.concat(showAdmin ? [{ href: "/admin", label: "Commish", Icon: Crown, commish: true }] : [])
     .filter((i) => i.href !== "/" && !onTab(i.href));
   const sheetLeague = LEAGUE_PAGES.filter((i) => !onTab(i.href));
-  const restActive = sheetRest.some((i) => isOn(path, i.href)) || isOn(path, "/league") || isOn(path, "/sunday")
+  const restActive = sheetRest.some((i) => isOn(path, i.href)) || isOn(path, "/league")
+    || (!onTab(GAME_CENTER.href) && isOn(path, GAME_CENTER.href))
     || sheetLeague.some((i) => isOn(path, i.href));
 
   return (
@@ -364,10 +381,12 @@ export function TopBar({ status }: { status?: WireStatus }) {
                   <Crown strokeWidth={1.75} />
                   League Home
                 </Link>
-                <Link href="/sunday" className="qa__btn" data-on={isOn(path, "/sunday")} onClick={close}>
-                  <Radio strokeWidth={1.75} />
-                  Game Center
-                </Link>
+                {!onTab(GAME_CENTER.href) && (
+                  <Link href={GAME_CENTER.href} className="qa__btn" data-on={isOn(path, GAME_CENTER.href)} onClick={close}>
+                    <Radio strokeWidth={1.75} />
+                    Game Center
+                  </Link>
+                )}
                 {sheetLeague.map(({ href, label, Icon, badge }) => (
                   <Link key={href} href={href} className="qa__btn" data-on={isOn(path, href)} onClick={close}>
                     <Icon strokeWidth={1.75} />

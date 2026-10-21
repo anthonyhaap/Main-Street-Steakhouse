@@ -170,7 +170,7 @@ test("Watch NFL RedZone links out and embeds nothing", async ({ page }) => {
 test("the game center is reachable from any screen", async ({ page }, info) => {
   await page.goto("/preview/tonight");
   if (info.project.name === "mobile") {
-    // A phone: My Team holds the tab, beside Matchups and Chat.
+    // A phone with no game on: My Team holds the tab, beside Matchups and Chat.
     const bar = page.locator(".tabbar");
     const mine = bar.getByRole("link", { name: /My Team/ });
     await expect(mine).toBeVisible();
@@ -188,6 +188,31 @@ test("the game center is reachable from any screen", async ({ page }, info) => {
     await page.getByRole("button", { name: "League" }).click();
     await expect(page.getByRole("link", { name: "Game Center" })).toHaveAttribute("href", "/sunday");
   }
+});
+
+test("while football is on, the game center takes My Team's tab", async ({ page }, info) => {
+  test.skip(info.project.name !== "mobile", "the tab bar is a phone's");
+  // useNflLive's question, answered: three games in progress.
+  await page.route("**/rest/v1/nfl_games**", (route) =>
+    route.fulfill({ status: 200, headers: { "content-range": "0-0/3", "access-control-expose-headers": "content-range" }, body: "" }));
+  await page.goto("/preview/tonight");
+  const bar = page.locator(".tabbar");
+  const gc = bar.getByRole("link", { name: /Game Center/ });
+  await expect(gc).toHaveAttribute("href", "/sunday");
+  await expect(gc.getByLabel("NFL games live now")).toBeVisible();
+  await expect(bar.getByRole("link", { name: /My Team/ })).toHaveCount(0);
+  // The order holds: the slot is My Team's, between Matchups and Chat.
+  await expect(bar.locator(".tabbar__item")).toHaveText(["Tonight", "Matchups", "Game Center", "Chat", "More"]);
+  // The label fits on the narrowest phone the app supports.
+  await page.setViewportSize({ width: 320, height: 640 });
+  const label = gc.locator("span").first();
+  expect(await label.evaluate((e) => e.scrollWidth <= e.clientWidth + 1)).toBe(true);
+  // My Team is one tap away (the crest too, signed in), and More no longer
+  // repeats the game center.
+  await bar.getByRole("button", { name: "More" }).click();
+  const sheet = page.getByRole("dialog");
+  await expect(sheet.getByRole("link", { name: "My Team" })).toHaveAttribute("href", "/team");
+  await expect(sheet.getByRole("link", { name: "Game Center" })).toHaveCount(0);
 });
 
 test("on a desktop the chat takes a column and covers nothing", async ({ page }, info) => {
