@@ -465,6 +465,13 @@ const LATE: [number, Ev][] = [
 ];
 
 const MONDAY: [number, Ev][] = [
+  // Sunday night, after the late window: Marcus finishes the climb Nacua started.
+  [1390, { type: "lead_change", level: 4, headline: "Marcus takes the lead over Anthony", lead_change: true,
+    description: "Late, with 2 still to play", matchup_id: "gm2", team_id: "gt2", opponent_team_id: "gt3",
+    old_score: 127.3, new_score: 131.8, opp_old_score: 130.6, opp_new_score: 130.6, detail: { who: "Marcus", opp: "Anthony", late: true } }],
+  [1389, { type: "comeback", level: 4, headline: "Marcus comes back on Anthony", lead_change: true,
+    description: "Was down 38.4 and now leads", matchup_id: "gm2", team_id: "gt2", opponent_team_id: "gt3",
+    new_score: 131.8, opp_new_score: 130.6, detail: { who: "Marcus", opp: "Anthony", down: 38.4 } }],
   [140, { type: "final", level: 1, headline: "Marcus beats Anthony, 139.60–130.60", matchup_id: "gm2", detail: {} }],
   [6, { type: "lead_change", level: 4, headline: "Gus takes the lead over Lou", lead_change: true,
     description: "Late, with 2 still to play", matchup_id: "gm5", team_id: "gt9", opponent_team_id: "gt8",
@@ -474,14 +481,21 @@ const MONDAY: [number, Ev][] = [
     old_score: 77.0, new_score: 78.4, opp_old_score: 92.2, opp_new_score: 92.2, detail: { who: "Ray", opp: "Dev" } }],
 ];
 
+// As ff_sunday_detect writes them: the winner on team_id, the margin in detail.
 const FINAL: [number, Ev][] = [
-  [30, { type: "final", level: 1, headline: "Dev beats Ray, 92.20–81.50", matchup_id: "gm1", detail: {} }],
-  [29, { type: "final", level: 1, headline: "Marcus beats Anthony, 139.60–130.60", matchup_id: "gm2", detail: {} }],
-  [28, { type: "final", level: 1, headline: "Tom beats Nate, 136.20–89.30", matchup_id: "gm3", detail: {} }],
+  [30, { type: "final", level: 1, headline: "Dev beats Ray, 92.20–81.50", matchup_id: "gm1",
+    team_id: "gt1", opponent_team_id: "gt0", new_score: 92.2, opp_new_score: 81.5, detail: { margin: 10.7 } }],
+  [29, { type: "final", level: 1, headline: "Marcus beats Anthony, 139.60–130.60", matchup_id: "gm2",
+    team_id: "gt2", opponent_team_id: "gt3", new_score: 139.6, opp_new_score: 130.6, detail: { margin: 9.0 } }],
+  [28, { type: "final", level: 1, headline: "Tom beats Nate, 136.20–89.30", matchup_id: "gm3",
+    team_id: "gt4", opponent_team_id: "gt5", new_score: 136.2, opp_new_score: 89.3, detail: { margin: 46.9 } }],
   [27, { type: "final", level: 3, headline: "Vic beats Sal, 105.40–91.00",
-    description: "The upset: came in projected 10.6 behind", matchup_id: "gm4", detail: { upset: true } }],
-  [26, { type: "final", level: 1, headline: "Gus beats Lou, 120.70–112.80", matchup_id: "gm5", detail: {} }],
-  [25, { type: "final", level: 1, headline: "Moe beats Hank, 129.50–118.90", matchup_id: "gm6", detail: {} }],
+    description: "The upset: came in projected 10.6 behind", matchup_id: "gm4",
+    team_id: "gt7", opponent_team_id: "gt6", new_score: 105.4, opp_new_score: 91.0, detail: { margin: 14.4, upset: true } }],
+  [26, { type: "final", level: 1, headline: "Gus beats Lou, 120.70–112.80", matchup_id: "gm5",
+    team_id: "gt9", opponent_team_id: "gt8", new_score: 120.7, opp_new_score: 112.8, detail: { margin: 7.9 } }],
+  [25, { type: "final", level: 1, headline: "Moe beats Hank, 129.50–118.90", matchup_id: "gm6",
+    team_id: "gt11", opponent_team_id: "gt10", new_score: 129.5, opp_new_score: 118.9, detail: { margin: 10.6 } }],
 ];
 
 function stamp(list: [number, Ev][], at: number, prefix: string): SundayEvent[] {
@@ -500,6 +514,8 @@ export function gcEvents(stage: GcStage): SundayEvent[] {
     ...(stage !== "pre" ? stamp(EARLY, GC_NOW.early, "e") : []),
     ...(stage === "late" || stage === "monday" || stage === "final" ? stamp(LATE, GC_NOW.late, "l") : []),
     ...(stage === "monday" ? stamp(MONDAY, GC_NOW.monday, "m") : []),
+    // Tuesday keeps all of it; the finals are FINAL's, one per table.
+    ...(stage === "final" ? stamp(MONDAY, GC_NOW.monday, "m").filter((e) => e.type !== "final") : []),
     ...(stage === "final" ? stamp(FINAL, GC_NOW.final, "f") : []),
   ];
   return day.sort((a, b) => b.created_at.localeCompare(a.created_at));
