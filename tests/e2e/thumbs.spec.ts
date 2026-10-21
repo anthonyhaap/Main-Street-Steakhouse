@@ -61,6 +61,12 @@ test("the recap's results and reactions take a thumb", async ({ page }) => {
   }
 });
 
+test("the matchup's team name reaches past its clip", async ({ page }) => {
+  await page.goto("/preview/matchup");
+  await page.getByRole("button", { name: "Late window", exact: true }).first().click();
+  expect((await reach(page, page.locator(".mhead__name .tlink").first())).tall).toBeGreaterThanOrEqual(BIG);
+});
+
 test("a bigger reach never takes a tap from the control next to it", async ({ page }) => {
   for (const [path, stage] of [["/preview/sunday", "Late window"], ["/preview/sunday", "Tuesday"],
     ["/preview/tonight", "Sunday live"], ["/preview/recap", null], ["/preview/matchup", "Late window"]] as const) {

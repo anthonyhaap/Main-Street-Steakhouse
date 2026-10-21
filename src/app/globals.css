@@ -4412,6 +4412,10 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
   .recap__bets a::after, .pwr__name .tlink::after, .mhead__name .tlink::after {
     content: ""; position: absolute; inset: -12px -8px;
   }
+  /* The matchup's team name clips for its ellipsis, and the clip would cut
+     the reach back to the words; so its box grows by the reach, and gives it
+     back in margin, and nothing moves. */
+  .mhead__name { padding-block: 10px; margin-block: -6px -10px; }
   /* The bets sit a row apart: half the reach, so one never takes the next. */
   .recap__bets a::after { inset: -4px -8px; }
   .recap__foot .reaction { min-width: 40px; min-height: 36px; }
