@@ -515,6 +515,34 @@ tight one, a fresh lead change, no matchup), a **Monday night** stage, and an
 scenarios through them and checks nothing scrolls sideways at 375, 390, 430,
 820 and 1280.
 
+#### Under a thumb
+
+Sunday is read on a phone held in one hand. On a touch screen
+(`pointer: coarse`) every game-day control gets a target near the 44px the
+tab bar already takes, in two ways:
+
+- **Buttons grow.** The table chips, a feed card's actions, the reactions,
+  and Talk shit go from 23–30px to 36px.
+- **Text links reach past their words.** Not now, Everything, the recap's
+  results, and the front page's arrows would look wrong as fat buttons. They
+  get a hit area drawn with `::after`, so nothing around them moves.
+
+The mouse keeps the tighter sizes (`sunday.css`, "thumbs", and the
+coarse-pointer block in `globals.css`). Two of those reaches are cut short so
+they never take a tap from a neighbour:
+
+- the team name under the table chips;
+- each row of the recap's bets.
+
+`tests/e2e/thumbs.spec.ts` measures what a finger meets: the run of points
+through each control that land on it. It also checks that no control's reach
+covers another's drawn box.
+
+On a tablet, or a desktop with the chat open, the two lineups sit side by side
+in about 280px each. "@ MIN Mon 8:15 PM" used to leave a name eight letters:
+"Rome O…". In a panel 521–760px wide the name now takes the whole line, and
+the game's status moves to the line under it, beside the position.
+
 ### Game day, on the lock screen
 
 Push was built for what a manager cannot look up in time — an offer, a claim,

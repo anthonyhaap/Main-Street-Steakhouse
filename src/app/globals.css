@@ -4399,9 +4399,26 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
 }
 
 /* A thumb at a tailgate holding a phone in one hand. The room's own controls
-   get the 44px the tab bar already takes for granted; the rest of the app is
-   read sitting down and keeps its tighter sizes. */
+   get the 44px the tab bar already takes for granted; so do game day's (below,
+   and sunday.css). The rest of the app is read sitting down and keeps its
+   tighter sizes. */
 @media (pointer: coarse) {
+  /* The front page, the matchup and the recap are the other screens of a
+     Sunday; their text links keep their look and gain a target (see
+     sunday.css, "thumbs"). */
+  .room__head a.eyebrow, .club__on, .club__read, .club__foot a, .recap__result, .recap__bets a,
+  .pwr__name .tlink, .mhead__name .tlink { position: relative; }
+  .room__head a.eyebrow::after, .club__on::after, .club__read::after, .club__foot a::after, .recap__result::after,
+  .recap__bets a::after, .pwr__name .tlink::after, .mhead__name .tlink::after {
+    content: ""; position: absolute; inset: -12px -8px;
+  }
+  /* The matchup's team name clips for its ellipsis, and the clip would cut
+     the reach back to the words; so its box grows by the reach, and gives it
+     back in margin, and nothing moves. */
+  .mhead__name { padding-block: 10px; margin-block: -6px -10px; }
+  /* The bets sit a row apart: half the reach, so one never takes the next. */
+  .recap__bets a::after { inset: -4px -8px; }
+  .recap__foot .reaction { min-width: 40px; min-height: 36px; }
   .draft-room .btn[data-size="sm"]   { min-height: 40px; padding: 8px 15px; }
   .draft-room .btn[data-size="icon"] { width: 42px; height: 42px; min-height: 42px; }
   .draft-room .segmented__opt        { padding: 10px 15px; }
