@@ -218,3 +218,16 @@ test("a manager who switched game day off is not offered it", async ({ page }) =
   await click(page, "Game-day push off");
   await expect(page.locator(".gd-push")).toHaveCount(0);
 });
+
+test("side by side on a tablet, every starter's name is whole", async ({ page }, info) => {
+  test.skip(info.project.name === "mobile", "the two-column lineups are a wider screen's");
+  for (const width of [1024, 1280]) {
+    await page.setViewportSize({ width, height: 900 });
+    await go(page, "Late window");
+    const lineups = page.locator(".sun-lineups:visible").first();
+    await expect(lineups).toContainText("Jordan Addison");
+    const cut = await lineups.evaluate((e) => [...e.querySelectorAll(".sun-lu__name b")]
+      .filter((b) => b.scrollWidth > b.clientWidth + 1).map((b) => b.textContent));
+    expect(cut, `${width}px`).toEqual([]);
+  }
+});
