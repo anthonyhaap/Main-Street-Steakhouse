@@ -1419,6 +1419,17 @@ a.kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); border-c
 .plr[data-empty="true"]    { background: #b3341f08; }
 
 .plr__match, .plr__form, .plr__use { display: none; min-width: 0; }
+
+/* On a phone the Swap button would take a whole column of width from the
+   name, so it tucks in under the points instead: pos and player down the left
+   across both lines, points then Swap stacked on the right. */
+@container (max-width: 539px) {
+  .plr { grid-template-columns: 38px minmax(0, 1fr) auto; column-gap: var(--s3); row-gap: 6px; }
+  .plr > .pos, .plr > :nth-child(2) { grid-row: 1 / span 2; }
+  .plr__pts { grid-column: 3; grid-row: 1; align-self: end; }
+  .plr__act { grid-column: 3; grid-row: 2; justify-self: end; align-self: start; height: 26px; padding: 0 9px; }
+  .plr > span[aria-hidden]:last-child { display: none; }
+}
 .plr__when { color: var(--muted); white-space: nowrap; }
 
 @container (min-width: 540px) {
@@ -1504,7 +1515,7 @@ a.kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); border-c
 .swap__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
 .swap__opt {
   display: grid; align-items: center; gap: var(--s2);
-  grid-template-columns: 38px minmax(0, 1fr) auto auto;
+  grid-template-columns: 44px minmax(0, 1fr) auto auto;
   width: 100%; padding: 7px var(--s2);
   border: 1px solid var(--rule-soft); border-radius: var(--r-sm);
   background: var(--ink-1); color: inherit; font: inherit; text-align: left; cursor: pointer;
