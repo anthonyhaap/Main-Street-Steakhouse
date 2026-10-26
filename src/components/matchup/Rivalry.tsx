@@ -22,11 +22,14 @@
 import { useState } from "react";
 import { ChevronDown, ChevronRight, Swords } from "lucide-react";
 import { meetingLine, rivalryLine, roundLabel, type RivalryCard } from "@/lib/history";
+import type { RivalrySundays } from "@/lib/sundayline";
 
-export function Rivalry({ card, me }: {
+export function Rivalry({ card, me, sundays = null }: {
   card: RivalryCard;
   /** The reading manager, when he is one of the two. Changes the wording. */
   me?: string | null;
+  /** `rivalrySundays` for the two teams: the afternoons the game center stored. */
+  sundays?: RivalrySundays | null;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -35,7 +38,7 @@ export function Rivalry({ card, me }: {
   // to say. It stays silent until there is a record.
   if (card.games === 0) return null;
 
-  const detail = card.last || card.biggest || card.playoff_games > 0;
+  const detail = card.last || card.biggest || card.playoff_games > 0 || !!sundays;
 
   return (
     <div className="riv">
@@ -73,6 +76,12 @@ export function Rivalry({ card, me }: {
               </dd>
             </div>
           )}
+          {sundays && (
+            <div>
+              <dt>On Sundays</dt>
+              <dd>{sundayStory(sundays)}</dd>
+            </div>
+          )}
           <div>
             <dt>All told</dt>
             <dd>
@@ -85,6 +94,20 @@ export function Rivalry({ card, me }: {
       )}
     </div>
   );
+}
+
+const wk = (x: { season: number; week: number }) => `${x.season} week ${x.week}`;
+
+/** "The lead changed hands 7 times in 2 Sundays · Lou came back from 24.1 down, 2026 week 5 · …" */
+function sundayStory(s: RivalrySundays): string {
+  const parts = [
+    `The lead changed hands ${s.leadChanges === 1 ? "once" : `${s.leadChanges} times`} in ${s.meetings} Sunday${s.meetings === 1 ? "" : "s"}`,
+  ];
+  const c = s.comebacks[0];
+  if (c) parts.push(`${c.who} came back from ${c.down.toFixed(1)} down, ${wk(c)}`);
+  const m = s.monsters[0];
+  if (m) parts.push(`${m.player} had ${m.points.toFixed(1)} for ${m.who}, ${wk(m)}`);
+  return parts.join(" · ");
 }
 
 const sameGame = (

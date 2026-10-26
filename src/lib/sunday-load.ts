@@ -20,6 +20,7 @@ import { LEAGUE_ID } from "@/lib/config";
 import type { Scoreboard } from "@/lib/scoreboard";
 import type { NflGame, SundayBoard, SundayEvent } from "@/lib/sunday";
 import { STORY_TYPES } from "@/lib/recap";
+import { CAREER_TYPES, type CareerEvent } from "@/lib/sundayline";
 
 /** PostgREST's "no such function", in either of the shapes it arrives in. */
 function missingFunction(e: { code?: string; message?: string }): boolean {
@@ -115,4 +116,23 @@ export async function loadWeekStory(sb: SupabaseClient, season: number, week: nu
     .limit(500);
   if (error || !data) return [];
   return (data as EventRow[]).map(toEvent);
+}
+
+/**
+ * Every lead change, comeback and monster game the league has stored, for the
+ * profiles and the rivalries (`sundayLine`, `rivalrySundays`). Asked for by
+ * kind, all seasons, oldest first; a few hundred rows a season. Same failure
+ * rule as above: no table, or any error, is no Sundays.
+ */
+export async function loadCareerEvents(sb: SupabaseClient): Promise<CareerEvent[]> {
+  const { data, error } = await sb
+    .from("sunday_events")
+    .select("id, season, week, event_type, level, team_id, opponent_team_id, matchup_id, lead_change, headline, detail, created_at")
+    .eq("league_id", LEAGUE_ID)
+    .or(`event_type.in.(${CAREER_TYPES.join(",")}),lead_change.eq.true`)
+    .order("created_at", { ascending: true })
+    .limit(5000);
+  if (error || !data) return [];
+  type Row = Omit<CareerEvent, "type" | "detail"> & { event_type: CareerEvent["type"]; detail: CareerEvent["detail"] | null };
+  return (data as Row[]).map(({ event_type, detail, ...r }) => ({ ...r, type: event_type, detail: detail ?? {} }));
 }

@@ -21,12 +21,15 @@ import { crestUrl } from "@/lib/crest";
 import { Seal } from "@/components/ui";
 import { titleOf, type History } from "@/lib/history";
 import { recordOf, type ManagerProfile as Profile, type Trophy } from "@/lib/profile";
+import type { Monster, SundayLine, Swing } from "@/lib/sundayline";
 
-export function ManagerProfileCard({ profile, history, mine, onClose }: {
+export function ManagerProfileCard({ profile, history, mine, onClose, sundays = null }: {
   profile: Profile;
   history: History;
   mine: boolean;
   onClose: () => void;
+  /** `sundayLine` for his current team: absent until the league has stored a Sunday he played. */
+  sundays?: SundayLine | null;
 }) {
   const m = profile.manager;
   const games = m.wins + m.losses + m.ties;
@@ -135,6 +138,9 @@ export function ManagerProfileCard({ profile, history, mine, onClose }: {
         </div>
       )}
 
+      {/* ------------------------------------------------- on Sundays -- */}
+      {sundays && <OnSundays line={sundays} />}
+
       {/* -------------------------------------------------- the extras -- */}
       {(m.best_week || profile.best_run) && (
         <div className="prof__block prof__notes">
@@ -155,6 +161,48 @@ export function ManagerProfileCard({ profile, history, mine, onClose }: {
         </div>
       )}
     </section>
+  );
+}
+
+const wk = (x: { season: number; week: number }) => `${x.season} week ${x.week}`;
+const pts = (n: number) => n.toFixed(1);
+
+/**
+ * What the game center saw him do, and have done to him: the half of a Sunday
+ * line the wall's table leaves out. Counts in a row; under them, the one of
+ * each worth a sentence.
+ */
+function OnSundays({ line }: { line: SundayLine }) {
+  const come: Swing | undefined = line.comebacks[0];
+  const blown: Swing | undefined = line.blown[0];
+  const best: Monster | undefined = line.monsters[0];
+  const stats: [string, number, string?][] = [
+    ["Leads taken", line.took],
+    ["Leads lost", line.lost],
+    ["Taken late", line.late, "lead changes the game center marked late"],
+    ["Comebacks", line.comebacks.length],
+    ["Blown leads", line.blown.length, "comebacks made on him"],
+    ["Monster games", line.monsters.length],
+  ];
+  return (
+    <div className="prof__block" aria-label="On Sundays">
+      <span className="eyebrow">On Sundays · {line.sundays} on record</span>
+      <dl className="prof__sun">
+        {stats.map(([label, n, hint]) => (
+          <div key={label} title={hint}>
+            <dt>{label}</dt>
+            <dd className="num">{n}</dd>
+          </div>
+        ))}
+      </dl>
+      {(come || blown || best) && (
+        <ul className="prof__sunlines">
+          {come && <li>Deepest comeback: <b className="num">{pts(come.down)}</b> down against {come.opp}, {wk(come)}.</li>}
+          {blown && <li>Worst collapse: <b className="num">{pts(blown.down)}</b> up on {blown.who}, and lost the lead, {wk(blown)}.</li>}
+          {best && <li>Biggest game: {best.player}, <b className="num">{pts(best.points)}</b>, {wk(best)}.</li>}
+        </ul>
+      )}
+    </div>
   );
 }
 

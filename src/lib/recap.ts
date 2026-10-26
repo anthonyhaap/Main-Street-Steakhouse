@@ -124,7 +124,7 @@ const MOMENT_TYPES = new Set(["comeback", "monster_game", "season_high"]);
  * A comeback rides on the lead change that explains it, and is told as a
  * moment rather than counted twice.
  */
-const changesLead = (e: SundayEvent) => e.type === "lead_change" || (e.lead_change && e.type !== "comeback");
+export const changesLead = (e: Pick<SundayEvent, "type" | "lead_change">) => e.type === "lead_change" || (e.lead_change && e.type !== "comeback");
 
 const at = (e: SundayEvent) => Date.parse(e.created_at);
 
