@@ -24,6 +24,19 @@ export function stamp(iso: string, now = new Date()): string {
     : d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
+/**
+ * When it was said, at the end of the line the reactions sit on. It used to
+ * hold a column down the right of every message, which on a phone took sixty
+ * pixels off every line of the message to print five characters once.
+ */
+function Stamp({ at }: { at: string }) {
+  return (
+    <time className="num row__stamp" suppressHydrationWarning>
+      {stamp(at)}
+    </time>
+  );
+}
+
 function Said({ item, busy, onReact, onReply }: {
   item: ChatItem; busy: boolean; onReact: (emoji: string) => void; onReply: (() => void) | null;
 }) {
@@ -50,18 +63,16 @@ function Said({ item, busy, onReact, onReply }: {
             <MessageCircle size={11} /> on Week {item.matchup.week} · {item.matchup.away} vs {item.matchup.home}
           </Link>
         )}
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <div className="row__foot">
           <Reactions reactions={item.reactions ?? []} busy={busy} onPress={onReact} />
           {onReply && (
             <button className="btn" data-size="icon" aria-label="Reply" title="Reply" onClick={onReply}>
               <CornerUpLeft size={13} />
             </button>
           )}
+          <Stamp at={item.at} />
         </div>
       </div>
-      <time className="num" suppressHydrationWarning style={{ color: "var(--dim)", fontSize: "var(--t-micro)" }}>
-        {stamp(item.at)}
-      </time>
     </div>
   );
 }
@@ -79,11 +90,11 @@ function Asked({ item, busy, voting, onReact, onVote }: {
         </div>
         <div className="chat__body">{item.body}</div>
         {item.poll && <PollCard poll={item.poll} busy={voting} onVote={onVote} />}
-        <Reactions reactions={item.reactions ?? []} busy={busy} onPress={onReact} />
+        <div className="row__foot">
+          <Reactions reactions={item.reactions ?? []} busy={busy} onPress={onReact} />
+          <Stamp at={item.at} />
+        </div>
       </div>
-      <time className="num" suppressHydrationWarning style={{ color: "var(--dim)", fontSize: "var(--t-micro)" }}>
-        {stamp(item.at)}
-      </time>
     </div>
   );
 }

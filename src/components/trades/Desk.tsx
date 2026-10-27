@@ -97,7 +97,7 @@ function Offer({
         {offer.message && <p className="eyebrow" style={{ fontStyle: "italic" }}>“{offer.message}”</p>}
 
         {live && (
-          <div style={{ display: "flex", gap: "var(--s2)", flexWrap: "wrap" }}>
+          <div className="offer__acts">
             {offer.mine ? (
               <button className="btn" data-v="ghost" data-size="sm" disabled={busy !== null}
                 onClick={() => onRespond(offer.id, "cancelled")}>
