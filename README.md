@@ -489,7 +489,7 @@ holds it.
 of lead changes. In a game that changed hands every few minutes it re-armed
 after every flip, each time with the same "Was down" (the week's worst), so
 week 6 told one comeback six times. Once game-day push sent it, each of those
-would buzz a phone. `20261027010000_tightening_once_per_side` keys it by the
+would buzz a phone. `20261027002416_tightening_once_per_side` keys it by the
 matchup and the side that was behind, so a side's climb back is told once a
 week. The other side's climb is still its own story. The swings test now
 plays a seesaw and expects silence.
