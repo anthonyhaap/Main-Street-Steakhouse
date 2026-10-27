@@ -98,7 +98,7 @@ begin
 
   -- A seesaw: Bo takes it back and Ada is within a score of him again. Her
   -- climb from 20 down was told once already; another lead change does not
-  -- make it news (20261027010000_tightening_once_per_side).
+  -- make it news (20261027002416_tightening_once_per_side).
   update sunday_matchup_state set leader = 'away', lead_changes = 2, home_points = 61, away_points = 63 where matchup_id = v_m;
   v_n := public.ff_sunday_swings(v_league, 3);
   if v_n <> 0 then raise exception 'the same side''s squeeze was told again after a lead change (% written)', v_n; end if;
