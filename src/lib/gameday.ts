@@ -110,7 +110,11 @@ export function clockLabel(iso: string, withDay = false, tz = LEAGUE_TZ): string
     ...(withDay ? { weekday: "short" } : {}),
   }).formatToParts(new Date(iso));
   const zone = parts.find((p) => p.type === "timeZoneName")?.value ?? "";
-  return parts.map((p) => (p.type === "timeZoneName" ? ZONES[zone] ?? zone : p.value)).join("").replace(",", "");
+  // ICU puts a narrow no-break space before "PM", and not every engine keeps
+  // it: Node's parts have it, a newer Chromium's do not. A label prerendered on
+  // one and hydrated on the other is different text, so both get a plain space.
+  return parts.map((p) => (p.type === "timeZoneName" ? ZONES[zone] ?? zone : p.value)).join("")
+    .replace(",", "").replace(/[  ]/g, " ");
 }
 
 /** Monday, Thursday… — on the league's calendar. */
