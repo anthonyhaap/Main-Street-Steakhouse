@@ -5,10 +5,19 @@
  * inspected without a session or a database. Not linked from anywhere.
  */
 
-import { useState } from "react";
 import { LeagueDashboard, type Hub } from "@/components/LeagueDashboard";
 import { TopBar } from "@/components/Shell";
 import type { Pulse } from "@/lib/types";
+
+/**
+ * The dashboard's clock, fixed. Every time below is counted from it, and the
+ * page reads it as "now". This page is prerendered at build time and rendered
+ * again in the browser; counted from the real clock, the kickoff it prints as a
+ * date ("Nov 9") moves a day once midnight falls between the two, and React
+ * refuses the page (tests/e2e/hydration.spec.ts). A fixed clock reads the same
+ * on both sides, whenever it is opened.
+ */
+const NOW = Date.parse("2026-08-30T19:00:00Z");
 
 const NAMES = [
   "Gridiron Butchers", "Prime Cut", "Dry Aged Dynasty", "The Porterhouse",
@@ -32,8 +41,8 @@ const pulse: Pulse = {
   },
   draft: {
     id: "D", status: "active", rounds: 15, pick_seconds: 90, current_pick: 27,
-    pick_deadline: new Date(Date.now() + 47000).toISOString(),
-    started_at: new Date(Date.now() - 3.4e6).toISOString(), completed_at: null,
+    pick_deadline: new Date(NOW + 47000).toISOString(),
+    started_at: new Date(NOW - 3.4e6).toISOString(), completed_at: null,
     picks_made: 26, picks_total: 180, order_set: true, teams_with_queue: 9,
   },
   managers: teams.map((t, i) => ({
@@ -59,18 +68,18 @@ const pulse: Pulse = {
   readiness: { passed: 9, total: 12, pct: 75 },
   data: {
     players: 1304, adp: 282, byes: 1110, games: 272,
-    last_stats_at: new Date(Date.now() - 5.4e6).toISOString(),
-    last_ingest_at: new Date(Date.now() - 1.9e5).toISOString(),
+    last_stats_at: new Date(NOW - 5.4e6).toISOString(),
+    last_ingest_at: new Date(NOW - 1.9e5).toISOString(),
     jobs: [
-      { name: "draft-tick", schedule: "5 seconds", active: true, last_run: new Date(Date.now() - 4000).toISOString(), last_status: "succeeded", healthy: true },
-      { name: "live-stats", schedule: "*/2 * * * *", active: true, last_run: new Date(Date.now() - 61000).toISOString(), last_status: "succeeded", healthy: true },
-      { name: "resolve-matchup-challenges", schedule: "*/5 * * * *", active: true, last_run: new Date(Date.now() - 121000).toISOString(), last_status: "succeeded", healthy: true },
-      { name: "stats-settle", schedule: "17 9 * * *", active: true, last_run: new Date(Date.now() - 6.4e7).toISOString(), last_status: "succeeded", healthy: true },
+      { name: "draft-tick", schedule: "5 seconds", active: true, last_run: new Date(NOW - 4000).toISOString(), last_status: "succeeded", healthy: true },
+      { name: "live-stats", schedule: "*/2 * * * *", active: true, last_run: new Date(NOW - 61000).toISOString(), last_status: "succeeded", healthy: true },
+      { name: "resolve-matchup-challenges", schedule: "*/5 * * * *", active: true, last_run: new Date(NOW - 121000).toISOString(), last_status: "succeeded", healthy: true },
+      { name: "stats-settle", schedule: "17 9 * * *", active: true, last_run: new Date(NOW - 6.4e7).toISOString(), last_status: "succeeded", healthy: true },
     ],
   },
   season: {
     week: 1,
-    next_kickoff: new Date(Date.now() + 1.2e9).toISOString(),
+    next_kickoff: new Date(NOW + 1.2e9).toISOString(),
     calendar: Array.from({ length: 18 }, (_, i) => ({
       week: i + 1, games: i === 13 ? 13 : 16,
       first_kick: new Date(Date.UTC(2026, 8, 10 + i * 7)).toISOString(),
@@ -80,12 +89,12 @@ const pulse: Pulse = {
   },
   clubhouse: { open_challenges: 3, messages_7d: 47 },
   activity: [
-    { id: "1", type: "pick", headline: "Prime Cut drafted Bijan Robinson", detail: "Round 3, pick 2", created_at: new Date(Date.now() - 6e4).toISOString(), actor: "Marcus" },
-    { id: "2", type: "challenge", headline: "Dry Aged Dynasty challenged The Porterhouse", detail: "Week 1 head to head · loser buys the ribeye", created_at: new Date(Date.now() - 9e5).toISOString(), actor: "Dev" },
-    { id: "3", type: "join", headline: "Kai claimed Sirloin Syndicate", detail: null, created_at: new Date(Date.now() - 3.6e6).toISOString(), actor: "Kai" },
-    { id: "4", type: "draft", headline: "Draft opened", detail: "15 rounds · 90 seconds per pick", created_at: new Date(Date.now() - 3.5e6).toISOString(), actor: "Anthony" },
+    { id: "1", type: "pick", headline: "Prime Cut drafted Bijan Robinson", detail: "Round 3, pick 2", created_at: new Date(NOW - 6e4).toISOString(), actor: "Marcus" },
+    { id: "2", type: "challenge", headline: "Dry Aged Dynasty challenged The Porterhouse", detail: "Week 1 head to head · loser buys the ribeye", created_at: new Date(NOW - 9e5).toISOString(), actor: "Dev" },
+    { id: "3", type: "join", headline: "Kai claimed Sirloin Syndicate", detail: null, created_at: new Date(NOW - 3.6e6).toISOString(), actor: "Kai" },
+    { id: "4", type: "draft", headline: "Draft opened", detail: "15 rounds · 90 seconds per pick", created_at: new Date(NOW - 3.5e6).toISOString(), actor: "Anthony" },
   ],
-  generated_at: new Date().toISOString(),
+  generated_at: new Date(NOW).toISOString(),
 };
 
 const POS = ["RB", "WR", "QB", "TE", "WR", "RB", "WR", "TE", "K", "DST"];
@@ -99,7 +108,7 @@ const hub: Hub = {
   teams,
   recent: PLAYERS.map((player_name, i) => ({
     pick_id: `dp${26 - i}`, draft_id: "D", pick_number: 26 - i, round: Math.floor((25 - i) / 12) + 1,
-    is_autopick: i === 3, made_at: new Date(Date.now() - i * 9e4).toISOString(),
+    is_autopick: i === 3, made_at: new Date(NOW - i * 9e4).toISOString(),
     team_id: teams[i % 12].id, team_name: teams[i % 12].name,
     draft_slot: teams[i % 12].draft_slot, player_id: `p${i}`,
     player_name, position: POS[i], nfl_team: ["CIN","ATL","BUF","LV","NYG","PHI","DAL","ARI","DET","BAL"][i],
@@ -117,7 +126,7 @@ const hub: Hub = {
 };
 
 export default function Preview() {
-  const [now] = useState(() => Date.now());
+  const now = NOW;
   return (
     <>
       <TopBar status="live" />

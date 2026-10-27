@@ -39,11 +39,17 @@ const base = (over: Partial<Challenge> & Pick<Challenge, "id" | "challenger_id" 
   ...over,
 });
 
-const IN_A_WEEK = new Date(Date.now() + 6 * 864e5).toISOString();
-const LAST_WEEK = new Date(Date.now() - 2 * 864e5).toISOString();
+// Fixed instants, never counted from now. The page is prerendered at build
+// time and rendered again in the browser; a date taken from the clock prints a
+// different day once midnight falls between the two, and React refuses the
+// page (a CI run straddling midnight UTC failed exactly so). The card prints
+// these, and compares the first with now for "overdue", so "due" sits far
+// enough ahead never to tip over and "last week" far enough back never to
+// come round again; noon UTC keeps the printed day the same in any timezone.
+const IN_A_WEEK = "2036-11-02T12:00:00Z";
+const LAST_WEEK = "2026-10-16T12:00:00Z";
 
-// A fixed kickoff, not one counted from now: the card prints its time, and
-// this page is prerendered, so a moving clock would not hydrate.
+// The same rule for the kickoff, which the card prints with its time.
 const SUNDAY = "2026-10-18T17:00:00Z";
 
 const GAMES: SpreadGame[] = [

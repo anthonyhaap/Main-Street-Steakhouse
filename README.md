@@ -1273,6 +1273,24 @@ like a migration. It warns, without failing, when two files share a name —
 legal (`20260829020645` and `20260829021500` are both `team_hub`) but also what
 a migration checked in twice looks like.
 
+### Previews hydrate whenever they are opened
+
+Every `/preview/*` page is prerendered at build time and rendered again in the
+browser. A fixture that takes a date from the clock and prints it as a day
+writes different text on each side once midnight falls between the build and
+the visit. React then refuses the page (#418), and the test asserting no page
+errors fails. A CI run that built at 23:59 UTC and tested at 00:01 failed this
+way on `/preview/challenges`. Two pages that no other test opens (`/preview`
+and `/preview/admin`) had the same fault.
+
+The rule for a fixture: **print fixed instants, never `Date.now()` counted
+forward or back.** A page that also prints times relative to its own "now"
+(the dashboard's "in 13d 21h") fixes that "now" too and counts every fixture
+time from it. Relative times counted from each side's own clock, like "42m
+ago", are safe. `tests/e2e/hydration.spec.ts` opens every preview with the
+browser's clock a day and a half ahead of the build, so a fixture that breaks
+the rule fails the next test run, not one in a hundred CI runs after midnight.
+
 ### The directory builds, and that is now a test
 
 Checking in the missing 29 files made the history *complete*. It did not make it

@@ -34,9 +34,11 @@ const league: League = {
   },
 };
 
+// Fixed dates, printed as "Sep 9": counted from the clock they moved a day
+// between the build's render and the browser's (tests/e2e/hydration.spec.ts).
 const rules: ScoringRuleSet[] = [
-  { id: "r1", effective_from_week: 1, note: null, created_at: new Date(Date.now() - 4.1e9).toISOString() },
-  { id: "r2", effective_from_week: 5, note: "Half-point per reception for tight ends was voted down; back to full PPR.", created_at: new Date(Date.now() - 1.2e9).toISOString() },
+  { id: "r1", effective_from_week: 1, note: null, created_at: "2026-09-09T12:00:00Z" },
+  { id: "r2", effective_from_week: 5, note: "Half-point per reception for tight ends was voted down; back to full PPR.", created_at: "2026-10-12T12:00:00Z" },
 ];
 
 export default function Preview() {
