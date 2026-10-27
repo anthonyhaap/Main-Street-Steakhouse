@@ -44,7 +44,7 @@ export type MoveTarget = { slot: string; player: HubPlayer | null };
  */
 export function TeamDesk({
   hub, wire, moving, busy, crest = null, oppCrest = null, weather = null, matchups = null,
-  readOnly = false, picker = null, settlesAt = null,
+  readOnly = false, picker = null, settlesAt = null, currentWeek = null,
   onPickUp, onCancelMove, onDrop, onWeek, onEdit, onSetLineup,
 }: {
   hub: TeamHub;
@@ -72,6 +72,11 @@ export function TeamDesk({
    * while it is still being asked.
    */
   settlesAt?: string | null;
+  /**
+   * The league's week right now, from `ff_current_week`. A later `hub.week`
+   * is a lineup set ahead of time, and the desk says so.
+   */
+  currentWeek?: number | null;
   onPickUp: (p: HubPlayer) => void;
   onCancelMove: () => void;
   onDrop: (target: MoveTarget) => void;
@@ -283,12 +288,30 @@ export function TeamDesk({
           <div className="segmented" style={{ width: "max-content" }}>
             {Array.from({ length: 18 }, (_, i) => i + 1).map((w) => (
               <button key={w} className="segmented__opt num" data-on={w === hub.week}
+                aria-current={w === currentWeek ? "date" : undefined}
+                title={w === currentWeek ? "This week" : undefined}
+                style={w === currentWeek && w !== hub.week ? { textDecoration: "underline" } : undefined}
                 onClick={() => onWeek(w)}>
                 {w}
               </button>
             ))}
           </div>
         </div>
+
+        {/* A week ahead is a plan, and it is easy to set one without noticing
+            which week the picker is on. Say so, and say what happens to the
+            weeks in between, which is the question it raises. */}
+        {!readOnly && currentWeek != null && hub.week > currentWeek && (
+          <div className="note" data-kind="info" role="status" style={{ borderRadius: "var(--r-sm)" }}>
+            Planning week {hub.week}. Moves here apply to week {hub.week} only — this
+            week&apos;s lineup is untouched. A week you don&apos;t set starts from the
+            latest lineup before it.{" "}
+            <button type="button" className="btn" data-v="ghost" data-size="sm"
+              onClick={() => onWeek(currentWeek)}>
+              Back to week {currentWeek}
+            </button>
+          </div>
+        )}
 
         {/* --------------------------------------------------------- grid -- */}
         <div className="th-grid">
