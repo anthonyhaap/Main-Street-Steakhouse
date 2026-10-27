@@ -3,6 +3,7 @@
 import { ArrowLeftRight, Check, Tag, X } from "lucide-react";
 import type { TradeDesk, TradeOffer } from "@/lib/types";
 import { TeamLink } from "@/components/ui";
+import { closesLabel, deadlinePhase, timeLeft, type TradeDeadline } from "@/lib/deadline";
 
 const when = (iso: string) =>
   new Date(iso).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
@@ -132,9 +133,12 @@ function Offer({
  * Presentation only, so /preview/trades can hold it still.
  */
 export function Desk({
-  desk, busy, onRespond, onCounter, onOpenBlock, onMakeOffer,
+  desk, deadline = null, now = 0, busy, onRespond, onCounter, onOpenBlock, onMakeOffer,
 }: {
   desk: TradeDesk;
+  /** When trades close, from ff_trade_deadline. Without it the desk says the week. */
+  deadline?: TradeDeadline | null;
+  now?: number;
   busy: string | null;
   onRespond: (id: string, response: "accepted" | "declined" | "cancelled") => void;
   onCounter: (offer: TradeOffer) => void;
@@ -143,7 +147,11 @@ export function Desk({
 }) {
   const live = desk.offers.filter((o) => o.status === "proposed");
   const done = desk.offers.filter((o) => o.status !== "proposed");
-  const past = desk.week > desk.deadline_week;
+  const phase = deadline ? deadlinePhase(deadline, now) : null;
+  // The desk's own week says it, and so does the clock passing the instant —
+  // whichever is first, so the button never stays pressable past the rule.
+  const past = desk.week > desk.deadline_week || phase === "closed";
+  const soon = (phase === "week" || phase === "day") && deadline?.closes_at ? deadline.closes_at : null;
 
   return (
     <>
@@ -153,9 +161,19 @@ export function Desk({
           <span className="eyebrow">
             {past
               ? <>deadline passed in week <span className="num">{desk.deadline_week}</span></>
-              : <>deadline: week <span className="num">{desk.deadline_week}</span></>}
+              : soon
+                ? <span className="desk__soon" data-phase={phase}>deadline in {timeLeft(soon, now)}</span>
+                : <>deadline: week <span className="num">{desk.deadline_week}</span></>}
           </span>
         </div>
+        {soon && (
+          <div className="card__body">
+            <p className="desk__deadline" data-phase={phase}>
+              Trades close <b>{closesLabel(soon, now)}</b>, after Monday night&apos;s game.
+              Anything still on the table then expires.
+            </p>
+          </div>
+        )}
         {past && (
           <div className="card__body">
             <span className="eyebrow">

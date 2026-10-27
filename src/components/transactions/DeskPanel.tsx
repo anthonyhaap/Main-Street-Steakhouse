@@ -8,6 +8,7 @@ import { OfferSheet } from "@/components/trades/OfferSheet";
 import type { Owned } from "@/components/players/DropPicker";
 import { LEAGUE_ID } from "@/lib/config";
 import { useLive, type WireStatus } from "@/lib/live";
+import type { TradeDeadline } from "@/lib/deadline";
 import { useSession } from "@/lib/session";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import type { TradeDesk, TradeOffer } from "@/lib/types";
@@ -22,12 +23,19 @@ export function DeskPanel({ onStatus }: { onStatus?: (s: WireStatus) => void }) 
 
   const fetcher = useCallback(async () => {
     if (!team) return null;
-    const [desk, owners] = await Promise.all([
+    const [desk, owners, deadline] = await Promise.all([
       supabaseBrowser().rpc("ff_trade_desk", { p_team_id: team.id }),
       supabaseBrowser().rpc("ff_pool_owners", { p_league_id: LEAGUE_ID }),
+      supabaseBrowser().rpc("ff_trade_deadline", { p_league_id: LEAGUE_ID, p_team_id: team.id }),
     ]);
     if (desk.error) throw new Error(desk.error.message);
-    return { desk: desk.data as TradeDesk, owners: (owners.data ?? []) as Owned[] };
+    // The countdown is a nicety on top of the desk: without it the desk still
+    // says the week, so its failure is not the desk's.
+    return {
+      desk: desk.data as TradeDesk,
+      owners: (owners.data ?? []) as Owned[],
+      deadline: deadline.error ? null : (deadline.data as TradeDeadline),
+    };
   }, [team]);
 
   const { data, error, status, refetch } = useLive(fetcher, {
@@ -42,6 +50,12 @@ export function DeskPanel({ onStatus }: { onStatus?: (s: WireStatus) => void }) 
   useEffect(() => { onStatus?.(status); }, [status, onStatus]);
 
   const desk = data?.desk ?? null;
+  // The countdown moves by the minute; a tick every thirty seconds keeps it honest.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 30000);
+    return () => clearInterval(id);
+  }, []);
   const owners = useMemo(() => data?.owners ?? [], [data]);
   const mine = useMemo(
     () => (team ? owners.filter((o) => o.team_id === team.id) : []),
@@ -90,6 +104,8 @@ export function DeskPanel({ onStatus }: { onStatus?: (s: WireStatus) => void }) 
     <>
       <Desk
         desk={desk}
+        deadline={data?.deadline ?? null}
+        now={now}
         busy={busy}
         onRespond={respond}
         onCounter={(offer) => setOffering({ counters: offer })}
