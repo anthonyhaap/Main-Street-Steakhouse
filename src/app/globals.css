@@ -1847,7 +1847,16 @@ a.kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); border-c
   overflow: hidden;
   display: grid; place-items: center;
 }
-.pl-shot img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pl-shot { container-type: size; }
+/* The image is drawn at 132px with its size inline, and the frame is only
+   that big on a wide screen — on a phone it is 72, at most widths between it
+   is under 132. So whatever is inside follows the frame instead: the photo
+   or logo fills it, the fallback monogram is sized off its width, and a
+   logo's breathing room stays the same share of the disc (18 of 132). */
+.pl-shot > img, .pl-shot > span { width: 100% !important; height: 100% !important; }
+.pl-shot > span { font-size: 36cqw !important; }
+.pl-shot[data-logo="true"] > img { padding: 13.6cqw !important; }
+.pl-shot img { display: block; }
 .pl-id { min-width: 0; flex: 1; }
 .pl-id h1 {
   margin: 0;

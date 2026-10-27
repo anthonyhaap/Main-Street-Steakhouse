@@ -80,7 +80,7 @@ export function PlayerPage({ card }: { card: PlayerCard }) {
       {/* ---------------------------------------------------------- hero -- */}
       <section className="pl-hero">
         <div className="pl-hero__top">
-          <span className="pl-shot">
+          <span className="pl-shot" data-logo={isDst}>
             <NflImage
               src={headshot(p.espn_id)}
               alt={p.full_name}
