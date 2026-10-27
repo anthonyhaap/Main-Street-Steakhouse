@@ -481,9 +481,18 @@ run after the detector and the moments pass: `monster_game` (a starter past
 `monster_points`, 30 by default — in this week's lineup, so a benched 33
 counts for nobody) and `tightening` (a side once down `tightening_from`, 15,
 now within `close_margin`: "Toby cuts Mike's lead to 4.7 / Was down 18.2",
-from the worst deficits the moments pass already keeps — once per lead). Both
-thresholds are commissioner dials. Applied 2026-10-02. `supabase/tests/sunday_swings.sql`
+from the worst deficits the moments pass already keeps). Both thresholds are
+commissioner dials. Applied 2026-10-02. `supabase/tests/sunday_swings.sql`
 holds it.
+
+`tightening` was first told once per lead, keyed by the leader and the count
+of lead changes. In a game that changed hands every few minutes it re-armed
+after every flip, each time with the same "Was down" (the week's worst), so
+week 6 told one comeback six times. Once game-day push sent it, each of those
+would buzz a phone. `20261027010000_tightening_once_per_side` keys it by the
+matchup and the side that was behind, so a side's climb back is told once a
+week. The other side's climb is still its own story. The swings test now
+plays a seesaw and expects silence.
 
 **NFL games** are ordered live-first by how many Steakhouse starters are in
 them, each card says how many, and when the slate cannot be read the panel
