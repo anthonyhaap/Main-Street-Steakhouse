@@ -893,6 +893,52 @@ has an open desk and one after the deadline. The e2e caught a real split: the
 "Make an offer" button lived in the page while the deadline that disables it
 lived in the desk component, so the two could drift. It is one component now.
 
+### The deadline, felt before it arrives
+
+Until the run-up the deadline was a number — "deadline: week 12" on the desk —
+and the moment itself happened silently at a quarter past midnight on a
+Tuesday. Nobody was told it was coming, and an offer still on the table when it
+shut sat there as "proposed" for the rest of the season.
+
+**The moment is exact.** `ff_current_week()` moves on four hours after the
+week's last kickoff, and `ff_validate_trade` refuses once it has, so trades
+close at `last_kick + 4 hours` of the deadline week. `ff_trade_deadline_at`
+computes exactly that from the same view, so the countdown and the rule cannot
+disagree. In 2026 that is Tue Dec 1, 12:15 AM ET, after Monday night's game.
+
+`ff_trade_deadline(league, team)` is the read: when it closes, whether the
+market is open, and what is in play — offers on the table, players on the block,
+trades done, and the offers waiting on the caller's own team (only for a caller
+who sits there).
+
+- **The desk** says the week until the deadline week begins, then counts down —
+  "deadline in 3 days", gold, then wine in the last 24 hours — with the closing
+  time on the league's clock and the warning that anything still on the table
+  expires. The clock passing the instant shuts the desk even before its own
+  week number catches up.
+- **The front page** gets a card for that week only: how long is left, when it
+  closes, and what is in play, the offers only you can answer first. Silent the
+  rest of the season — a deadline five weeks out is a fact for the desk, not news.
+- **`ff_trade_deadline_tick`**, every fifteen minutes (`trade-deadline`), does
+  three things once each per league per deadline. A week out, it pins a house
+  line on the League Feed, posts a `deadline` activity event and pushes every
+  manager. On the last day it pushes again, naming the offers waiting on each
+  manager. At the deadline it expires every offer still proposed ("expired at
+  the trade deadline"), tells both sides of each, unpins the week's line and
+  says the market is shut. Each push is kind `trade`, so the trades switch
+  silences it.
+
+Bookkeeping is one row per (league, deadline instant, stage) in
+`trade_deadline_posts`, so re-running is a no-op and a moved deadline gets a
+fresh run-up. Each stage has a window: a job that first runs inside the last day
+skips the week post rather than sending both at once, and nothing is announced
+for a deadline more than two days gone. A league still drafting hears nothing.
+
+**Verified by 24 SQL checks** (`supabase/tests/trade_deadline.sql`, driving
+the job with an explicit clock) and e2e on `/preview/trades` (Open, Deadline
+week, Last day, Deadline gone) and `/preview/tonight` (the deadline toggle),
+both on fixed clocks so they hydrate the same whenever they are opened.
+
 ### The wire
 
 The **Waivers** tab is the screen the waiver backend was built for. It says when the next

@@ -201,3 +201,21 @@ test("the front page offers alerts once, and both answers take it away", async (
   await page.getByRole("complementary", { name: "Turn on alerts" }).getByRole("button", { name: "Not now" }).click();
   await expect(page.getByRole("complementary", { name: "Turn on alerts" })).toHaveCount(0);
 });
+
+test("the trade deadline takes the front page only in the week it closes", async ({ page }) => {
+  await page.goto("/preview/tonight");
+  const card = page.getByRole("region", { name: "Trade deadline" });
+  await expect(card).toHaveCount(0);
+
+  const stages = page.getByRole("group", { name: "Trade deadline" });
+  await stages.getByRole("button", { name: "Deadline week" }).click();
+  await expect(card).toContainText("3 days left");
+  await expect(card).toContainText("Trades close Tue 12:15 AM ET, after Monday night's game.");
+  // The offers only you can answer come first.
+  await expect(card).toContainText("2 offers waiting on you · 3 on the table · 4 on the block");
+  await expect(card.getByRole("link", { name: "Answer your offers" })).toHaveAttribute("href", "/transactions?tab=trades");
+
+  await stages.getByRole("button", { name: "Last day" }).click();
+  await expect(card).toContainText("Last day · 8 hours left");
+  await expect(card).toHaveAttribute("data-phase", "day");
+});

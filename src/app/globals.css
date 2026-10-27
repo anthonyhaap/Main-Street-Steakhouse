@@ -2807,6 +2807,21 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
 .pinvite__body b { color: var(--cream); font-size: var(--t-body); }
 .pinvite__err { color: var(--lose); }
 .pinvite__act { display: flex; flex-wrap: wrap; gap: var(--s2); margin-top: 4px; }
+/* The trade deadline in the week it closes: a gold rule down the side, wine on the last day. */
+.tdl { border-left: 3px solid var(--gold-lit); }
+.tdl[data-phase="day"] { border-left-color: var(--wine); }
+.tdl__eyebrow { display: inline-flex; align-items: center; gap: 6px; }
+.tdl__left { font-family: var(--serif); font-size: var(--t-body); color: var(--cream); white-space: nowrap; }
+.tdl[data-phase="day"] .tdl__left { color: var(--wine); }
+.tdl__body { display: grid; gap: 6px; }
+.tdl__line, .tdl__play { margin: 0; font-size: var(--t-small); line-height: 1.5; color: var(--muted); }
+.tdl__line b { color: var(--cream); }
+.tdl .tdl__go { display: inline-flex; align-items: center; gap: 4px; justify-self: start; margin-top: 2px; }
+/* …and on the desk itself. */
+.desk__soon { color: var(--gold); }
+.desk__soon[data-phase="day"] { color: var(--wine); }
+.desk__deadline { margin: 0; font-size: var(--t-small); line-height: 1.5; color: var(--muted); }
+.desk__deadline b { color: var(--cream); }
 .nudge__close {
   display: grid; place-items: center;
   min-width: 44px; min-height: 44px;

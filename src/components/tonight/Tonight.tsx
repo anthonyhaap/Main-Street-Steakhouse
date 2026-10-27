@@ -19,6 +19,7 @@ import { Room } from "@/components/tonight/Room";
 import { Statement } from "@/components/tonight/Statement";
 import { TonightSkeleton, TonightsTable, type Flash } from "@/components/tonight/TonightsTable";
 import { HomeGameDay, PlayingToday } from "@/components/tonight/GameDay";
+import { DeadlineSoon } from "@/components/tonight/Deadline";
 
 /**
  * The first screen, live.
@@ -131,6 +132,8 @@ export function Tonight({ initial, serverNow }: { initial: Briefing | null; serv
               latest in my game and the rest of the league, right under it. */}
           {b && phase && <PlayingToday b={b} now={clock} phase={phase} />}
           {b && phase && <HomeGameDay b={b} now={clock} phase={phase} enabled={ready} />}
+          {/* The trade deadline, only in the week it closes. */}
+          {b && <DeadlineSoon teamId={b.me?.team_id ?? null} now={clock} enabled={ready} />}
           {/* Alerts, offered once, to a manager with a team on a device that can take them. */}
           {b?.me && <PushInvite />}
 
