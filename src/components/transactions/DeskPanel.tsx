@@ -7,7 +7,7 @@ import { BlockSheet } from "@/components/trades/BlockSheet";
 import { OfferSheet } from "@/components/trades/OfferSheet";
 import type { Owned } from "@/components/players/DropPicker";
 import { LEAGUE_ID } from "@/lib/config";
-import { useLive, type WireStatus } from "@/lib/live";
+import { useLive, useServerClock, type WireStatus } from "@/lib/live";
 import type { TradeDeadline } from "@/lib/deadline";
 import { useSession } from "@/lib/session";
 import { supabaseBrowser } from "@/lib/supabase/client";
@@ -50,12 +50,17 @@ export function DeskPanel({ onStatus }: { onStatus?: (s: WireStatus) => void }) 
   useEffect(() => { onStatus?.(status); }, [status, onStatus]);
 
   const desk = data?.desk ?? null;
-  // The countdown moves by the minute; a tick every thirty seconds keeps it honest.
+  // The countdown is against the database's deadline, so it runs on the
+  // database's clock: a phone running fast must not shut the desk while
+  // trades are still legal. Ticks every thirty seconds.
+  const { serverNow } = useServerClock();
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 30000);
-    return () => clearInterval(id);
-  }, []);
+    // Re-read at once whenever the offset is (re)measured, then every 30s.
+    const first = setTimeout(() => setNow(serverNow()), 0);
+    const id = setInterval(() => setNow(serverNow()), 30000);
+    return () => { clearTimeout(first); clearInterval(id); };
+  }, [serverNow]);
   const owners = useMemo(() => data?.owners ?? [], [data]);
   const mine = useMemo(
     () => (team ? owners.filter((o) => o.team_id === team.id) : []),

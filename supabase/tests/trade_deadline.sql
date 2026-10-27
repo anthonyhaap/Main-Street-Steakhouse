@@ -27,7 +27,9 @@ begin
     on conflict (id) do nothing;
   insert into nfl_games (espn_event_id, season, season_type, week, home_team, away_team, kickoff_at)
   values ('dl-1', 2026, 2, 12, 'DDD', 'DDD', v_kick - interval '3 days'),
-         ('dl-2', 2026, 2, 12, 'DDD', 'DDD', v_kick);
+         ('dl-2', 2026, 2, 12, 'DDD', 'DDD', v_kick),
+         -- Last season's week 12: not this league's deadline.
+         ('dl-old', 2025, 2, 12, 'DDD', 'DDD', v_kick - interval '365 days');
 
   insert into leagues (name, season, team_count, roster_slots, settings)
   values ('Deadline Test', 2026, 3, '["QB","BN"]'::jsonb, '{"trade_deadline_week": 12}'::jsonb)
@@ -62,9 +64,11 @@ begin
   -- ------------------------------------------------------------ the instant --
   v_closes := ff_trade_deadline_at(v_league);
   if v_closes is distinct from v_kick + interval '4 hours' then
-    raise exception 'trades close at %, expected four hours after the last kickoff (%)', v_closes, v_kick + interval '4 hours';
+    raise exception 'trades close at %, expected four hours after this season''s last kickoff (%)', v_closes, v_kick + interval '4 hours';
   end if;
   v_checks := v_checks + 1;
+  -- The other season's schedule stays out of it.
+  delete from nfl_games where espn_event_id = 'dl-old';
 
   -- ---------------------------------------------------------- the read --
   perform set_config('request.jwt.claims', json_build_object('sub', v_uid_b)::text, true);

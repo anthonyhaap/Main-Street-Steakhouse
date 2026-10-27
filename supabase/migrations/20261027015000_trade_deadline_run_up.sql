@@ -50,7 +50,8 @@ as $$
   select w.last_kick + interval '4 hours'
     from leagues l
     join nfl_weeks w
-      on w.season_type = 2
+      on w.season = l.season
+     and w.season_type = 2
      and w.week = coalesce((l.settings->>'trade_deadline_week')::int, 99)
    where l.id = p_league_id
 $$;
