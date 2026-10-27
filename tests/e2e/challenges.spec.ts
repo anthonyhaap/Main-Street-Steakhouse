@@ -129,3 +129,18 @@ test("the cards fit the phone", async ({ page }) => {
   const wide = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
   expect(wide).toBe(false);
 });
+
+test("the preview hydrates the same the day after it was built", async ({ page }) => {
+  // The page is prerendered at build time and rendered again in the browser.
+  // A fixture dated from the clock prints a different day once midnight falls
+  // between the two, and React refuses the page (#418) — which is how a CI run
+  // straddling midnight UTC failed. Put the browser a day and a half ahead of
+  // the build and the two renders must still agree.
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.clock.install({ time: Date.now() + 36 * 3600_000 });
+  await page.goto("/preview/challenges");
+  await expect(page.locator("#challenge-c1")).toBeVisible();
+  await page.waitForLoadState("networkidle");
+  expect(errors).toEqual([]);
+});
