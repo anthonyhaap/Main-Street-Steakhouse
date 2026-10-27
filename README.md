@@ -1273,6 +1273,23 @@ like a migration. It warns, without failing, when two files share a name —
 legal (`20260829020645` and `20260829021500` are both `team_hub`) but also what
 a migration checked in twice looks like.
 
+### Web Analytics
+
+`@vercel/analytics` (`src/components/WebAnalytics.tsx`, mounted in the root
+layout) counts page views by route, device, OS and browser. It is cookieless
+and knows no accounts. Before anything leaves the browser the query string is
+dropped, because `/history?manager=Ada` names a person and the path alone says
+which page it was.
+
+It is mounted only on Vercel's own builds (`VERCEL=1`). Anywhere else, such as
+`next start` in CI or a laptop, the collector script is not served, and asking
+for it would put a 404 in every e2e run's console.
+
+The data appears once **Analytics** is enabled for the project in the Vercel
+dashboard. That switch is not reachable through the API. It exists because
+"what phones does the league use?" had no answer when push adoption needed
+one.
+
 ### Previews hydrate whenever they are opened
 
 Every `/preview/*` page is prerendered at build time and rendered again in the
