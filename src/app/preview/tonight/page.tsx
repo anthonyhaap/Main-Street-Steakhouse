@@ -15,6 +15,8 @@ import { TonightsTable } from "@/components/tonight/TonightsTable";
 import { Carousel } from "@/components/tonight/Carousel";
 import { RoomBoard } from "@/components/tonight/Room";
 import { Statement } from "@/components/tonight/Statement";
+import { PushInviteView } from "@/components/tonight/PushInvite";
+import type { PushState } from "@/lib/push";
 import { HomeGameDayView, PlayingToday } from "@/components/tonight/GameDay";
 import { gcBoard, gcSeat, GC_MY_TEAM, GC_NOW } from "@/lib/fixtures/gamecenter";
 import { phaseOf, type Briefing, type BriefStarter, type RoomFeed } from "@/lib/briefing";
@@ -241,6 +243,9 @@ function room(now: number): RoomFeed {
 
 export default function TonightPreview() {
   const [key, setKey] = useState("thu");
+  // The front page's offer of alerts, on a device that can take them. "Turn on"
+  // and "Not now" both take it away, as they do for real.
+  const [alerts, setAlerts] = useState<PushState | null>("off");
   const scene = SCENES.find((s) => s.key === key) ?? SCENES[0];
   const { b, now } = scene.make();
   const phase = phaseOf(b, now);
@@ -270,6 +275,8 @@ export default function TonightPreview() {
         {(key === "sun" || key === "mon") && (
           <HomeGameDayView board={gcSeat(gcBoard(key === "sun" ? "late" : "monday"), GC_MY_TEAM)} now={GC_NOW[key === "sun" ? "late" : "monday"]} />
         )}
+        <PushInviteView state={alerts} busy={false} error={null}
+          onEnable={() => setAlerts("on")} onDismiss={() => setAlerts(null)} />
         <Statement />
         <Carousel b={b} live={phase === "live"} />
         <RoomBoard feed={room(now)} now={now} />

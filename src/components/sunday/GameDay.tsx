@@ -14,7 +14,6 @@
  */
 
 import Link from "next/link";
-import { useState, useSyncExternalStore } from "react";
 import { ArrowRight, Bell } from "lucide-react";
 import { Seal } from "@/components/ui";
 import { crestUrl } from "@/lib/crest";
@@ -25,6 +24,7 @@ import {
   type Moment, type NextUp as Next, type PulseItem, type Seat, type Standing,
 } from "@/lib/gameday";
 import { LiveScore } from "./bits";
+import { useOfferDismissed } from "@/lib/push";
 
 const ago = (iso: string, now: number) => {
   const m = Math.floor((now - Date.parse(iso)) / 60_000);
@@ -225,9 +225,10 @@ export function NextUp({ next, phase, betweenWindows }: { next: Next | null; pha
 
 /**
  * The one place the app asks for push without being asked: under your own
- * matchup, on a game day, while push is off on this device. It says exactly
- * what will buzz — your game, not every catch — and goes away for good on
- * "Not now" (per device; a manager who wants it later has the settings).
+ * matchup, on a game day, while push is off on this device — or, on an
+ * iPhone in Safari, says that the home screen comes first and shows how. It
+ * says exactly what will buzz — your game, not every catch — and goes away for
+ * good on "Not now" (per device; a manager who wants it later has the settings).
  */
 export type PushOffer = {
   state: "unsupported" | "ios-needs-install" | "denied" | "off" | "on" | null;
@@ -242,29 +243,30 @@ export type PushOffer = {
   gamedayOff?: boolean;
 };
 
-const DISMISS_KEY = "gd-push-offer-dismissed";
-
-const dismissListeners = new Set<() => void>();
-const readDismissed = () => {
-  try { return window.localStorage.getItem(DISMISS_KEY) === "1"; } catch { return false; }
-};
-
 export function PushPrompt({ push }: { push: PushOffer }) {
-  // Read after hydration, never during the server render, so a dismissed offer
-  // cannot make the client's first paint disagree with the HTML.
-  const dismissed = useSyncExternalStore(
-    (on) => { dismissListeners.add(on); return () => { dismissListeners.delete(on); }; },
-    readDismissed,
-    () => false,
-  );
-  // Remembered for this visit even where storage is refused.
-  const [gone, setGone] = useState(false);
-  if (gone || dismissed || push.gamedayOff || push.state !== "off") return null;
-  const dismiss = () => {
-    try { window.localStorage.setItem(DISMISS_KEY, "1"); } catch { /* private window: it comes back next visit */ }
-    setGone(true);
-    dismissListeners.forEach((f) => f());
-  };
+  const [dismissed, dismiss] = useOfferDismissed("gd-push-offer-dismissed");
+  if (dismissed || push.gamedayOff) return null;
+
+  // On an iPhone in Safari there is nothing to subscribe yet: iOS only lets a
+  // web app push from the home screen. Most of the league reads it there, and
+  // until this said so, the offer simply never appeared for them.
+  if (push.state === "ios-needs-install") {
+    return (
+      <section className="gd-push" aria-label="Game-day notifications">
+        <Bell size={16} aria-hidden />
+        <span className="gd-push__text">
+          <b>Get buzzed when your matchup swings.</b>
+          <span>On an iPhone, alerts start once the app is on your home screen: Share, then Add to Home Screen.</span>
+        </span>
+        <span className="gd-push__act">
+          <Link className="sun-btn" data-v="gold" href="/install">Show me how</Link>
+          <button type="button" className="sun-linkbtn" onClick={dismiss}>Not now</button>
+        </span>
+      </section>
+    );
+  }
+
+  if (push.state !== "off") return null;
   return (
     <section className="gd-push" aria-label="Game-day notifications">
       <Bell size={16} aria-hidden />

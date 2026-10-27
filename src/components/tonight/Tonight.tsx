@@ -11,6 +11,7 @@ import { matchupText, phaseOf, recapText, type Briefing } from "@/lib/briefing";
 import { TopBar } from "@/components/Shell";
 import { Seal, TeamLink, useToast } from "@/components/ui";
 import { Curtain } from "@/components/Curtain";
+import { PushInvite } from "@/components/tonight/PushInvite";
 import { InstallNudge } from "@/components/InstallNudge";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { Carousel } from "@/components/tonight/Carousel";
@@ -130,6 +131,8 @@ export function Tonight({ initial, serverNow }: { initial: Briefing | null; serv
               latest in my game and the rest of the league, right under it. */}
           {b && phase && <PlayingToday b={b} now={clock} phase={phase} />}
           {b && phase && <HomeGameDay b={b} now={clock} phase={phase} enabled={ready} />}
+          {/* Alerts, offered once, to a manager with a team on a device that can take them. */}
+          {b?.me && <PushInvite />}
 
           <Statement />
 

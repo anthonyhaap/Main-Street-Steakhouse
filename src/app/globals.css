@@ -2765,6 +2765,19 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
 .nudge__body p svg { vertical-align: -2px; color: var(--wine); }
 .nudge__body p b { color: var(--cream); }
 .nudge__body .btn { justify-self: start; }
+/* The front page's one-time offer of alerts: the nudge's card, at rest. */
+.pinvite {
+  display: flex; gap: var(--s3); align-items: flex-start;
+  padding: var(--s4) var(--s4) var(--s4) var(--s5);
+  background: var(--ink-1);
+  border: 1px solid var(--gold-dim); border-left: 3px solid var(--gold-lit);
+  border-radius: var(--r);
+}
+.pinvite > svg { flex: none; margin-top: 2px; color: var(--gold-lit); }
+.pinvite__body { display: grid; gap: 6px; flex: 1; min-width: 0; font-size: var(--t-small); line-height: 1.5; color: var(--muted); }
+.pinvite__body b { color: var(--cream); font-size: var(--t-body); }
+.pinvite__err { color: var(--lose); }
+.pinvite__act { display: flex; flex-wrap: wrap; gap: var(--s2); margin-top: 4px; }
 .nudge__close {
   display: grid; place-items: center;
   min-width: 44px; min-height: 44px;

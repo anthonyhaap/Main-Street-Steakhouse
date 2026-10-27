@@ -189,3 +189,15 @@ test("the Commissioner's statement is posted under the card", async ({ page }) =
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(0);
 });
+
+test("the front page offers alerts once, and both answers take it away", async ({ page }) => {
+  await page.goto("/preview/tonight");
+  const offer = page.getByRole("complementary", { name: "Turn on alerts" });
+  await expect(offer).toContainText("Turn on alerts on this device.");
+  await expect(offer).toContainText("Lead changes in your matchup, trade offers, waiver results and the Weekly Special");
+  await offer.getByRole("button", { name: "Turn on" }).click();
+  await expect(offer).toHaveCount(0);
+  await page.reload();
+  await page.getByRole("complementary", { name: "Turn on alerts" }).getByRole("button", { name: "Not now" }).click();
+  await expect(page.getByRole("complementary", { name: "Turn on alerts" })).toHaveCount(0);
+});

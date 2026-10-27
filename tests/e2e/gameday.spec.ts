@@ -231,3 +231,14 @@ test("side by side on a tablet, every starter's name is whole", async ({ page },
     expect(cut, `${width}px`).toEqual([]);
   }
 });
+
+test("on an iPhone in Safari, the offer says the home screen comes first", async ({ page }) => {
+  await go(page, "Late window");
+  await click(page, "iPhone in Safari");
+  const offer = page.locator(".gd-push");
+  await expect(offer).toContainText("Get buzzed when your matchup swings.");
+  await expect(offer).toContainText("alerts start once the app is on your home screen");
+  // Nothing to subscribe yet, so no Turn on: the way there instead.
+  await expect(offer.getByRole("button", { name: "Turn on" })).toHaveCount(0);
+  await expect(offer.getByRole("link", { name: "Show me how" })).toHaveAttribute("href", "/install");
+});

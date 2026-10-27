@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { supabaseBrowser } from "./supabase/client";
 
 /**
@@ -125,4 +125,31 @@ export function usePush() {
   }, []);
 
   return { state, busy, error, enable, disable, refresh: read };
+}
+
+/* ------------------------------------------------------------- the offer -- */
+
+/**
+ * "Not now" on an unasked-for push offer, remembered on this device under its
+ * own key: the Game Center's offer and the front page's are separate asks, and
+ * saying no to one is not saying no to the other. Read after hydration, never
+ * during the server render, so a dismissed offer cannot make the client's first
+ * paint disagree with the HTML; kept for the visit even where storage is
+ * refused (a private window), and back on the next one.
+ */
+const dismissListeners = new Set<() => void>();
+
+export function useOfferDismissed(key: string): [boolean, () => void] {
+  const stored = useSyncExternalStore(
+    (on) => { dismissListeners.add(on); return () => { dismissListeners.delete(on); }; },
+    () => { try { return window.localStorage.getItem(key) === "1"; } catch { return false; } },
+    () => false,
+  );
+  const [gone, setGone] = useState(false);
+  const dismiss = useCallback(() => {
+    try { window.localStorage.setItem(key, "1"); } catch { /* private window: back next visit */ }
+    setGone(true);
+    dismissListeners.forEach((f) => f());
+  }, [key]);
+  return [stored || gone, dismiss];
 }
