@@ -330,10 +330,13 @@ function TeamPreview() {
         readOnly={visitor}
         weather={WEATHER}
         settlesAt="2026-09-16T08:00:00.000Z"
+        currentWeek={HUB.week}
         onPickUp={setMoving}
         onCancelMove={() => setMoving(null)}
         onDrop={drop}
-        onWeek={() => {}}
+        // The same roster under another week number: enough to see how the
+        // desk tells a lineup set ahead of time from this week's.
+        onWeek={(week) => setHub((h) => ({ ...h, week }))}
         onEdit={visitor ? undefined : () => {}}
         onSetLineup={visitor ? undefined : (assignments) => setHub((h) => ({
           ...h,

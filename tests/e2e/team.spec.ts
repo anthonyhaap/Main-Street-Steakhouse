@@ -336,3 +336,26 @@ test("swap opens the eligible replacements under the row", async ({ page }) => {
   await expect(lineup).toContainText("Josh Allen");
   await expect(bench).toContainText("Patrick Mahomes");
 });
+
+/**
+ * A later week on the desk is a plan, not this week's lineup, and the desk
+ * says so — on the reader's own desk, where it can be set, and not on a desk
+ * he is only visiting.
+ */
+test("a week ahead says it is a plan", async ({ page }) => {
+  await page.goto("/preview/team");
+  const note = page.getByRole("status").filter({ hasText: /Planning week/ });
+  await expect(note).toHaveCount(0);
+
+  await page.getByRole("button", { name: "3", exact: true }).click();
+  await expect(note).toContainText("Planning week 3");
+  await expect(note).toContainText("this week's lineup is untouched");
+  await expect(page.getByRole("button", { name: /^Swap / }).first()).toBeEnabled();
+
+  await note.getByRole("button", { name: "Back to week 1" }).click();
+  await expect(note).toHaveCount(0);
+
+  await page.goto("/preview/team?as=visitor");
+  await page.getByRole("button", { name: "3", exact: true }).click();
+  await expect(page.getByText(/Planning week/)).toHaveCount(0);
+});

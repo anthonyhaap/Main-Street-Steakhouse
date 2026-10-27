@@ -36,6 +36,9 @@ function Desk() {
   const crestOf = useCrests();
   const toast = useToast();
   const [week, setWeek] = useState<number | null>(null);
+  // The week the league is in, kept apart from the one being looked at: a
+  // later week on the desk is a lineup being set ahead of time.
+  const [currentWeek, setCurrentWeek] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [editing, setEditing] = useState(false);
 
@@ -60,7 +63,11 @@ function Desk() {
 
   useEffect(() => {
     if (!ready) return;
-    void supabaseBrowser().rpc("ff_current_week").then(({ data }) => setWeek((data as number) ?? 1));
+    void supabaseBrowser().rpc("ff_current_week").then(({ data }) => {
+      const now = (data as number) ?? 1;
+      setCurrentWeek(now);
+      setWeek(now);
+    });
   }, [ready]);
 
   const fetcher = useCallback(async () => {
@@ -120,6 +127,10 @@ function Desk() {
     hub?.roster ?? null, hub?.league.season ?? null, week, ready && !!hub,
   );
 
+  /** Names the week on a confirmation for a lineup set ahead of time, so a
+   *  move made on the wrong tab does not read like one made on this week's. */
+  const ahead = (w: number) => (currentWeek !== null && w > currentWeek ? ` for week ${w}` : "");
+
   /** Replaced rather than pushed: Back should leave the desk, not walk back
    *  through every team looked at on the way. */
   const look = useCallback((id: string) => {
@@ -145,7 +156,7 @@ function Desk() {
     if (rpcError) toast("error", rpcError.message);
     else {
       const n = Object.keys(assignments).length;
-      toast("ok", `Lineup set — ${n} ${n === 1 ? "change" : "changes"}.`);
+      toast("ok", `Lineup set — ${n} ${n === 1 ? "change" : "changes"}${ahead(week)}.`);
     }
     await refetch();
   }
@@ -187,7 +198,7 @@ function Desk() {
       mutate(before);
       toast("error", rpcError.message);
     } else {
-      toast("ok", `${moving.full_name} → ${target.slot === "BN" ? "bench" : target.slot}.`);
+      toast("ok", `${moving.full_name} → ${target.slot === "BN" ? "bench" : target.slot}${ahead(week)}.`);
     }
     await refetch();
   }
@@ -235,6 +246,7 @@ function Desk() {
           weather={weather}
           matchups={matchups}
           settlesAt={settlesAt}
+          currentWeek={currentWeek}
           picker={<TeamPicker teams={teams} value={subject.id} mine={team?.id ?? null} onPick={look} />}
           onPickUp={setMoving}
           onCancelMove={() => setMoving(null)}
