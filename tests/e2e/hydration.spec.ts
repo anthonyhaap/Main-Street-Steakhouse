@@ -32,3 +32,12 @@ for (const path of PAGES) {
     expect(errors.filter((m) => /#418|#423|#425|hydrat/i.test(m)), path).toEqual([]);
   });
 }
+
+// A time printed on the server has to be the same characters in every browser.
+// ICU's narrow no-break space before "PM" is kept by Node and dropped by newer
+// Chromiums, so a prerendered "9:34 PM ET" hydrated as different text in CI.
+test("a prerendered clock time carries no engine-specific space", async ({ request }) => {
+  const html = await (await request.get("/preview/recap")).text();
+  expect(html).toContain("PM ET");
+  expect(html).not.toMatch(/[  ][AP]M/);
+});
