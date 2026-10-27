@@ -7,6 +7,8 @@ import { useSession } from "@/lib/session";
 import { LEAGUE_ID } from "@/lib/config";
 import type { HistoricalStanding, History } from "@/lib/history";
 import type { SundayHistory } from "@/lib/sunday";
+import { loadCareerEvents } from "@/lib/sunday-load";
+import type { CareerEvent } from "@/lib/sundayline";
 import { TopBar } from "@/components/Shell";
 import { HistoryWall } from "@/components/history/HistoryWall";
 
@@ -51,6 +53,12 @@ export default function HistoryPage() {
     tables: ["sunday_events", "reactions"], channel: "sunday-history", pollMs: 300000, enabled: ready,
   });
 
+  // The same events read per manager, for the Sunday line in each profile.
+  const careerFetcher = useCallback(() => loadCareerEvents(supabaseBrowser()), []);
+  const { data: career } = useLive<CareerEvent[]>(careerFetcher, {
+    tables: ["sunday_events"], channel: "sunday-career", pollMs: 300000, enabled: ready,
+  });
+
   return (
     <>
       <TopBar status={status} />
@@ -65,6 +73,7 @@ export default function HistoryPage() {
           myManager={team ? (team.manager_name ?? team.name) : null}
           importable={isCommissioner}
           sunday={sunday ?? null}
+          career={career ?? []}
         />
       )}
     </>

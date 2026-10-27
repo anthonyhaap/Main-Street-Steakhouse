@@ -742,6 +742,35 @@ lose. Its rules:
 No migration. `/preview/recap` tells it from the Game Center test data's
 Tuesday; its second switch shows a week from before the feed.
 
+#### A manager's Sundays, and a rivalry's
+
+The wall's Sunday lines (`ff_sunday_history`) count what a manager did. The
+same stored events also say what was done to him, and which afternoons two
+managers shared. Both now appear where people look for them.
+
+- **A profile** (`/history?manager=…`) has an **On Sundays** block:
+  - leads taken, leads lost, and leads taken late (the detector's own `late`
+    flag);
+  - comebacks, and blown leads (comebacks made on him);
+  - monster games;
+  - one sentence each for the deepest comeback, the worst collapse and the
+    biggest game.
+- **A rivalry card** on the matchups board gets an **On Sundays** row: how
+  many times the lead changed hands between the two, in how many Sundays, the
+  deepest comeback either made on the other, and the biggest game in it.
+
+Both are `sundayLine` and `rivalrySundays` (`src/lib/sundayline.ts`), over one
+fetch, `loadCareerEvents` (`src/lib/sunday-load.ts`). That fetch asks for every
+lead change, comeback and monster game by kind, all seasons. "Changed the lead"
+is the recap's own `changesLead`, so a comeback is never counted twice and the
+three screens agree.
+
+A manager with nothing stored gets no block at all, not a row of zeros. Nothing
+is inferred from final scores.
+
+No migration. `/preview/history?manager=Anthony` and `/preview/matchups` show
+them from a short script of Sundays (`src/lib/fixtures/career.ts`).
+
 ### Odds that admit what they don't know
 
 The playoff simulation on `/standings` did exactly what it was asked before the

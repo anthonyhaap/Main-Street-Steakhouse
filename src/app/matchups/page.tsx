@@ -18,6 +18,8 @@ import { ScoreTicker } from "@/components/matchup/ScoreTicker";
 import { liveCount } from "@/lib/around";
 import { scoreCardText, shareOrigin } from "@/lib/share";
 import type { WeekRivalries } from "@/lib/history";
+import { loadCareerEvents } from "@/lib/sunday-load";
+import { rivalrySundays, type CareerEvent } from "@/lib/sundayline";
 
 /**
  * The Sunday board.
@@ -104,6 +106,15 @@ export default function MatchupsPage() {
       });
     return () => { live = false; };
   }, [ready, week]);
+
+  // Every stored lead change, comeback and monster game, for the rivalry
+  // cards' Sunday line. All-time, so not per week; but unlike the records it
+  // moves during the games, so it rides the same realtime signal as the board.
+  // A failure is simply no line.
+  const careerFetcher = useCallback(() => loadCareerEvents(supabaseBrowser()), []);
+  const { data: career } = useLive<CareerEvent[]>(careerFetcher, {
+    tables: ["sunday_events"], channel: "matchups-career", pollMs: hot ? 60000 : 300000, enabled: ready,
+  });
 
   // `useLive` refetches on mount, on a row change, on reconnect and on a
   // timer — none of which is "the reader asked for a different week". Its
@@ -249,7 +260,8 @@ export default function MatchupsPage() {
                   // no manager name set still matches.
                   const mine = shown.my_team_id === c.home.team_id ? c.home
                     : shown.my_team_id === c.away.team_id ? c.away : null;
-                  return <Rivalry card={card} me={mine && (mine.manager_name?.trim() || mine.name)} />;
+                  return <Rivalry card={card} me={mine && (mine.manager_name?.trim() || mine.name)}
+                    sundays={rivalrySundays(career ?? [], c.home.team_id, c.away.team_id)} />;
                 }}
               />
             </div>

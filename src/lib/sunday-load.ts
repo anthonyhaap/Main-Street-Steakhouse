@@ -20,6 +20,7 @@ import { LEAGUE_ID } from "@/lib/config";
 import type { Scoreboard } from "@/lib/scoreboard";
 import type { NflGame, SundayBoard, SundayEvent } from "@/lib/sunday";
 import { STORY_TYPES } from "@/lib/recap";
+import { CAREER_TYPES, type CareerEvent } from "@/lib/sundayline";
 
 /** PostgREST's "no such function", in either of the shapes it arrives in. */
 function missingFunction(e: { code?: string; message?: string }): boolean {
@@ -115,4 +116,33 @@ export async function loadWeekStory(sb: SupabaseClient, season: number, week: nu
     .limit(500);
   if (error || !data) return [];
   return (data as EventRow[]).map(toEvent);
+}
+
+/**
+ * Every lead change, comeback and monster game the league has stored, for the
+ * profiles and the rivalries (`sundayLine`, `rivalrySundays`). Asked for by
+ * kind, all seasons, oldest first, a page at a time: a few hundred rows a
+ * season, and PostgREST stops a single answer at its row cap (a thousand by
+ * default) without saying so, so one big `limit` would quietly turn an
+ * all-time record into its first few seasons. Same failure rule as above: no
+ * table, or any error, is no Sundays.
+ */
+const CAREER_PAGE = 1000;
+
+export async function loadCareerEvents(sb: SupabaseClient): Promise<CareerEvent[]> {
+  type Row = Omit<CareerEvent, "type" | "detail"> & { event_type: CareerEvent["type"]; detail: CareerEvent["detail"] | null };
+  const out: CareerEvent[] = [];
+  for (let from = 0; ; from += CAREER_PAGE) {
+    const { data, error } = await sb
+      .from("sunday_events")
+      .select("id, season, week, event_type, level, team_id, opponent_team_id, matchup_id, lead_change, headline, detail, created_at")
+      .eq("league_id", LEAGUE_ID)
+      .or(`event_type.in.(${CAREER_TYPES.join(",")}),lead_change.eq.true`)
+      // id breaks created_at ties, so a page boundary never skips or repeats a row.
+      .order("created_at", { ascending: true }).order("id", { ascending: true })
+      .range(from, from + CAREER_PAGE - 1);
+    if (error || !data) return [];
+    for (const { event_type, detail, ...r } of data as Row[]) out.push({ ...r, type: event_type, detail: detail ?? {} });
+    if (data.length < CAREER_PAGE) return out;
+  }
 }

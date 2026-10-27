@@ -3963,6 +3963,16 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
 }
 .prof__notes b { color: var(--ink); }
 
+.prof__sun {
+  margin: 0; display: grid; gap: var(--s2) var(--s4);
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+}
+.prof__sun div { display: grid; gap: 2px; padding: 6px 0; border-bottom: 1px solid var(--rule-soft); }
+.prof__sun dt { font: 700 var(--t-nano)/1.2 var(--sans); letter-spacing: 0.12em; text-transform: uppercase; color: var(--dim); }
+.prof__sun dd { margin: 0; font: 400 var(--t-head)/1.1 var(--serif); color: var(--ink); }
+.prof__sunlines { list-style: none; margin: var(--s3) 0 0; padding: 0; display: grid; gap: 4px; font-size: var(--t-small); color: var(--muted); }
+.prof__sunlines b { color: var(--ink); }
+
 /* ------------------------------------------------------ power rankings -- */
 /* A list, not a table: every row carries a sentence, and a sentence in a cell
    wraps into a column two words wide. */
