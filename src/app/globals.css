@@ -1847,7 +1847,16 @@ a.kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); border-c
   overflow: hidden;
   display: grid; place-items: center;
 }
-.pl-shot img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pl-shot { container-type: size; }
+/* The image is drawn at 132px with its size inline, and the frame is only
+   that big on a wide screen — on a phone it is 72, at most widths between it
+   is under 132. So whatever is inside follows the frame instead: the photo
+   or logo fills it, the fallback monogram is sized off its width, and a
+   logo's breathing room stays the same share of the disc (18 of 132). */
+.pl-shot > img, .pl-shot > span { width: 100% !important; height: 100% !important; }
+.pl-shot > span { font-size: 36cqw !important; }
+.pl-shot[data-logo="true"] > img { padding: 13.6cqw !important; }
+.pl-shot img { display: block; }
 .pl-id { min-width: 0; flex: 1; }
 .pl-id h1 {
   margin: 0;
@@ -1884,7 +1893,9 @@ a.kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); border-c
 
 .proj { display: flex; gap: var(--s2); padding: var(--s4) var(--s5); overflow-x: auto; }
 .proj__wk {
-  flex: 0 0 auto; min-width: 74px;
+  /* Growing, so two or three weeks share the strip instead of huddling at
+     its left edge; a full season still scrolls, since none shrinks below 74. */
+  flex: 1 0 74px; max-width: 140px;
   border: 1px solid var(--rule); border-radius: var(--r-sm);
   background: var(--ink-1); padding: var(--s3) var(--s2);
   display: grid; gap: 3px; justify-items: center; text-align: center;
@@ -5346,4 +5357,34 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
   /* The percentage is the reading; the bar beside it is a second copy of it. */
   .stand__meter { display: none !important; }
   .stand:not([data-ties="true"]) [data-col="ties"] { display: none; }
+}
+
+/* A message's time and its reactions share one line, with the time pushed to
+   the end of it. `flex-end` so a reply button or a reaction pill, which are
+   taller than the stamp, sit on the same baseline instead of the stamp
+   floating between them. */
+.row__foot { display: flex; align-items: flex-end; gap: 6px; }
+.row__stamp {
+  margin-left: auto; padding-bottom: 5px;
+  color: var(--dim); font-size: var(--t-micro); white-space: nowrap;
+}
+
+/* A trade's answers share their row evenly on a phone — three buttons where
+   two used to fit and the third sat alone on a line under them. */
+.offer__acts { display: flex; gap: var(--s2); flex-wrap: wrap; }
+
+@media (max-width: 480px) {
+  .offer__acts { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
+  .offer__acts > .btn { min-height: 40px; padding-inline: 6px; letter-spacing: 0.08em; }
+
+  /* A row of a date and a note about it: on a phone the note goes under the
+     date rather than squeezing it onto two lines. */
+  .row--stack-sm { flex-wrap: wrap; row-gap: 2px; }
+  .row--stack-sm > * { flex-basis: 100%; }
+
+  /* The player page's header: a smaller face, top-aligned, so the name and
+     its badges get the width instead of the headshot's half of the card. */
+  .pl-hero__top { padding: var(--s5) var(--s4) var(--s4); gap: var(--s3); align-items: flex-start; flex-wrap: nowrap; }
+  .pl-shot { width: 72px; height: 72px; }
+  .proj { padding: var(--s3) var(--s4); }
 }

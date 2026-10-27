@@ -157,7 +157,7 @@ export function Wire({
           <div className="card__head"><h2>Recent settlements</h2></div>
           <div className="rows">
             {board.recent.map((r) => (
-              <div className="row" key={r.ran_at}>
+              <div className="row row--stack-sm" key={r.ran_at}>
                 <div style={{ flex: 1 }}>{when(r.ran_at)}</div>
                 <span className="eyebrow">
                   week <span className="num">{r.week}</span> ·{" "}
