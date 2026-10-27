@@ -65,7 +65,7 @@ export default function MatchupPreviewPage() {
             ))}
           </div>
         </div>
-        <p className="prose" style={{ margin: 0, fontSize: "var(--t-small)" }}>{note}</p>
+        <p className="prose" style={{ marginBlock: 0, fontSize: "var(--t-small)" }}>{note}</p>
 
         <MatchupHead key={card.id} c={card} now={NOW} />
         <MatchupMoment card={card} events={[]} now={NOW} />
