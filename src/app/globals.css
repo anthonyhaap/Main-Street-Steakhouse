@@ -1429,6 +1429,17 @@ a.kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); border-c
   .plr__when { display: none; }
 }
 
+/* Below the width where the extra columns arrive, a long name takes a second
+   line rather than an ellipsis. The row is already three lines tall with the
+   kickoff in the sub; height is the thing a phone has to spare. */
+@container (max-width: 539px) {
+  .plr { gap: 10px; padding: 10px var(--s3); grid-template-columns: 36px minmax(0, 1fr) auto auto; }
+  .plr .pbadge__name {
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+    white-space: normal; line-height: 1.25;
+  }
+}
+
 @container (min-width: 540px) {
   .plr { gap: var(--s3); padding: 9px var(--s4); grid-template-columns: 44px minmax(0, 1fr) 152px 66px auto; }
   .plr__match { display: flex; align-items: center; }
@@ -1484,6 +1495,13 @@ a.kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); border-c
   background: none; color: var(--muted); cursor: pointer;
   font: 600 var(--t-micro)/1 var(--sans); letter-spacing: 0.04em; text-transform: uppercase;
   transition: background 0.15s var(--ease), color 0.15s var(--ease), border-color 0.15s var(--ease);
+}
+/* On a phone the word goes and the arrows stay, in a round thumb-sized target.
+   "Swap" was sixty pixels of every row, taken straight out of the player's
+   name; the button keeps its aria-label, so nothing is lost to a reader. */
+@container (max-width: 539px) {
+  .plr__act { width: 36px; height: 36px; padding: 0; justify-content: center; }
+  .plr__act-label { display: none; }
 }
 .plr__act:hover:not(:disabled) { background: var(--ink-1); color: var(--wine); }
 .plr__act[data-on="true"] { background: var(--gold-wash); border-color: var(--gold-lit); color: var(--gold); }
@@ -5278,3 +5296,54 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
 }
 .today p { margin: 0; font: 400 var(--t-body)/1.4 var(--serif); color: var(--cream); }
 .today b { font-family: var(--sans); font-size: var(--t-small); letter-spacing: 0.04em; }
+
+/* ============================================================================
+   PHONE DENSITY
+
+   Every card was built for a laptop's 24px of inner padding, and inside a
+   page that already insets sixteen it left a 390px phone about 300px for the
+   thing the card holds. Below 480px the frame gives way to the content: the
+   cards take in their padding, the hero's buttons share the width instead of
+   each leaving half a row empty, and the standings stop needing a sideways
+   scroll to reach the playoff odds.
+   ========================================================================== */
+
+@media (max-width: 480px) {
+  .card__head { padding: var(--s3) var(--s4); gap: var(--s2) var(--s3); }
+  .card__body { padding: var(--s4); }
+  .row { padding-block: 10px; }
+
+  .hero { padding: var(--s5) var(--s4); gap: var(--s5); }
+  .hero__cta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s2); margin-top: var(--s4); }
+  .hero__cta > .btn { min-height: 44px; padding-inline: var(--s2); }
+  /* The way into the room is the one thing on the card to do; it gets the row. */
+  .hero__cta > .btn:first-child { grid-column: 1 / -1; }
+  /* With the first on its own row, an even count leaves the last one alone
+     on the bottom row; it takes that row rather than half of it. */
+  .hero__cta > .btn:last-child:nth-child(even) { grid-column: 1 / -1; }
+  .dial__svg { width: 136px; height: 136px; }
+}
+
+/* The standings table. Padding lives here rather than inline so a phone can
+   take it in; on a laptop it is the same 12/16 it always was. */
+.stand { min-width: var(--stand-min, 0); }
+.stand th, .stand td { padding: var(--s3) var(--s4); }
+.stand__name { white-space: nowrap; }
+
+@media (max-width: 640px) {
+  .stand { min-width: 0; }
+  .stand th, .stand td { padding: 10px 4px; }
+  .stand th:first-child, .stand td:first-child { padding-left: 10px; }
+  .stand th:last-child, .stand td:last-child { padding-right: 10px; }
+  .stand th { letter-spacing: 0.04em; }
+  /* A name that does not fit takes a second line, not the table's width. */
+  .stand td[data-col="team"] { min-width: 112px; }
+  /* The crest is a second copy of the name; on a phone the width it took is
+     what lets the bye odds onto the screen. Your row keeps its gold wash. */
+  .stand td[data-col="team"] .seal { display: none; }
+  .stand__pct { min-width: 0 !important; }
+  .stand__name { white-space: normal; line-height: 1.25; }
+  /* The percentage is the reading; the bar beside it is a second copy of it. */
+  .stand__meter { display: none !important; }
+  .stand:not([data-ties="true"]) [data-col="ties"] { display: none; }
+}

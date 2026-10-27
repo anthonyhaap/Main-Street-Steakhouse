@@ -130,7 +130,7 @@ export function PlayerRow({
           aria-label={player ? `Swap ${player.full_name}` : "Empty slot"}
         >
           <ArrowLeftRight size={12} />
-          Swap
+          <span className="plr__act-label">Swap</span>
         </button>
       ) : (
         <span aria-hidden />
