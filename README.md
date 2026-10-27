@@ -610,6 +610,29 @@ it since mentions shipped; a switch the database has not reported yet is
 neither shown nor sent, so the page works ahead of the migration.
 `supabase/tests/gameday_push.sql` holds the restraint.
 
+**Who could be asked.** After the first Sunday with push live (week 7), the
+league still had one device on push: a Mac, not a phone. Thirteen accounts
+had been active in the fortnight. The asking had three gaps:
+
+- **An iPhone in Safari was never asked.** iOS only lets a web app push from
+  the home screen, so `usePush` reports `ios-needs-install`, and the game
+  center's offer only spoke to `off`. Now the offer says what to do instead:
+  "On an iPhone, alerts start once the app is on your home screen", with
+  *Show me how* linking to `/install`.
+- **The install nudge left out its reason.** It is shown once, on a first
+  mobile visit, and sold the full-screen look. It now also says that on an
+  iPhone this is the only way to get alerts.
+- **The front page never asked.** The game center's offer needs a game day
+  and a visit to the game center. The front page, which every manager opens,
+  now offers alerts once to a manager with a team, on a device that can
+  subscribe (`off`): "Turn on alerts on this device." *Not now* is remembered
+  per device, apart from the game center's own offer (`useOfferDismissed` in
+  `src/lib/push.ts`).
+
+A device already on, blocked, or unable is not asked; the settings card on
+My Team says why. `/preview/sunday` has an *iPhone in Safari* switch, and
+`/preview/tonight` shows the front page's offer.
+
 ### The room, on the front page
 
 Tonight's Table answers three questions in the first second. The clubhouse is
