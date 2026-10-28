@@ -9,13 +9,17 @@ import { LEAGUE_ID, SITE_URL } from "@/lib/config";
 import { crestUrl } from "@/lib/crest";
 import { matchupText, phaseOf, recapText, type Briefing } from "@/lib/briefing";
 import { TopBar } from "@/components/Shell";
-import { Seal, useToast } from "@/components/ui";
+import { Seal, TeamLink, useToast } from "@/components/ui";
 import { Curtain } from "@/components/Curtain";
+import { PushInvite } from "@/components/tonight/PushInvite";
 import { InstallNudge } from "@/components/InstallNudge";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { Carousel } from "@/components/tonight/Carousel";
 import { Room } from "@/components/tonight/Room";
+import { Statement } from "@/components/tonight/Statement";
 import { TonightSkeleton, TonightsTable, type Flash } from "@/components/tonight/TonightsTable";
+import { HomeGameDay, PlayingToday } from "@/components/tonight/GameDay";
+import { DeadlineSoon } from "@/components/tonight/Deadline";
 
 /**
  * The first screen, live.
@@ -124,6 +128,16 @@ export function Tonight({ initial, serverNow }: { initial: Briefing | null; serv
             </section>
           )}
           {b && <TonightsTable b={b} now={clock} flash={flash} onShare={share} />}
+          {/* Game day: who plays today, and — once the football is on — the
+              latest in my game and the rest of the league, right under it. */}
+          {b && phase && <PlayingToday b={b} now={clock} phase={phase} />}
+          {b && phase && <HomeGameDay b={b} now={clock} phase={phase} enabled={ready} />}
+          {/* The trade deadline, only in the week it closes. */}
+          {b && <DeadlineSoon teamId={b.me?.team_id ?? null} now={clock} enabled={ready} />}
+          {/* Alerts, offered once, to a manager with a team on a device that can take them. */}
+          {b?.me && <PushInvite />}
+
+          <Statement />
 
           {b && <Carousel b={b} live={phase === "live"} />}
           {/* A second call, on purpose: the room arrives after the card. */}
@@ -155,7 +169,10 @@ function Table({ b }: { b: Briefing }) {
           <li key={t.team_id} data-mine={t.team_id === b.me?.team_id} data-line={t.seed === b.league.playoff_teams}>
             <span className="num place__seed">{t.seed}</span>
             <Seal name={t.name} src={crestUrl(t.logo_path)} mine={t.team_id === b.me?.team_id} size={26} />
-            <span className="place__name">{t.name}{t.manager_name && <i> · {t.manager_name}</i>}</span>
+            <span className="place__name">
+              <TeamLink id={t.team_id} name={t.name} mine={t.team_id === b.me?.team_id}>{t.name}</TeamLink>
+              {t.manager_name && <i> · {t.manager_name}</i>}
+            </span>
             <span className="num place__rec">{t.wins}–{t.losses}{t.ties ? `–${t.ties}` : ""}</span>
           </li>
         ))}

@@ -4,7 +4,8 @@ import Link from "next/link";
 import { Newspaper, Share2 } from "lucide-react";
 import { PowerRankings } from "@/components/standings/PowerRankings";
 import { Reactions } from "@/components/feed/Reactions";
-import { recapHeading, type RecapLine, type RecapRow, type SettledBet, type WireCount } from "@/lib/recap";
+import { HowItHappened } from "@/components/recap/HowItHappened";
+import { recapHeading, type RecapLine, type RecapRow, type SettledBet, type WeekStory, type WireCount } from "@/lib/recap";
 import type { Outlook, Reaction } from "@/lib/types";
 
 /**
@@ -15,13 +16,13 @@ import type { Outlook, Reaction } from "@/lib/types";
  * under it are the league's verdict on the week, and around it sit the three
  * things the column does not say — where the table moved, how the wire moved,
  * and which bets the week decided — plus your own line, the same one that
- * was pushed.
+ * was pushed, and how the week happened, from the events stored on the day.
  *
  * Pure: every fact arrives as a prop, so /preview/recap renders it from a
  * fixture and tests/e2e/recap.spec.ts can read the sentences.
  */
 export function RecapPage({
-  recap, weeks, outlook, myTeamId, crestOf, mine, reactions, busy, onReact, onShare, wire, settled,
+  recap, weeks, outlook, myTeamId, crestOf, mine, reactions, busy, onReact, onShare, wire, settled, story = null,
 }: {
   recap: RecapRow | null;
   /** Every week the house has written up, newest first. */
@@ -37,6 +38,8 @@ export function RecapPage({
   onShare: () => void;
   wire: WireCount[];
   settled: SettledBet[];
+  /** `weekStory` over the week's stored events; null for a week with none. */
+  story?: WeekStory | null;
 }) {
   if (!recap) {
     return (
@@ -87,6 +90,8 @@ export function RecapPage({
           </div>
         </section>
       )}
+
+      {story && <HowItHappened story={story} week={recap.week} />}
 
       <PowerRankings outlook={outlook} myTeamId={myTeamId} crestOf={crestOf} />
 

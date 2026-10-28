@@ -51,3 +51,23 @@ test("the block says listing promises nothing", async ({ page }) => {
   await expect(page.getByText(/want a back/)).toBeVisible();
   await expect(page.getByRole("button", { name: "List yours" })).toBeVisible();
 });
+
+test("the deadline week counts down on the desk, on the league's clock", async ({ page }) => {
+  await page.goto("/preview/trades");
+  // Five weeks out it is a week number, and nothing more.
+  await expect(page.getByText("deadline: week 12")).toBeVisible();
+  await expect(page.getByText(/Trades close/)).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Deadline week" }).click();
+  await expect(page.getByText("deadline in 3 days")).toBeVisible();
+  await expect(page.getByText(/Trades close Tue 12:15 AM ET, after Monday night's game\. Anything still on the table then expires\./))
+    .toBeVisible();
+  await expect(page.getByRole("button", { name: "Make an offer" })).toBeEnabled();
+
+  await page.getByRole("button", { name: "Last day" }).click();
+  await expect(page.getByText("deadline in 5 hours")).toBeVisible();
+
+  await page.getByRole("button", { name: "Deadline gone" }).click();
+  await expect(page.getByText(/Trades close/)).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Make an offer" })).toBeDisabled();
+});

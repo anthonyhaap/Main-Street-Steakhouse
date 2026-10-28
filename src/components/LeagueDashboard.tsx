@@ -9,7 +9,7 @@ import {
 import type { BoardPick, Matchup, Pulse, Standing, Team } from "@/lib/types";
 import { fmtClock, pickLabel, snakeSlot, teamAtPick } from "@/lib/draft";
 import { crestUrl } from "@/lib/crest";
-import { Seal, fmtPts } from "@/components/ui";
+import { Seal, TeamLink, fmtPts } from "@/components/ui";
 import { CheckRow, Kpi, Meter, Ring, fmtDay, relTime } from "@/components/dash";
 
 export type Hub = {
@@ -257,8 +257,10 @@ export function LeagueDashboard({
                   const hp = Number(m.home_points), ap = Number(m.away_points);
                   return (
                     <div className="row" key={m.id} data-mine={mine} style={{ display: "block" }}>
-                      <Side name={nameOf(m.away_team_id)} pts={ap} win={ap > hp} />
-                      <Side name={nameOf(m.home_team_id)} pts={hp} win={hp > ap} />
+                      <Side id={m.away_team_id} mine={m.away_team_id === team?.id}
+                        name={nameOf(m.away_team_id)} pts={ap} win={ap > hp} />
+                      <Side id={m.home_team_id} mine={m.home_team_id === team?.id}
+                        name={nameOf(m.home_team_id)} pts={hp} win={hp > ap} />
                     </div>
                   );
                 })}
@@ -277,12 +279,17 @@ export function LeagueDashboard({
                   <div className="row" key={s.team_id} data-mine={s.team_id === team?.id}>
                     <span className="num eyebrow" style={{ width: 18 }}>{i + 1}</span>
                     <Seal name={s.name} src={crestOf(s.team_id)} mine={s.team_id === team?.id} size={28} />
-                    <span style={{ flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontWeight: 600 }}>
+                    <TeamLink
+                      id={s.team_id}
+                      name={s.name}
+                      mine={s.team_id === team?.id}
+                      style={{ flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontWeight: 600 }}
+                    >
                       {s.name}
                       {(s.manager_name ?? managerOf(s.team_id)) && (
                         <span style={{ color: "var(--dim)", fontWeight: 400 }}> · {s.manager_name ?? managerOf(s.team_id)}</span>
                       )}
-                    </span>
+                    </TeamLink>
                     <span className="num" style={{ fontSize: "var(--t-small)" }}>
                       {s.wins}-{s.losses}{s.ties ? `-${s.ties}` : ""}
                     </span>
@@ -343,14 +350,15 @@ export function LeagueDashboard({
                   <div className="mgr" key={m.team_id}>
                     <span className="mgr__slot">{m.draft_slot ?? "–"}</span>
                     <Seal name={m.name} src={crestOf(m.team_id)} mine={m.team_id === team?.id} size={28} />
-                    <span className="mgr__name">
+                    <TeamLink id={m.team_id} name={m.name} mine={m.team_id === team?.id}
+                      className="mgr__name tdoor">
                       <b>{m.name}</b>
                       {/* The person, never the address: emails stay on the invite screen. */}
                       <span>
                         {managerOf(m.team_id) || m.display_name
                           || (m.joined ? "Signed in" : m.invited ? "Invite sent" : "No manager yet")}
                       </span>
-                    </span>
+                    </TeamLink>
                     <span className="badge" data-tone={m.joined ? "ok" : m.invited ? "warn" : "danger"}>
                       {m.joined ? "In" : m.invited ? "Invited" : "Empty"}
                     </span>
@@ -462,13 +470,15 @@ function cronWords(schedule: string): string {
   return s;
 }
 
-function Side({ name, pts, win }: { name: string; pts: number; win: boolean }) {
+function Side({ id, name, pts, win, mine = false }: {
+  id?: string | null; name: string; pts: number; win: boolean; mine?: boolean;
+}) {
   return (
     <div style={{ display: "flex", justifyContent: "space-between", gap: "var(--s3)", padding: "3px 0" }}>
-      <span style={{
+      <TeamLink id={id} name={name} mine={mine} className="tlink" style={{
         color: win ? "var(--cream)" : "var(--muted)", fontWeight: win ? 600 : 400,
         whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-      }}>{name}</span>
+      }}>{name}</TeamLink>
       <span className="num" style={{ color: win ? "var(--wine)" : "var(--muted)", fontWeight: win ? 700 : 400 }}>
         {fmtPts(pts)}
       </span>

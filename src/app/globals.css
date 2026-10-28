@@ -118,6 +118,11 @@
      exactly to line its wordmark up with the content below. */
   --gutter: clamp(var(--s4), 3vw, var(--s6));
   --bottom-nav: 0px;
+  /* The top bar's full height. The app runs edge to edge (viewport-fit:
+     cover, black-translucent status bar), so on a notched phone the bar has
+     to reach up under the clock and push its contents below it. Everything
+     that sticks under the bar measures from this, not from a bare 68px. */
+  --topbar: calc(68px + env(safe-area-inset-top));
 }
 
 @media (max-width: 1180px) {
@@ -209,13 +214,15 @@ body {
   position: sticky;
   top: 0;
   z-index: 50;
-  height: 68px;
+  height: var(--topbar);
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top);
   /* The bar's ground spans the window — a sticky header that stopped at the
      shell's edge would leave the page showing through beside it. Its contents
      do not: past --shell-max they take the same inset the shell takes, so the
      crest sits directly above the first card rather than out at the glass.
      Below that width the max() picks the plain gutter and nothing moves. */
-  padding: 0 max(var(--gutter), calc((100% - var(--shell-max)) / 2 + var(--gutter)));
+  padding-inline: max(var(--gutter), calc((100% - var(--shell-max)) / 2 + var(--gutter)));
   /* The nav used to carry its own margin-left:auto, which — paired with the
      account cluster's margin-left:auto — centers it in the space *left over
      between the logo and that cluster*, not in the bar's full width. Since
@@ -359,6 +366,13 @@ body {
    a renamed tab must never scroll the phone sideways. */
 .tabbar__item > span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tabbar__item svg { width: 20px; height: 20px; }
+/* Five tabs on a 375px phone is 75px a label; "Game Center" fits in that at
+   a tighter track, and nothing else in the bar needs the air. */
+@media (max-width: 420px) { .tabbar__item { letter-spacing: 0.03em; } }
+/* At 320 a fifth is 64px, and "Game Center" (the tab while football is on)
+   needs about 70. Below 360 each tab starts from its own label and the spare
+   width is shared, so Chat and More give up what they never used. */
+@media (max-width: 360px) { .tabbar__item { flex: 1 1 auto; } }
 
 .page {
   flex: 1;
@@ -1067,6 +1081,17 @@ a.kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); border-c
 .recap__bets li { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); font-size: var(--t-small); }
 .recap__bets a { text-decoration: none; }
 .recap__bets a:hover { text-decoration: underline; text-underline-offset: 2px; }
+.recap__how .card__body { display: grid; gap: var(--s3); }
+.recap__games, .recap__moments { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s3); }
+.recap__games li, .recap__moments li { display: grid; gap: 2px; min-width: 0; }
+.recap__games li[data-mine="true"] { padding-left: var(--s3); box-shadow: inset 3px 0 0 var(--wine); }
+.recap__result { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); text-decoration: none; overflow-wrap: anywhere; }
+.recap__result:hover b { text-decoration: underline; text-underline-offset: 2px; }
+.recap__note { font-size: var(--t-small); color: var(--muted); overflow-wrap: anywhere; }
+.recap__tag { display: flex; gap: var(--s2); align-items: baseline; font: 700 var(--t-nano)/1.3 var(--sans); letter-spacing: 0.14em; text-transform: uppercase; color: var(--gold); }
+.recap__tag time { margin-left: auto; font-weight: 600; letter-spacing: 0.02em; text-transform: none; color: var(--dim); white-space: nowrap; }
+.recap__sub { margin-top: var(--s2); }
+.recap__how .recap__more { display: inline-flex; align-items: center; gap: 4px; justify-self: start; }
 /* The page's own PowerRankings card has no margin to lose above it. */
 .recap > .card[style] { margin-top: 0 !important; }
 
@@ -1109,6 +1134,27 @@ a.kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); border-c
 .bet__actions .btn { flex: 1 1 auto; }
 .bet__wait, .bet__ref { margin: 0; color: var(--dim); font-size: var(--t-small); }
 .bet__ruling { display: grid; gap: var(--s2); padding-top: var(--s3); border-top: 1px solid var(--rule); }
+
+/* A spread bet's two sides: each manager's team and line, and the score. */
+.bet__spread { display: grid; gap: var(--s2); }
+.bet__side {
+  display: flex; align-items: center; gap: var(--s2); min-width: 0;
+  padding: var(--s2) var(--s3); border: 1px solid var(--rule); border-radius: var(--r-sm);
+  background: var(--ink-1);
+}
+.bet__side[data-covering="true"] { border-color: var(--win); box-shadow: inset 3px 0 0 var(--win); }
+.bet__line { font-weight: 700; white-space: nowrap; }
+.bet__who { flex: 1; min-width: 0; color: var(--muted); font-size: var(--t-small); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bet__score { font-weight: 700; font-size: var(--t-head); }
+
+/* The dialog's side picker: two teams, one tap. */
+.spread-pick { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s2); }
+.spread-pick__opt {
+  display: flex; align-items: center; justify-content: center; gap: var(--s2);
+  padding: var(--s3); border: 1px solid var(--rule); border-radius: var(--r-sm);
+  background: var(--ink-1); color: inherit; font: 700 var(--t-body)/1 var(--sans); cursor: pointer;
+}
+.spread-pick__opt[aria-pressed="true"] { border-color: var(--gold-lit); box-shadow: 0 0 0 3px var(--gold-wash); }
 
 /* The card a push pointed at: a ring that fades once the eye has found it. */
 .bet[data-target="true"] { animation: bet-ring 4s var(--ease) forwards; }
@@ -1366,29 +1412,44 @@ a.kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); border-c
   align-items: center;
   gap: var(--s2);
   padding: 9px var(--s3);
-  grid-template-columns: 38px minmax(0, 1fr) 58px 30px;
+  grid-template-columns: 38px minmax(0, 1fr) 58px auto;
   border-left: 2px solid transparent;
   transition: background 0.15s var(--ease), border-color 0.15s var(--ease);
 }
 .plr + .plr { border-top: 1px solid var(--rule-soft); }
 .plr:hover { background: var(--ink-2); }
 .plr[data-selected="true"] { background: var(--gold-wash); border-left-color: var(--gold-lit); }
-.plr[data-target="true"]   { background: var(--gold-haze); border-left-color: var(--gold-dim); }
 .plr[data-locked="true"]   { opacity: 0.55; }
 .plr[data-empty="true"]    { background: #b3341f08; }
 
 .plr__match, .plr__form, .plr__use { display: none; min-width: 0; }
+.plr__when { color: var(--muted); white-space: nowrap; }
 
 @container (min-width: 540px) {
-  .plr { gap: var(--s3); padding: 9px var(--s4); grid-template-columns: 44px minmax(0, 1fr) 152px 66px 30px; }
+  .plr__when { display: none; }
+}
+
+/* Below the width where the extra columns arrive, a long name takes a second
+   line rather than an ellipsis. The row is already three lines tall with the
+   kickoff in the sub; height is the thing a phone has to spare. */
+@container (max-width: 539px) {
+  .plr { gap: 10px; padding: 10px var(--s3); grid-template-columns: 36px minmax(0, 1fr) auto auto; }
+  .plr .pbadge__name {
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+    white-space: normal; line-height: 1.25;
+  }
+}
+
+@container (min-width: 540px) {
+  .plr { gap: var(--s3); padding: 9px var(--s4); grid-template-columns: 44px minmax(0, 1fr) 152px 66px auto; }
   .plr__match { display: flex; align-items: center; }
 }
 @container (min-width: 700px) {
-  .plr { grid-template-columns: 44px minmax(0, 1fr) 152px 108px 66px 30px; }
+  .plr { grid-template-columns: 44px minmax(0, 1fr) 152px 108px 66px auto; }
   .plr__form { display: block; }
 }
 @container (min-width: 880px) {
-  .plr { grid-template-columns: 44px minmax(0, 1fr) 152px 108px minmax(120px, 158px) 66px 30px; }
+  .plr { grid-template-columns: 44px minmax(0, 1fr) 152px 108px minmax(120px, 158px) 66px auto; }
   .plr__use { display: block; }
 }
 
@@ -1428,19 +1489,58 @@ a.kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); border-c
   color: var(--gold); white-space: nowrap;
 }
 .plr__act {
-  display: grid; place-items: center;
-  width: 30px; height: 30px;
-  border: 1px solid transparent; border-radius: 50%;
-  background: none; color: var(--faint); cursor: pointer;
+  display: inline-flex; align-items: center; gap: 4px;
+  height: 28px; padding: 0 10px;
+  border: 1px solid var(--rule-hard); border-radius: 999px;
+  background: none; color: var(--muted); cursor: pointer;
+  font: 600 var(--t-micro)/1 var(--sans); letter-spacing: 0.04em; text-transform: uppercase;
   transition: background 0.15s var(--ease), color 0.15s var(--ease), border-color 0.15s var(--ease);
 }
-.plr__act:hover:not(:disabled) { background: var(--ink-1); border-color: var(--rule-hard); color: var(--wine); }
-.plr__act:disabled { opacity: 0.25; cursor: not-allowed; }
-/* While a move is in flight the whole row is one big drop target. */
-.plr__drop {
-  position: absolute; inset: 0; z-index: 1;
-  border: 0; background: none; cursor: pointer; font: inherit; color: transparent;
+/* On a phone the word goes and the arrows stay, in a round thumb-sized target.
+   "Swap" was sixty pixels of every row, taken straight out of the player's
+   name; the button keeps its aria-label, so nothing is lost to a reader. */
+@container (max-width: 539px) {
+  .plr__act { width: 36px; height: 36px; padding: 0; justify-content: center; }
+  .plr__act-label { display: none; }
 }
+.plr__act:hover:not(:disabled) { background: var(--ink-1); color: var(--wine); }
+.plr__act[data-on="true"] { background: var(--gold-wash); border-color: var(--gold-lit); color: var(--gold); }
+.plr__act:disabled { opacity: 0.25; cursor: not-allowed; }
+
+/* The options that drop open under a row when its Swap is pressed. Indented
+   past the slot pill and edged in gold so it reads as belonging to the row
+   above it, not as another roster line. */
+.swap {
+  margin: 0 var(--s3) var(--s2) calc(var(--s3) + 12px);
+  padding: var(--s2);
+  border-left: 2px solid var(--gold-lit);
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+  background: var(--gold-haze);
+}
+.swap__head {
+  display: flex; justify-content: space-between; align-items: center; gap: var(--s2);
+  padding: 2px 4px var(--s2);
+  font-size: var(--t-small); color: var(--muted);
+}
+.swap__none { padding: 4px; font-size: var(--t-small); color: var(--faint); font-style: italic; }
+.swap__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.swap__opt {
+  display: grid; align-items: center; gap: var(--s2);
+  grid-template-columns: 38px minmax(0, 1fr) auto auto;
+  width: 100%; padding: 7px var(--s2);
+  border: 1px solid var(--rule-soft); border-radius: var(--r-sm);
+  background: var(--ink-1); color: inherit; font: inherit; text-align: left; cursor: pointer;
+  transition: background 0.15s var(--ease), border-color 0.15s var(--ease);
+}
+.swap__opt:hover:not(:disabled) { background: var(--gold-wash); border-color: var(--gold-lit); }
+.swap__opt:disabled { opacity: 0.5; cursor: not-allowed; }
+.swap__who { min-width: 0; }
+.swap__who b {
+  display: block; font-weight: 600; font-size: var(--t-small);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.swap__who span { display: block; margin-top: 2px; font-size: var(--t-micro); color: var(--dim); letter-spacing: 0.04em; }
+.swap__proj { font-size: var(--t-micro); font-weight: 600; color: var(--gold); white-space: nowrap; }
 
 /* --- the lineup coach --------------------------------------------------- */
 /* A change is two players and the reasons for both, so the unit here is a pair
@@ -1747,7 +1847,16 @@ a.kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); border-c
   overflow: hidden;
   display: grid; place-items: center;
 }
-.pl-shot img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pl-shot { container-type: size; }
+/* The image is drawn at 132px with its size inline, and the frame is only
+   that big on a wide screen — on a phone it is 72, at most widths between it
+   is under 132. So whatever is inside follows the frame instead: the photo
+   or logo fills it, the fallback monogram is sized off its width, and a
+   logo's breathing room stays the same share of the disc (18 of 132). */
+.pl-shot > img, .pl-shot > span { width: 100% !important; height: 100% !important; }
+.pl-shot > span { font-size: 36cqw !important; }
+.pl-shot[data-logo="true"] > img { padding: 13.6cqw !important; }
+.pl-shot img { display: block; }
 .pl-id { min-width: 0; flex: 1; }
 .pl-id h1 {
   margin: 0;
@@ -1784,7 +1893,9 @@ a.kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); border-c
 
 .proj { display: flex; gap: var(--s2); padding: var(--s4) var(--s5); overflow-x: auto; }
 .proj__wk {
-  flex: 0 0 auto; min-width: 74px;
+  /* Growing, so two or three weeks share the strip instead of huddling at
+     its left edge; a full season still scrolls, since none shrinks below 74. */
+  flex: 1 0 74px; max-width: 140px;
   border: 1px solid var(--rule); border-radius: var(--r-sm);
   background: var(--ink-1); padding: var(--s3) var(--s2);
   display: grid; gap: 3px; justify-items: center; text-align: center;
@@ -1832,7 +1943,27 @@ a.kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); border-c
    the opponent in the hero all wear it. Inherits the weight and colour of
    wherever it sits, and only says it is a link on hover. */
 .tlink { text-decoration: none; color: inherit; }
-.tlink:hover { color: var(--wine); text-decoration: underline; text-underline-offset: 2px; }
+.tlink[href]:hover { color: var(--wine); text-decoration: underline; text-underline-offset: 2px; }
+
+/* The same door, drawn around the whole block that identifies a team — crest,
+   name, manager, record, score — rather than around the name alone. A nine-
+   character name is a target a thumb misses; the row it sits in is not, and
+   every board in the app has a block like this already.
+
+   It brings no layout of its own on purpose. It is always put ON the element
+   that already carried the flex or the grid, so the anchor replaces that box
+   instead of adding one inside it — nothing reflows, and the rule stays usable
+   on a dozen boards that lay their team blocks out a dozen ways.
+
+   Underlining is left to `.tlink`: a crest and two numbers with a line under
+   them reads as a mistake, so a block door tints and rims its crest instead.
+
+   Scoped to `[href]` throughout: a team with no id wears the same class on the
+   same inert anchor, and a block that tints under the cursor without going
+   anywhere is a worse lie than a block that does nothing. */
+.tdoor { text-decoration: none; color: inherit; }
+.tdoor[href]:hover { color: var(--wine); }
+.tdoor[href]:hover .seal { border-color: var(--gold-lit); }
 
 /* --- draft: the projection column ---------------------------------------- */
 
@@ -2369,6 +2500,32 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
 .tonight { gap: clamp(var(--s5), 4vw, var(--s7)); }
 .tonight__foot { text-align: center; padding: var(--s4) 0 var(--s2); }
 
+/* The Commissioner's statement: a memo on letterhead, set in the serif. */
+.memo {
+  display: grid;
+  gap: var(--s3);
+  min-width: 0;
+  padding: clamp(var(--s5), 4vw, var(--s7)) clamp(var(--s4), 4vw, var(--s6));
+  background: var(--ink-1);
+  border: 1px solid var(--rule);
+  border-top: 3px solid var(--wine);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-2);
+  font-family: var(--serif);
+  font-size: 1.0625rem;
+  line-height: 1.55;
+  color: var(--cream);
+}
+.memo p { margin: 0; max-width: 64ch; overflow-wrap: anywhere; }
+.memo__title { margin: 0; font-size: var(--t-title); text-transform: uppercase; letter-spacing: 0.01em; }
+.memo__rule { display: block; height: 1px; background: var(--rule-hard); }
+.memo__qa { display: grid; gap: var(--s1); margin: 0; }
+.memo__qa dt { font-weight: 700; margin-top: var(--s2); }
+.memo__qa dd { margin: 0; }
+.memo__sign { display: grid; gap: var(--s2); margin-top: var(--s3); }
+.memo__hand { font-style: italic; font-size: 2rem; line-height: 1; color: var(--ink-warm); }
+.memo__note { justify-self: center; text-align: center; margin-top: var(--s4); font-size: var(--t-small); font-style: italic; color: var(--muted); }
+
 .tt {
   position: relative;
   display: grid;
@@ -2637,6 +2794,34 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
 .nudge__body p svg { vertical-align: -2px; color: var(--wine); }
 .nudge__body p b { color: var(--cream); }
 .nudge__body .btn { justify-self: start; }
+/* The front page's one-time offer of alerts: the nudge's card, at rest. */
+.pinvite {
+  display: flex; gap: var(--s3); align-items: flex-start;
+  padding: var(--s4) var(--s4) var(--s4) var(--s5);
+  background: var(--ink-1);
+  border: 1px solid var(--gold-dim); border-left: 3px solid var(--gold-lit);
+  border-radius: var(--r);
+}
+.pinvite > svg { flex: none; margin-top: 2px; color: var(--gold-lit); }
+.pinvite__body { display: grid; gap: 6px; flex: 1; min-width: 0; font-size: var(--t-small); line-height: 1.5; color: var(--muted); }
+.pinvite__body b { color: var(--cream); font-size: var(--t-body); }
+.pinvite__err { color: var(--lose); }
+.pinvite__act { display: flex; flex-wrap: wrap; gap: var(--s2); margin-top: 4px; }
+/* The trade deadline in the week it closes: a gold rule down the side, wine on the last day. */
+.tdl { border-left: 3px solid var(--gold-lit); }
+.tdl[data-phase="day"] { border-left-color: var(--wine); }
+.tdl__eyebrow { display: inline-flex; align-items: center; gap: 6px; }
+.tdl__left { font-family: var(--serif); font-size: var(--t-body); color: var(--cream); white-space: nowrap; }
+.tdl[data-phase="day"] .tdl__left { color: var(--wine); }
+.tdl__body { display: grid; gap: 6px; }
+.tdl__line, .tdl__play { margin: 0; font-size: var(--t-small); line-height: 1.5; color: var(--muted); }
+.tdl__line b { color: var(--cream); }
+.tdl .tdl__go { display: inline-flex; align-items: center; gap: 4px; justify-self: start; margin-top: 2px; }
+/* …and on the desk itself. */
+.desk__soon { color: var(--gold); }
+.desk__soon[data-phase="day"] { color: var(--wine); }
+.desk__deadline { margin: 0; font-size: var(--t-small); line-height: 1.5; color: var(--muted); }
+.desk__deadline b { color: var(--cream); }
 .nudge__close {
   display: grid; place-items: center;
   min-width: 44px; min-height: 44px;
@@ -2754,6 +2939,20 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
 .ledger__row i { font-style: normal; color: var(--dim); font-size: var(--t-micro); display: block; margin-top: 2px; }
 .ledger__row .num:last-child { font-family: var(--sans); font-weight: 500; font-size: 1.05rem; letter-spacing: -0.02em; }
 .ledger__row .num[data-tone="gold"] { color: var(--gold); }
+.ledger__link { color: inherit; text-decoration: none; min-width: 0; }
+.ledger__link:hover b { color: var(--gold); text-decoration: underline; }
+
+/* Steakhouse Sunday on the wall. */
+.sunday-wall__head {
+  display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px var(--s3);
+  margin: var(--s4) 0 var(--s2); padding: 0 var(--s2);
+}
+.table-scroll { overflow-x: auto; }
+.sunday-lines { width: 100%; border-collapse: collapse; font-size: var(--t-small); }
+.sunday-lines th, .sunday-lines td { padding: 8px var(--s3); text-align: right; font-variant-numeric: tabular-nums; }
+.sunday-lines th:first-child { text-align: left; font-weight: 600; }
+.sunday-lines thead th { font-size: var(--t-micro); color: var(--dim); font-weight: 600; }
+.sunday-lines tbody tr + tr { border-top: 1px solid var(--rule-soft); }
 
 .rival {
   display: grid; gap: 6px;
@@ -2835,13 +3034,13 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
    ========================================================================== */
 
 /* --- the ticker: the other tables, run along the top -------------------- */
-/* The topbar is sticky at 68px; the ticker sits right under it and stays
+/* The topbar is sticky at --topbar; the ticker sits right under it and stays
    stuck there too, so the rest of the room's scores never cost a scroll back
    up. Dark rather than paper, on purpose — it borrows the plaque/share-card
    surface so it reads as a scoreboard and not one more card on the page. */
 .ticker {
   position: sticky;
-  top: 68px;
+  top: var(--topbar);
   z-index: 40;
   background:
     radial-gradient(1200px 80px at 50% -60%, var(--ink-warm), transparent 70%),
@@ -3320,12 +3519,12 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
 /* --- the sticky stack --------------------------------------------------- */
 /* One sticky element under the top bar, not two: the rail lives here always
    and the scoreline drops in under it once the header it belongs to has gone
-   past. Two separately sticky boxes would each claim `top: 68px` and overlap.
+   past. Two separately sticky boxes would each claim `top: var(--topbar)` and overlap.
    Dark rather than paper, borrowing the plaque surface, so the whole stack
    reads as one piece of scoreboard furniture. */
 .mv-stick {
   position: sticky;
-  top: 68px;
+  top: var(--topbar);
   z-index: 40;
   background:
     radial-gradient(1200px 80px at 50% -60%, var(--ink-warm), transparent 70%),
@@ -3821,6 +4020,16 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
 }
 .prof__notes b { color: var(--ink); }
 
+.prof__sun {
+  margin: 0; display: grid; gap: var(--s2) var(--s4);
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+}
+.prof__sun div { display: grid; gap: 2px; padding: 6px 0; border-bottom: 1px solid var(--rule-soft); }
+.prof__sun dt { font: 700 var(--t-nano)/1.2 var(--sans); letter-spacing: 0.12em; text-transform: uppercase; color: var(--dim); }
+.prof__sun dd { margin: 0; font: 400 var(--t-head)/1.1 var(--serif); color: var(--ink); }
+.prof__sunlines { list-style: none; margin: var(--s3) 0 0; padding: 0; display: grid; gap: 4px; font-size: var(--t-small); color: var(--muted); }
+.prof__sunlines b { color: var(--ink); }
+
 /* ------------------------------------------------------ power rankings -- */
 /* A list, not a table: every row carries a sentence, and a sentence in a cell
    wraps into a column two words wide. */
@@ -4149,7 +4358,7 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
    page that was itself taller than the phone and the last row hid behind the
    tab bar.
 
-   The frame is the viewport minus the chrome the shell already owns: the 68px
+   The frame is the viewport minus the chrome the shell already owns: the --topbar
    top bar and the tab bar (--bottom-nav, which the shell reserves as its own
    padding).
    ========================================================================== */
@@ -4206,7 +4415,7 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
      size to its content and quietly ignores `height`. The frame has to opt out
      of growing before it can be given one. */
   flex: 0 0 auto;
-  height: calc(100dvh - 68px - var(--bottom-nav));
+  height: calc(100dvh - var(--topbar) - var(--bottom-nav));
 }
 
 .draft-room {
@@ -4261,9 +4470,26 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
 }
 
 /* A thumb at a tailgate holding a phone in one hand. The room's own controls
-   get the 44px the tab bar already takes for granted; the rest of the app is
-   read sitting down and keeps its tighter sizes. */
+   get the 44px the tab bar already takes for granted; so do game day's (below,
+   and sunday.css). The rest of the app is read sitting down and keeps its
+   tighter sizes. */
 @media (pointer: coarse) {
+  /* The front page, the matchup and the recap are the other screens of a
+     Sunday; their text links keep their look and gain a target (see
+     sunday.css, "thumbs"). */
+  .room__head a.eyebrow, .club__on, .club__read, .club__foot a, .recap__result, .recap__bets a,
+  .pwr__name .tlink, .mhead__name .tlink { position: relative; }
+  .room__head a.eyebrow::after, .club__on::after, .club__read::after, .club__foot a::after, .recap__result::after,
+  .recap__bets a::after, .pwr__name .tlink::after, .mhead__name .tlink::after {
+    content: ""; position: absolute; inset: -12px -8px;
+  }
+  /* The matchup's team name clips for its ellipsis, and the clip would cut
+     the reach back to the words; so its box grows by the reach, and gives it
+     back in margin, and nothing moves. */
+  .mhead__name { padding-block: 10px; margin-block: -6px -10px; }
+  /* The bets sit a row apart: half the reach, so one never takes the next. */
+  .recap__bets a::after { inset: -4px -8px; }
+  .recap__foot .reaction { min-width: 40px; min-height: 36px; }
   .draft-room .btn[data-size="sm"]   { min-height: 40px; padding: 8px 15px; }
   .draft-room .btn[data-size="icon"] { width: 42px; height: 42px; min-height: 42px; }
   .draft-room .segmented__opt        { padding: 10px 15px; }
@@ -5053,4 +5279,127 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
 
 @media (max-width: 480px) {
   .pickem-team { min-height: 84px; padding: var(--s3) var(--s1); }
+}
+
+/* --- the matchup moment, and this game's story ------------------------- */
+/* One box under the scoreboard when something is worth saying — a lead that
+   just changed hands, a side down to its last man — and the game's own
+   events below it. Wine for what is live, brass for what is merely tense. */
+.mmoment {
+  display: grid; gap: 2px;
+  padding: 10px 14px; border-radius: var(--r-sm);
+  background: var(--gold-haze); border: 1px solid var(--gold-dim); border-left: 3px solid var(--gold);
+}
+.mmoment[data-tone="hot"] { background: var(--wine-wash); border-color: var(--wine); border-left-color: var(--wine); }
+.mmoment__tag { font: 800 var(--t-nano)/1.3 var(--sans); letter-spacing: 0.18em; text-transform: uppercase; color: var(--gold); }
+.mmoment[data-tone="hot"] .mmoment__tag { color: var(--wine); }
+.mmoment__title { font: 600 var(--t-body)/1.3 var(--serif); color: var(--cream); }
+.mmoment__line { font-size: var(--t-small); color: var(--muted); }
+
+.mstory { display: grid; gap: var(--s2); }
+.mstory__head { display: flex; justify-content: space-between; align-items: baseline; }
+.mstory__more { border: 0; background: none; padding: 4px 0; cursor: pointer; font: 700 var(--t-micro)/1 var(--sans); color: var(--wine); }
+.mstory__list { list-style: none; margin: 0; padding: 0; display: grid; }
+.mstory__list li {
+  display: grid; gap: 1px; padding: 8px 0 8px 12px;
+  border-left: 2px solid var(--rule-soft); border-bottom: 1px solid var(--rule-soft);
+}
+.mstory__list li[data-tone="hot"] { border-left-color: var(--wine); }
+.mstory__list li[data-tone="gold"] { border-left-color: var(--gold); }
+.mstory__tag { display: flex; gap: 8px; font: 800 var(--t-nano)/1.3 var(--sans); letter-spacing: 0.16em; text-transform: uppercase; color: var(--dim); }
+.mstory__tag time { margin-left: auto; letter-spacing: 0.02em; text-transform: none; font-weight: 600; }
+.mstory__list b { font-size: var(--t-small); font-weight: 700; color: var(--cream); }
+.mstory__list b em { font-style: normal; color: var(--win); }
+.mstory__list b em[data-neg="true"] { color: var(--lose); }
+.mstory__list span:not(.mstory__tag) { font-size: var(--t-micro); color: var(--muted); }
+
+/* --- the front page on a game day: who plays today ---------------------- */
+.today {
+  display: grid; gap: 4px;
+  padding: var(--s3) var(--s4);
+  border: 1px solid var(--gold-dim); border-left: 3px solid var(--gold);
+  border-radius: var(--r-sm); background: var(--gold-haze);
+}
+.today p { margin: 0; font: 400 var(--t-body)/1.4 var(--serif); color: var(--cream); }
+.today b { font-family: var(--sans); font-size: var(--t-small); letter-spacing: 0.04em; }
+
+/* ============================================================================
+   PHONE DENSITY
+
+   Every card was built for a laptop's 24px of inner padding, and inside a
+   page that already insets sixteen it left a 390px phone about 300px for the
+   thing the card holds. Below 480px the frame gives way to the content: the
+   cards take in their padding, the hero's buttons share the width instead of
+   each leaving half a row empty, and the standings stop needing a sideways
+   scroll to reach the playoff odds.
+   ========================================================================== */
+
+@media (max-width: 480px) {
+  .card__head { padding: var(--s3) var(--s4); gap: var(--s2) var(--s3); }
+  .card__body { padding: var(--s4); }
+  .row { padding-block: 10px; }
+
+  .hero { padding: var(--s5) var(--s4); gap: var(--s5); }
+  .hero__cta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s2); margin-top: var(--s4); }
+  .hero__cta > .btn { min-height: 44px; padding-inline: var(--s2); }
+  /* The way into the room is the one thing on the card to do; it gets the row. */
+  .hero__cta > .btn:first-child { grid-column: 1 / -1; }
+  /* With the first on its own row, an even count leaves the last one alone
+     on the bottom row; it takes that row rather than half of it. */
+  .hero__cta > .btn:last-child:nth-child(even) { grid-column: 1 / -1; }
+  .dial__svg { width: 136px; height: 136px; }
+}
+
+/* The standings table. Padding lives here rather than inline so a phone can
+   take it in; on a laptop it is the same 12/16 it always was. */
+.stand { min-width: var(--stand-min, 0); }
+.stand th, .stand td { padding: var(--s3) var(--s4); }
+.stand__name { white-space: nowrap; }
+
+@media (max-width: 640px) {
+  .stand { min-width: 0; }
+  .stand th, .stand td { padding: 10px 4px; }
+  .stand th:first-child, .stand td:first-child { padding-left: 10px; }
+  .stand th:last-child, .stand td:last-child { padding-right: 10px; }
+  .stand th { letter-spacing: 0.04em; }
+  /* A name that does not fit takes a second line, not the table's width. */
+  .stand td[data-col="team"] { min-width: 112px; }
+  /* The crest is a second copy of the name; on a phone the width it took is
+     what lets the bye odds onto the screen. Your row keeps its gold wash. */
+  .stand td[data-col="team"] .seal { display: none; }
+  .stand__pct { min-width: 0 !important; }
+  .stand__name { white-space: normal; line-height: 1.25; }
+  /* The percentage is the reading; the bar beside it is a second copy of it. */
+  .stand__meter { display: none !important; }
+  .stand:not([data-ties="true"]) [data-col="ties"] { display: none; }
+}
+
+/* A message's time and its reactions share one line, with the time pushed to
+   the end of it. `flex-end` so a reply button or a reaction pill, which are
+   taller than the stamp, sit on the same baseline instead of the stamp
+   floating between them. */
+.row__foot { display: flex; align-items: flex-end; gap: 6px; }
+.row__stamp {
+  margin-left: auto; padding-bottom: 5px;
+  color: var(--dim); font-size: var(--t-micro); white-space: nowrap;
+}
+
+/* A trade's answers share their row evenly on a phone — three buttons where
+   two used to fit and the third sat alone on a line under them. */
+.offer__acts { display: flex; gap: var(--s2); flex-wrap: wrap; }
+
+@media (max-width: 480px) {
+  .offer__acts { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
+  .offer__acts > .btn { min-height: 40px; padding-inline: 6px; letter-spacing: 0.08em; }
+
+  /* A row of a date and a note about it: on a phone the note goes under the
+     date rather than squeezing it onto two lines. */
+  .row--stack-sm { flex-wrap: wrap; row-gap: 2px; }
+  .row--stack-sm > * { flex-basis: 100%; }
+
+  /* The player page's header: a smaller face, top-aligned, so the name and
+     its badges get the width instead of the headshot's half of the card. */
+  .pl-hero__top { padding: var(--s5) var(--s4) var(--s4); gap: var(--s3); align-items: flex-start; flex-wrap: nowrap; }
+  .pl-shot { width: 72px; height: 72px; }
+  .proj { padding: var(--s3) var(--s4); }
 }

@@ -1,11 +1,10 @@
 "use client";
 
 import { useMemo } from "react";
-import Link from "next/link";
 import { Trophy } from "lucide-react";
 import type { Outlook } from "@/lib/types";
 import { SIMS, oddsCanSeparate, projectPlayoffs, rankKey, type PlayoffProjection } from "@/lib/playoffs";
-import { Seal, SkeletonRows, fmtPts } from "@/components/ui";
+import { Seal, SkeletonRows, TeamLink, fmtPts } from "@/components/ui";
 import { Meter } from "@/components/dash";
 
 /**
@@ -50,6 +49,8 @@ export function StandingsBoard({ outlook, myTeamId, crestOf }: {
     : 0;
   const started = outlook?.matchups.some((m) => m.played) ?? false;
   const showBye = (outlook?.playoff_byes ?? 0) > 0 && separable;
+  // A ties column of nothing but zeros is the first thing a phone drops.
+  const anyTies = outlook?.teams.some((t) => t.ties > 0) ?? false;
   const heads = separable
     ? ["", "Team", "W", "L", "T", "PF", "PA", "Diff", "Proj.", "Playoffs", ...(showBye ? ["Bye"] : [])]
     // Every other column is a zero in every row. A column of zeros is not data.
@@ -91,17 +92,17 @@ export function StandingsBoard({ outlook, myTeamId, crestOf }: {
           </div>
 
           <div className="scroll" style={{ overflowX: "auto" }}>
-            <table style={{
+            <table className="stand" data-ties={anyTies} style={{
               width: "100%", borderCollapse: "collapse",
-              minWidth: !separable ? 380 : showBye ? 640 : 560,
+              ["--stand-min" as string]: `${!separable ? 380 : showBye ? 640 : 560}px`,
             }}>
               <thead>
                 <tr>
                   {heads.map((h, i) => (
                     <th key={i} className={NARROW.has(h) ? "eyebrow hide-sm" : "eyebrow"} scope="col"
+                      data-col={h === "T" ? "ties" : h === "Team" ? "team" : undefined}
                       style={{
                         textAlign: h === "Team" ? "left" : "right",
-                        padding: "var(--s3) var(--s4)",
                         borderBottom: "1px solid var(--rule)", whiteSpace: "nowrap",
                       }}>
                       {h}
@@ -126,17 +127,26 @@ export function StandingsBoard({ outlook, myTeamId, crestOf }: {
                         : byeLine ? "1px dashed var(--gold-dim)"
                         : "1px solid var(--rule-soft)",
                     }}>
-                      <td className="num eyebrow" style={{ padding: "var(--s3) var(--s4)" }}>
+                      <td className="num eyebrow">
                         {separable ? i + 1 : "–"}
                       </td>
-                      <td style={{ padding: "var(--s3) var(--s4)" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: "var(--s2)" }}>
+                      <td data-col="team">
+                        {/* Every team is a door to its desk — yours included,
+                            which is just /team. The crest and the manager's
+                            name are inside the door with the team's: the three
+                            of them are what a thumb aims at, and the name on
+                            its own is eight characters of target. */}
+                        <TeamLink
+                          id={t.id}
+                          name={t.name}
+                          mine={mine}
+                          className="tdoor"
+                          style={{ display: "flex", alignItems: "center", gap: "var(--s2)" }}
+                        >
                           <Seal name={t.name} src={crestOf?.(t.id) ?? null} mine={mine} size={28} />
                           <div style={{ minWidth: 0 }}>
-                            {/* Every name is a door to that team's desk —
-                                yours included, which is just /team. */}
-                            <div style={{ whiteSpace: "nowrap", fontWeight: mine ? 600 : 500 }}>
-                              <Link className="tlink" href={mine ? "/team" : `/team?id=${t.id}`}>{t.name}</Link>
+                            <div className="stand__name" style={{ fontWeight: mine ? 600 : 500 }}>
+                              {t.name}
                             </div>
                             {t.manager_name && (
                               <div style={{ fontSize: "var(--t-micro)", color: "var(--dim)", whiteSpace: "nowrap", marginTop: 1 }}>
@@ -144,11 +154,11 @@ export function StandingsBoard({ outlook, myTeamId, crestOf }: {
                               </div>
                             )}
                           </div>
-                        </div>
+                        </TeamLink>
                       </td>
                       <td className="num" style={cell}>{t.wins}</td>
                       <td className="num" style={cell}>{t.losses}</td>
-                      <td className="num" style={{ ...cell, color: "var(--dim)" }}>{t.ties}</td>
+                      <td className="num" data-col="ties" style={{ ...cell, color: "var(--dim)" }}>{t.ties}</td>
                       {separable && (
                         <>
                           <td className="num" style={cell}>{fmtPts(pf)}</td>
@@ -156,7 +166,7 @@ export function StandingsBoard({ outlook, myTeamId, crestOf }: {
                           <td className="num hide-sm" style={{ ...cell, color: diff >= 0 ? "var(--win)" : "var(--lose)" }}>
                             {diff >= 0 ? "+" : ""}{diff.toFixed(1)}
                           </td>
-                          <td className="num" style={{ ...cell, color: "var(--muted)" }} title="Projected final record">
+                          <td className="num hide-sm" style={{ ...cell, color: "var(--muted)" }} title="Projected final record">
                             {p ? `${p.proj_wins.toFixed(1)}–${p.proj_losses.toFixed(1)}` : "—"}
                           </td>
                           <td style={cell}><Odds p={p} kind="playoff" /></td>
@@ -175,7 +185,7 @@ export function StandingsBoard({ outlook, myTeamId, crestOf }: {
               <>
                 <span className="eyebrow"><i style={swatch("var(--gold-lit)")} /> Playoff line</span>
                 {showBye && <span className="eyebrow"><i style={{ ...swatch("transparent"), borderTop: "1px dashed var(--gold-dim)" }} /> Bye line</span>}
-                <span className="eyebrow" style={{ marginLeft: "auto" }}>Proj. is the expected final record</span>
+                <span className="eyebrow hide-sm" style={{ marginLeft: "auto" }}>Proj. is the expected final record</span>
               </>
             ) : (
               <span className="eyebrow">Listed alphabetically · no seeding until week one</span>
@@ -209,21 +219,24 @@ function Pct({ value, muted = false }: { value: number; muted?: boolean }) {
   const label = r <= 0 ? "<1%" : r >= 100 ? ">99%" : `${r}%`;
   return (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 8, justifyContent: "flex-end" }}>
-      <span className="num" style={{ minWidth: 40, textAlign: "right", color: muted || value < 50 ? "var(--muted)" : "var(--cream)" }}>
+      <span className="num stand__pct" style={{ minWidth: 40, textAlign: "right", color: muted || value < 50 ? "var(--muted)" : "var(--cream)" }}>
         {label}
       </span>
-      <span style={{ width: 54, display: "inline-block" }}>
+      <span className="stand__meter" style={{ width: 54, display: "inline-block" }}>
         <Meter pct={value} tone={value >= 50 ? "ok" : undefined} />
       </span>
     </span>
   );
 }
 
-const cell: React.CSSProperties = { padding: "var(--s3) var(--s4)", textAlign: "right", whiteSpace: "nowrap" };
-/* Points against and the difference are the two a phone does without: both
-   follow from PF and the record, and with them the table scrolled sideways
-   on every phone in the league. */
-const NARROW = new Set(["PA", "Diff"]);
+// Padding lives in the sheet (`.stand td`) so a phone can take it in.
+const cell: React.CSSProperties = { textAlign: "right", whiteSpace: "nowrap" };
+/* Points against, the difference and the projected record are the ones a
+   phone does without: the first two follow from PF and the record, the third
+   is what the playoff odds already say as a percentage. With them the table
+   scrolled sideways on every phone in the league, and the odds — the column
+   this board exists for — were the ones off the edge. */
+const NARROW = new Set(["PA", "Diff", "Proj."]);
 
 const swatch = (color: string): React.CSSProperties => ({
   display: "inline-block", width: 18, height: 0, borderTop: `2px solid ${color}`,

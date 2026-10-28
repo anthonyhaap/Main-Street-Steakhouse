@@ -6,6 +6,9 @@ import { useLive } from "@/lib/live";
 import { useSession } from "@/lib/session";
 import { LEAGUE_ID } from "@/lib/config";
 import type { HistoricalStanding, History } from "@/lib/history";
+import type { SundayHistory } from "@/lib/sunday";
+import { loadCareerEvents } from "@/lib/sunday-load";
+import type { CareerEvent } from "@/lib/sundayline";
 import { TopBar } from "@/components/Shell";
 import { HistoryWall } from "@/components/history/HistoryWall";
 
@@ -37,6 +40,25 @@ export default function HistoryPage() {
     tables: ["historical_standings"], channel: "historical-standings", pollMs: 120000, enabled: ready,
   });
 
+  // Steakhouse Sunday's own history. A wall without it — a database a
+  // migration behind, or a league that has not played a Sunday yet — is still
+  // the wall, so a failure here is simply no section.
+  const sundayFetcher = useCallback(async () => {
+    const { data: s, error: e } = await supabaseBrowser().rpc("ff_sunday_history", { p_league_id: LEAGUE_ID });
+    if (e) return null;
+    return s as SundayHistory;
+  }, []);
+
+  const { data: sunday } = useLive<SundayHistory | null>(sundayFetcher, {
+    tables: ["sunday_events", "reactions"], channel: "sunday-history", pollMs: 300000, enabled: ready,
+  });
+
+  // The same events read per manager, for the Sunday line in each profile.
+  const careerFetcher = useCallback(() => loadCareerEvents(supabaseBrowser()), []);
+  const { data: career } = useLive<CareerEvent[]>(careerFetcher, {
+    tables: ["sunday_events"], channel: "sunday-career", pollMs: 300000, enabled: ready,
+  });
+
   return (
     <>
       <TopBar status={status} />
@@ -50,6 +72,8 @@ export default function HistoryPage() {
           historicalStandings={historicalStandings ?? []}
           myManager={team ? (team.manager_name ?? team.name) : null}
           importable={isCommissioner}
+          sunday={sunday ?? null}
+          career={career ?? []}
         />
       )}
     </>

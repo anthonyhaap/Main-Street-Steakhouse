@@ -5,6 +5,8 @@ import { UnreadProvider } from "@/lib/unread";
 import { ToastHost } from "@/components/ui";
 import { CURTAIN_SCRIPT } from "@/components/Curtain";
 import { DoorsHost } from "@/components/Doors";
+import { Trail } from "@/lib/trail";
+import { WebAnalytics } from "@/components/WebAnalytics";
 import "./globals.css";
 
 /**
@@ -92,6 +94,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         {/* The way in from /login and /join. Mounted here, above the router,
             because it has to outlive the screen that opens it. */}
         <DoorsHost />
+        <Trail />
+        {/* Page views for Vercel Web Analytics (see WebAnalytics). Only on
+            Vercel's own builds: anywhere else (next start in CI, a laptop) the
+            collector script is not served, and asking for it would put a 404
+            in every e2e run's console. */}
+        {process.env.VERCEL === "1" && <WebAnalytics />}
       </body>
     </html>
   );

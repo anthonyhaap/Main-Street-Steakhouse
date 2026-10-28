@@ -1,0 +1,162 @@
+name: checks
+
+# The four checks AGENTS.md asks for before a pull request, run again where
+# nobody has to remember them.
+#
+# Migrations have had a workflow since the Supabase connection made a bad
+# filename a production event. The other four — build, types, lint, end-to-end —
+# were only ever enforced by a human reading AGENTS.md and doing as it asked. A
+# change that touched no `supabase/` path therefore merged with no automated
+# check on it at all beyond the Vercel preview build, which is not the same
+# thing: it compiles the app, it does not typecheck it, lint it or open it.
+#
+# No secrets, and no network beyond the registry. `src/lib/config.ts` hardcodes
+# the Supabase URL and key on purpose, so there is nothing to inject; and the
+# suite never reaches the database — every spec runs against the `/preview/*`
+# fixtures or against the redirect an absent session produces, which the proxy
+# answers from a missing cookie. It was confirmed the blunt way: the whole suite
+# passes from a container with no route to Supabase at all.
+on:
+  pull_request:
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "public/**"
+      - "package.json"
+      - "package-lock.json"
+      - "next.config.ts"
+      - "tsconfig.json"
+      - "eslint.config.mjs"
+      - "postcss.config.mjs"
+      - "playwright.config.ts"
+      - ".github/workflows/checks.yml"
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "public/**"
+      - "package.json"
+      - "package-lock.json"
+      - "next.config.ts"
+      - "tsconfig.json"
+      - "eslint.config.mjs"
+      - "postcss.config.mjs"
+      - "playwright.config.ts"
+
+jobs:
+  build-types-lint:
+    name: it builds, typechecks, and lints no worse than main
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        # The lint step below compares against the base branch, so it needs the
+        # history that contains it. Two commits are not enough; this is a small
+        # repository and a full clone is cheaper than reasoning about depth.
+        with: { fetch-depth: 0 }
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: build
+        run: npx next build
+
+      # After the build, never before: `tsc` reads the route types Next writes
+      # into `.next/types`, and without them this passes on a tree that does not
+      # actually compile.
+      - name: types
+        run: npx tsc --noEmit
+
+      # ---------------------------------------------------------------------
+      # Lint is a comparison, not a threshold.
+      #
+      # The baseline is not clean — eight standing `react-hooks/*` findings at
+      # the time of writing — so `eslint` exits non-zero on a perfectly good
+      # tree and cannot simply be run. Pinning the number here instead would
+      # make this file a claim that goes stale the moment somebody fixes one of
+      # them, and then it lies in the direction of passing.
+      #
+      # So it counts on this tree, counts on the branch being merged into, and
+      # fails only on an increase. That is what AGENTS.md already asks a person
+      # to do by eye, and it needs no number written down to stay true.
+      # ---------------------------------------------------------------------
+      - name: lint, against the base branch's count
+        env:
+          BASE_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || 'HEAD~1' }}
+        run: |
+          set -euo pipefail
+
+          # `eslint` exits 1 whenever it reports anything, so the pipeline must
+          # not die on a tree that merely has the standing findings. `|| true`
+          # on the eslint process alone, and the count comes from its JSON —
+          # which is empty only if eslint never ran, and jq would then fail.
+          count() {
+            npx eslint -f json > /tmp/lint.json 2>/tmp/lint.err || true
+            if [ ! -s /tmp/lint.json ]; then
+              echo "eslint produced no report:" >&2
+              cat /tmp/lint.err >&2
+              exit 1
+            fi
+            jq '[.[].errorCount] | add // 0' /tmp/lint.json
+          }
+
+          head_count="$(count)"
+          echo "this tree: $head_count"
+
+          # The base's count is measured with the base's own config and its own
+          # dependencies: a rule added in this pull request would otherwise be
+          # charged against a tree that was never meant to satisfy it.
+          git worktree add /tmp/base "$BASE_REF" --detach >/dev/null
+          # stdout silenced so the install does not drown the comparison;
+          # stderr left alone, so an install that fails here says why instead of
+          # surfacing as an empty count and an arithmetic error.
+          base_count="$(cd /tmp/base && npm ci --silent >/dev/null && count)"
+          echo "base ($BASE_REF): $base_count"
+
+          if [ "$head_count" -gt "$base_count" ]; then
+            echo "::error::eslint findings went from $base_count to $head_count."
+            echo "The standing findings are not yours to fix, but new ones are."
+            npx eslint || true
+            exit 1
+          fi
+          echo "No new findings ($head_count against a baseline of $base_count)."
+
+  end-to-end:
+    name: the app passes its end-to-end suite
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      # Chromium only. The suite's two projects are a desktop and a phone
+      # viewport, both of them Chromium, so the other engines would be a
+      # download nobody tests with.
+      - name: install the browser the suite asks for
+        run: npx playwright install --with-deps chromium
+
+      # No build step and no server step: `playwright.config.ts` declares a
+      # `webServer` that runs `next build && next start` itself, so the server
+      # under test is built from this checkout by the same command that runs
+      # the tests. See the comment there for why it refuses to reuse one.
+      - name: end-to-end
+        run: npx playwright test
+
+      # Only on failure, and only the traces — `trace: "retain-on-failure"`
+      # means a green run has nothing to collect. A trace is the difference
+      # between reading a failed assertion and watching it happen.
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-traces
+          path: test-results/
+          retention-days: 7

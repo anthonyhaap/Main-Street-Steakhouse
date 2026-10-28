@@ -7,6 +7,9 @@ import { crestUrl } from "@/lib/crest";
 import { cellOf, heat, titleOf, type HistoricalStanding, type History } from "@/lib/history";
 import { buildProfile } from "@/lib/profile";
 import { ManagerProfileCard } from "@/components/history/ManagerProfile";
+import { SundayWall } from "@/components/history/SundayWall";
+import type { SundayHistory } from "@/lib/sunday";
+import { sundayLine, type CareerEvent } from "@/lib/sundayline";
 
 /**
  * The room with "Est. 2016" on the door.
@@ -17,8 +20,12 @@ import { ManagerProfileCard } from "@/components/history/ManagerProfile";
  * a card for every manager with a title the record earned. This is the page
  * that gets screenshotted into the group chat, so it is built to be.
  */
-export function HistoryWall({ history, historicalStandings = [], myManager = null, importable = false }: {
+export function HistoryWall({ history, historicalStandings = [], myManager = null, importable = false, sunday = null, career = [] }: {
   history: History | null;
+  /** Every stored lead change, comeback and monster game, for the profiles' Sunday lines. */
+  career?: CareerEvent[];
+  /** Steakhouse Sunday's own history: moments, records, each manager's line. */
+  sunday?: SundayHistory | null;
   historicalStandings?: HistoricalStanding[];
   /** The viewer's manager name, to pick their card and row out. */
   myManager?: string | null;
@@ -290,6 +297,7 @@ export function HistoryWall({ history, historicalStandings = [], myManager = nul
               history={h}
               mine={profile.manager.manager === myManager}
               onClose={() => select(null)}
+              sundays={sundayLine(career, profile.manager.team_id)}
             />
           )}
         </section>
@@ -337,6 +345,8 @@ export function HistoryWall({ history, historicalStandings = [], myManager = nul
           </section>
         </div>
       )}
+
+      {sunday && <SundayWall sunday={sunday} season={h.league.season} />}
 
       <p className="eyebrow" style={{ textAlign: "center", padding: "var(--s4) 0 var(--s2)" }}>
         Main Street Steakhouse · Est. {est} · Members Only

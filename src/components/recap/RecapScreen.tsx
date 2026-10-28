@@ -4,9 +4,11 @@ import { useCallback, useMemo, useState } from "react";
 import { TopBar } from "@/components/Shell";
 import { SkeletonRows, useToast } from "@/components/ui";
 import { RecapPage } from "@/components/recap/RecapPage";
-import { LEAGUE_ID, SITE_URL } from "@/lib/config";
+import { LEAGUE_ID, SEASON, SITE_URL } from "@/lib/config";
 import { useLive } from "@/lib/live";
-import { recapShareText, recapWeekOutlook, settledThisWeek, wireCounts, type RecapLine, type RecapRow } from "@/lib/recap";
+import { recapShareText, recapWeekOutlook, settledThisWeek, weekStory, wireCounts, type RecapLine, type RecapRow } from "@/lib/recap";
+import { loadWeekStory } from "@/lib/sunday-load";
+import type { SundayEvent } from "@/lib/sunday";
 import { useCrests, useSession } from "@/lib/session";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import type { Challenge, Outlook, Reaction } from "@/lib/types";
@@ -14,8 +16,8 @@ import type { Challenge, Outlook, Reaction } from "@/lib/types";
 /**
  * The live page around RecapPage. One fetch gathers the column, the outlook
  * for the table, the week's moves, the bets it decided, the reactions on the
- * house post and the signed-in seat's own line; the realtime watch refetches
- * when a recap lands or somebody reacts.
+ * house post, the signed-in seat's own line and the week's stored events;
+ * the realtime watch refetches when a recap lands or somebody reacts.
  */
 
 type Data = {
@@ -26,6 +28,7 @@ type Data = {
   challenges: Pick<Challenge, "id" | "title" | "status" | "winner_id" | "resolved_at" | "stake_amount_cents">[];
   reactions: Reaction[];
   mine: RecapLine | null;
+  events: SundayEvent[];
 };
 
 const firstName = (s: string | null | undefined) => s?.trim().split(/\s+/)[0] || null;
@@ -44,7 +47,7 @@ export function RecapScreen({ week }: { week: number | null }) {
     const rows = (recaps.data ?? []) as RecapRow[];
     const recap = week ? rows.find((r) => r.week === week) ?? null : rows[0] ?? null;
 
-    const [outlook, wire, challenges, reactions, mine] = await Promise.all([
+    const [outlook, wire, challenges, reactions, mine, events] = await Promise.all([
       sb.rpc("ff_playoff_outlook", { p_league_id: LEAGUE_ID }),
       recap
         ? sb.from("transactions").select("kind").eq("league_id", LEAGUE_ID).eq("week", recap.week)
@@ -57,6 +60,7 @@ export function RecapScreen({ week }: { week: number | null }) {
       recap && team
         ? sb.rpc("ff_personal_recap_line", { p_league_id: LEAGUE_ID, p_week: recap.week, p_team_id: team.id })
         : Promise.resolve({ data: null, error: null }),
+      recap ? loadWeekStory(sb, SEASON, recap.week) : Promise.resolve([]),
     ]);
     const failure = outlook.error ?? wire.error ?? challenges.error ?? reactions.error ?? mine.error;
     if (failure) throw failure;
@@ -68,6 +72,7 @@ export function RecapScreen({ week }: { week: number | null }) {
       challenges: (challenges.data ?? []) as Data["challenges"],
       reactions: (reactions.data ?? []) as Reaction[],
       mine: (mine.data as RecapLine | null) ?? null,
+      events,
     };
   }, [week, team]);
 
@@ -86,8 +91,9 @@ export function RecapScreen({ week }: { week: number | null }) {
       outlook: data.outlook ? recapWeekOutlook(data.outlook, data.recap.week) : null,
       wire: wireCounts(data.wire),
       settled: settledThisWeek(data.challenges, data.recap.created_at, nameOf),
+      story: weekStory(data.events, team?.id),
     };
-  }, [data, nameOf]);
+  }, [data, nameOf, team]);
 
   const react = useCallback(async (emoji: string) => {
     if (!data?.recap?.message_id) return;
@@ -125,7 +131,7 @@ export function RecapScreen({ week }: { week: number | null }) {
             outlook={view?.outlook ?? null} myTeamId={team?.id} crestOf={crestOf}
             mine={data.mine} reactions={data.reactions} busy={reacting}
             onReact={data.recap?.message_id ? react : undefined} onShare={share}
-            wire={view?.wire ?? []} settled={view?.settled ?? []}
+            wire={view?.wire ?? []} settled={view?.settled ?? []} story={view?.story ?? null}
           />
         )}
       </main>

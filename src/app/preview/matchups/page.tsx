@@ -16,12 +16,26 @@ import { TopBar } from "@/components/Shell";
 import { Scoreboard } from "@/components/Scoreboard";
 import { TalkThread } from "@/components/matchup/Talk";
 import { Rivalry } from "@/components/matchup/Rivalry";
+import { careerEvents } from "@/lib/fixtures/career";
+import { rivalrySundays } from "@/lib/sundayline";
 import { AroundTheHouse } from "@/components/matchup/AroundTheHouse";
 import { ScoreTicker } from "@/components/matchup/ScoreTicker";
 import { scoreCardText } from "@/lib/share";
 import { board, NOW, RIVALRIES, STAGES, THREAD, type Stage } from "@/lib/fixtures/sunday";
 import { freshness, slateLine, talkTeaser, type ScoreCard } from "@/lib/scoreboard";
 
+
+/**
+ * The Sundays these teams have stored: Ray (t3) and Dev (t4) swapped the lead
+ * three times in week 5, the last of them late, on Goff's monster game; Marcus
+ * (t1) came back on Anthony (t2) in week 6. Nate and Tom have never met.
+ */
+const NAMES: Record<string, string> = { t1: "Marcus", t2: "Anthony", t3: "Ray", t4: "Dev" };
+const CAREER = careerEvents([
+  [5, "lead", "t4", "t3"], [5, "lead", "t3", "t4"], [5, "late", "t4", "t3"],
+  [5, "monster", "t4", "t3", { player: "Jared Goff", points: 32.5 }],
+  [6, "lead", "t1", "t2"], [6, "comeback", "t1", "t2", { down: 18.2 }],
+], (id) => NAMES[id]);
 
 /** The closed line and, opened, the thread — with no way to post from here. */
 function FixtureTalk({ card }: { card: ScoreCard }) {
@@ -115,7 +129,8 @@ export default function MatchupsPreviewPage() {
             if (!card) return null;
             const mine = b.my_team_id === c.home.team_id ? c.home
               : b.my_team_id === c.away.team_id ? c.away : null;
-            return <Rivalry card={card} me={mine && (mine.manager_name?.trim() || mine.name)} />;
+            return <Rivalry card={card} me={mine && (mine.manager_name?.trim() || mine.name)}
+              sundays={rivalrySundays(CAREER, c.home.team_id, c.away.team_id)} />;
           }}
         />}
       </main>
