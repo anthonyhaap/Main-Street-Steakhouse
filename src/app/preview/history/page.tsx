@@ -14,12 +14,30 @@ import { TopBar } from "@/components/Shell";
 import { HistoryWall } from "@/components/history/HistoryWall";
 import { mulberry32 } from "@/lib/playoffs";
 import type { HistoricalStanding, History, HistoryCell, HistoryManager, HistorySeason } from "@/lib/history";
+import { gcSundayHistory } from "@/lib/fixtures/gamecenter";
+import { careerEvents, type CareerScript } from "@/lib/fixtures/career";
+
+/**
+ * Three stored Sundays of Anthony's (t1), for his profile's Sunday line: he
+ * blows 24.1 to Marcus in week 5, has Nacua's monster game in week 6, and
+ * comes back on Dave in week 7. Week 8 is two other people's, and is not his.
+ */
+const CAREER_SCRIPT: CareerScript = [
+  [5, "lead", "t2", "t1"], [5, "lead", "t1", "t2"], [5, "late", "t2", "t1"], [5, "comeback", "t2", "t1", { down: 24.1 }],
+  [6, "monster", "t1", "t3", { player: "Puka Nacua", points: 34.2 }], [6, "td", "t1", "t3", { player: "Puka Nacua" }],
+  [7, "lead", "t4", "t1"], [7, "late", "t1", "t4"], [7, "comeback", "t1", "t4", { down: 21.5 }],
+  [8, "lead", "t5", "t6"],
+];
+
+/** Steakhouse Sunday's own wall section, from the game center's invented league. */
+const SUNDAY = gcSundayHistory();
 
 const MANAGERS = ["Anthony", "Marcus", "Dev", "Dave", "Tom", "Nate", "Jules", "Sam", "Kai", "Priya", "Mike", "Ray"];
 const TEAMS = [
   "Gridiron Butchers", "Prime Cut", "Dry Aged Dynasty", "The Porterhouse", "Bone-In Bandits", "Wagyu Warriors",
   "Tomahawk Chop", "Filet Force", "Sirloin Syndicate", "Ribeye Renegades", "Brisket Brigade", "Chuck Wagon",
 ];
+const CAREER = careerEvents(CAREER_SCRIPT, (id) => MANAGERS[Number(id.slice(1)) - 1]);
 /** A manager's typical week; the spread is what makes streaks and blowouts. */
 const STRENGTH = [126, 118, 121, 124, 110, 115, 119, 108, 122, 113, 127, 104];
 
@@ -179,7 +197,8 @@ export default function HistoryPreview() {
         <strong>Fixture.</strong> Ten invented seasons for twelve invented managers, generated from a seed.
         Nobody here is a real person; every plaque, streak and beating is made up.
       </div>
-      <HistoryWall history={history} historicalStandings={standings} myManager="Anthony" importable />
+      <HistoryWall history={history} historicalStandings={standings} myManager="Anthony" importable sunday={SUNDAY}
+        career={CAREER} />
     </>
   );
 }

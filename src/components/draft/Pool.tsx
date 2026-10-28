@@ -169,7 +169,7 @@ export function Pool(props: Props) {
           <div className="pool__filters" data-search={searching || q ? "open" : "closed"}>
             <div className="pool__search" style={{ position: "relative", minWidth: 0 }}>
               <Search size={15} style={{ position: "absolute", left: 12, top: 13, color: "var(--faint)", pointerEvents: "none" }} />
-              <input ref={searchBox} className="field" style={{ paddingLeft: 36, paddingRight: 36 }}
+              <input ref={searchBox} className="field" style={{ paddingLeft: 36, paddingRight: q || searching ? 36 : 12 }}
                 placeholder="Search players or NFL teams" value={q}
                 onChange={(e) => setQ(e.target.value)} aria-label="Search players" />
               {(q || searching) && (
@@ -229,7 +229,7 @@ export function Pool(props: Props) {
                   <>
                     <span>Last 12</span>
                     {run.map((r) => (
-                      <span key={r.position} className="pos" data-p={r.position}>
+                      <span key={r.position} className="pos" data-p={r.position} data-size="sm">
                         {r.position} <b style={{ marginLeft: 3 }}>{r.count}</b>
                       </span>
                     ))}
@@ -474,13 +474,13 @@ function PlayerRow({
                   right: "Steal" and "Questionable" change what you do, and a
                   number you can read off the sort order does not. */}
               {value && (
-                <span className="badge" data-tone="ok" style={{ minHeight: 17, fontSize: 9 }}
+                <span className="badge" data-tone="ok" data-size="sm"
                   title={`${Math.abs(value.delta)} picks past his ADP`}>
                   {value.label}
                 </span>
               )}
               {p.injury_status && (
-                <span className="badge" data-tone="warn" style={{ minHeight: 17, fontSize: 9 }}
+                <span className="badge" data-tone="warn" data-size="sm"
                   title={p.injury_status}>
                   {injuryTag(p.injury_status)}
                 </span>

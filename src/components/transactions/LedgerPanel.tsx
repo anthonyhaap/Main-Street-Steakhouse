@@ -6,6 +6,7 @@ import { useLive, type WireStatus } from "@/lib/live";
 import { useSession } from "@/lib/session";
 import { LEAGUE_ID } from "@/lib/config";
 import type { LedgerEntry } from "@/lib/types";
+import { teamIdsByName } from "@/lib/team-link";
 import { SkeletonRows } from "@/components/ui";
 import { Ledger, type LedgerFilter } from "@/components/ledger/Ledger";
 
@@ -24,9 +25,14 @@ import { Ledger, type LedgerFilter } from "@/components/ledger/Ledger";
  * season, this wants a cursor rather than a bigger number.
  */
 export function LedgerPanel({ onStatus }: { onStatus?: (s: WireStatus) => void }) {
-  const { ready } = useSession();
+  const { ready, team: myTeam, teams: leagueTeams } = useSession();
   const [filter, setFilter] = useState<LedgerFilter>("all");
   const [team, setTeam] = useState("");
+
+  // Each row names its teams and carries no ids, so the only way to turn one
+  // into a door to that desk is the league's own list. Built once per team list
+  // rather than per row — a season's window is a few hundred rows.
+  const teamIdOf = useMemo(() => teamIdsByName(leagueTeams), [leagueTeams]);
 
   const fetcher = useCallback(async () => {
     const { data, error } = await supabaseBrowser()
@@ -79,6 +85,8 @@ export function LedgerPanel({ onStatus }: { onStatus?: (s: WireStatus) => void }
       teams={teams}
       onFilter={setFilter}
       onTeam={setTeam}
+      teamIdOf={teamIdOf}
+      myTeamId={myTeam?.id ?? null}
     />
   );
 }

@@ -3,13 +3,14 @@
 /**
  * Reactions on a pick, sized for the ticker.
  *
- * The House's `Reactions` is a row that wraps under a feed item; the ticker is
- * a strip of pills you swipe sideways, and a wrapping row inside one would
- * make every pill two lines tall and the strip unreadable. Same table, same
- * palette, same toggle — a different shape, because the shape is the only
- * thing that differs.
+ * `@/components/feed/Reactions` is a row that wraps under a feed item; the
+ * ticker is a strip of pills you swipe sideways, and a wrapping row inside
+ * one would make every pill two lines tall and the strip unreadable. Same
+ * table, same palette, same toggle — a different shape, because the shape is
+ * the only thing that differs.
  *
- * Presentation only. The page owns the RPC, exactly as the House does.
+ * Presentation only. The page owns the RPC, exactly as Chat and the League
+ * Feed do.
  */
 
 import { useState } from "react";

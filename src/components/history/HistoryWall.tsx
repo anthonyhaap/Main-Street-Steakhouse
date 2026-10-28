@@ -7,6 +7,9 @@ import { crestUrl } from "@/lib/crest";
 import { cellOf, heat, titleOf, type HistoricalStanding, type History } from "@/lib/history";
 import { buildProfile } from "@/lib/profile";
 import { ManagerProfileCard } from "@/components/history/ManagerProfile";
+import { SundayWall } from "@/components/history/SundayWall";
+import type { SundayHistory } from "@/lib/sunday";
+import { sundayLine, type CareerEvent } from "@/lib/sundayline";
 
 /**
  * The room with "Est. 2016" on the door.
@@ -17,8 +20,12 @@ import { ManagerProfileCard } from "@/components/history/ManagerProfile";
  * a card for every manager with a title the record earned. This is the page
  * that gets screenshotted into the group chat, so it is built to be.
  */
-export function HistoryWall({ history, historicalStandings = [], myManager = null, importable = false }: {
+export function HistoryWall({ history, historicalStandings = [], myManager = null, importable = false, sunday = null, career = [] }: {
   history: History | null;
+  /** Every stored lead change, comeback and monster game, for the profiles' Sunday lines. */
+  career?: CareerEvent[];
+  /** Steakhouse Sunday's own history: moments, records, each manager's line. */
+  sunday?: SundayHistory | null;
   historicalStandings?: HistoricalStanding[];
   /** The viewer's manager name, to pick their card and row out. */
   myManager?: string | null;
@@ -114,7 +121,11 @@ export function HistoryWall({ history, historicalStandings = [], myManager = nul
             </div>
             <Landmark size={17} color="var(--gold)" />
           </div>
-          <div style={{ display: "grid" }}>
+          {/* minmax(0, 1fr), not the implicit auto track: a season's table is
+              wider than a phone and scrolls inside its own box, and an auto
+              track would size itself to the table and push the card off the
+              screen instead. */}
+          <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr)" }}>
             {Object.entries(standingsBySeason)
               .sort(([a], [b]) => Number(b) - Number(a))
               .map(([season, rows], seasonIndex) => {
@@ -128,16 +139,16 @@ export function HistoryWall({ history, historicalStandings = [], myManager = nul
                       <div className="empty">ESPN records every team at 0–0 for this season.</div>
                     ) : (
                       <div className="scroll" style={{ padding: "0 var(--s4) var(--s4)" }}>
-                        <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 620 }}>
-                          <thead><tr><th>RK</th><th style={{ textAlign: "left" }}>TEAM</th><th>REC</th><th>PF</th><th>PA</th><th>MOVES</th></tr></thead>
+                        <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 440 }}>
+                          <thead><tr><th>RK</th><th style={{ textAlign: "left" }}>TEAM</th><th>REC</th><th>PF</th><th className="hide-sm">PA</th><th className="hide-sm">MOVES</th></tr></thead>
                           <tbody>{rows.map((row) => (
                             <tr key={row.final_rank}>
                               <td className="num" style={{ textAlign: "center" }}>{row.final_rank}</td>
                               <td><b>{row.team_name}</b><small style={{ display: "block", color: "var(--muted)" }}>{row.manager_names}</small></td>
                               <td className="num" style={{ textAlign: "center" }}>{row.wins}–{row.losses}{row.ties ? `–${row.ties}` : ""}</td>
                               <td className="num" style={{ textAlign: "right" }}>{Number(row.points_for).toFixed(2)}</td>
-                              <td className="num" style={{ textAlign: "right" }}>{Number(row.points_against).toFixed(2)}</td>
-                              <td className="num" style={{ textAlign: "center" }}>{row.moves ?? "—"}</td>
+                              <td className="num hide-sm" style={{ textAlign: "right" }}>{Number(row.points_against).toFixed(2)}</td>
+                              <td className="num hide-sm" style={{ textAlign: "center" }}>{row.moves ?? "—"}</td>
                             </tr>
                           ))}</tbody>
                         </table>
@@ -286,6 +297,7 @@ export function HistoryWall({ history, historicalStandings = [], myManager = nul
               history={h}
               mine={profile.manager.manager === myManager}
               onClose={() => select(null)}
+              sundays={sundayLine(career, profile.manager.team_id)}
             />
           )}
         </section>
@@ -333,6 +345,8 @@ export function HistoryWall({ history, historicalStandings = [], myManager = nul
           </section>
         </div>
       )}
+
+      {sunday && <SundayWall sunday={sunday} season={h.league.season} />}
 
       <p className="eyebrow" style={{ textAlign: "center", padding: "var(--s4) 0 var(--s2)" }}>
         Main Street Steakhouse · Est. {est} · Members Only

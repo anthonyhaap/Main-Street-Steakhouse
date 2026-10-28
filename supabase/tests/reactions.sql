@@ -75,6 +75,16 @@ begin
   end if;
   v_checks := v_checks + 1;
 
+  -- The league-specific palette (20260919010000): an emoji and a word
+  -- reaction both go through the same door as the original six.
+  v_j := ff_react(v_league, 'message', v_msg, '🧂');
+  if not (v_j->>'on')::boolean then raise exception 'a league-specific emoji was rejected'; end if;
+  v_j := ff_react(v_league, 'message', v_msg, 'FRAUD');
+  if not (v_j->>'on')::boolean then raise exception 'a word reaction was rejected'; end if;
+  perform ff_react(v_league, 'message', v_msg, '🧂');
+  perform ff_react(v_league, 'message', v_msg, 'FRAUD');
+  v_checks := v_checks + 2;
+
   -- ---------------------------------------------------------- what shows --
   perform set_config('request.jwt.claims', json_build_object('sub', v_uid_a)::text, true);
   v_j := ff_reactions_for('message', v_msg);
@@ -107,11 +117,20 @@ begin
   end if;
   v_checks := v_checks + 2;
 
-  -- And the feed keeps them apart too, which is where it would actually show.
-  v_j := ff_house_feed(v_league, null, 100);
+  -- And the feeds keep them apart too, which is where it would actually show:
+  -- the message lives in Chat, the event in the League Feed, and only one of
+  -- the two carries the reaction.
+  v_j := ff_chat_feed(v_league, null, 100);
   if (select count(*) from jsonb_array_elements(v_j->'items') x
        where (x->>'id')::uuid = v_shared and jsonb_array_length(x->'reactions') > 0) <> 1 then
-    raise exception 'the feed put the reaction on both rows with the shared id';
+    raise exception 'chat did not show the reaction on the message with the shared id';
+  end if;
+  v_checks := v_checks + 1;
+
+  v_j := ff_league_feed(v_league, null, 100);
+  if (select count(*) from jsonb_array_elements(v_j->'items') x
+       where (x->>'id')::uuid = v_shared and jsonb_array_length(x->'reactions') > 0) <> 0 then
+    raise exception 'the League Feed put the message''s reaction onto the event sharing its id';
   end if;
   v_checks := v_checks + 1;
 

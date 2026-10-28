@@ -6,9 +6,10 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 import { useLive } from "@/lib/live";
 import { useCrests, useSession } from "@/lib/session";
 import { useWire } from "@/lib/nfl/wire";
+import { useWaiverDeadline } from "@/lib/waivers";
 import { useWeather } from "@/lib/nfl/weather";
 import { useMatchups } from "@/lib/nfl/matchup";
-import type { HubPlayer, TeamHub } from "@/lib/nfl/types";
+import type { HubPlayer, PositionRanks, TeamHub } from "@/lib/nfl/types";
 import type { Team } from "@/lib/types";
 import { TopBar } from "@/components/Shell";
 import { SkeletonRows, useToast } from "@/components/ui";
@@ -84,7 +85,31 @@ function Desk() {
     if (ready && subjectId && week !== null) void refetch();
   }, [ready, subjectId, week, refetch]);
 
+  // Where each player ranks at his position across the whole NFL, by season
+  // points in this league's scoring. Asked once per league and week rather
+  // than on the hub's thirty-second poll: it scores every stat line in the
+  // season, and a rank does not move between two snaps of the same game.
+  const leagueId = hub?.team.league_id ?? null;
+  const [ranks, setRanks] = useState<{ key: string; data: PositionRanks } | null>(null);
+  useEffect(() => {
+    if (!ready || !leagueId || week === null) return;
+    const key = `${leagueId}:${week}`;
+    let live = true;
+    void supabaseBrowser()
+      .rpc("ff_position_ranks", { p_league_id: leagueId, p_week: week })
+      .then(({ data }) => { if (live && data) setRanks({ key, data: data as PositionRanks }); });
+    return () => { live = false; };
+  }, [ready, leagueId, week]);
+
+  const ranked = useMemo<TeamHub | null>(() => {
+    if (!hub || !ranks || ranks.key !== `${hub.team.league_id}:${hub.week}`) return hub;
+    const by = ranks.data.ranks;
+    return { ...hub, roster: hub.roster.map((p) => ({ ...p, pos_rank: by[p.player_id] ?? null })) };
+  }, [hub, ranks]);
+
   const { data: wire } = useWire(ready);
+  // Only the reader's own desk draws the deadline, so only that desk asks.
+  const settlesAt = useWaiverDeadline(ready && mine);
 
   // The two signals the hub does not carry: what the sky is doing over each
   // stadium, and how this week's projection compares with the rest of the
@@ -200,7 +225,7 @@ function Desk() {
       <TopBar status={status} />
       <div style={stale ? { opacity: 0.55, transition: "opacity 0.2s" } : undefined}>
         <TeamDesk
-          hub={hub}
+          hub={ranked ?? hub}
           wire={wire}
           moving={moving}
           busy={busy}
@@ -209,6 +234,7 @@ function Desk() {
           oppCrest={crestOf(hub.matchup?.opponent.id)}
           weather={weather}
           matchups={matchups}
+          settlesAt={settlesAt}
           picker={<TeamPicker teams={teams} value={subject.id} mine={team?.id ?? null} onPick={look} />}
           onPickUp={setMoving}
           onCancelMove={() => setMoving(null)}

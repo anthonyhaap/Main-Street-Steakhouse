@@ -1,7 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
-import Link from "next/link";
+import { Fragment, useMemo, useState, type ReactNode } from "react";
 import { Eye, Pencil, Wand2 } from "lucide-react";
 import { buildInsights, myNews } from "@/lib/nfl/insights";
 import { injuriesByPlayer } from "@/lib/nfl/wire";
@@ -9,11 +8,12 @@ import { buildLineup, slotOk } from "@/lib/nfl/lineup";
 import type { MatchupCurve } from "@/lib/nfl/matchup";
 import type { GameWeather } from "@/lib/nfl/venues";
 import type { HubPlayer, TeamHub, Wire } from "@/lib/nfl/types";
-import { Seal, useCountUp } from "@/components/ui";
-import { PlayerRow } from "@/components/team/Lineup";
+import { Seal, TeamLink, useCountUp } from "@/components/ui";
+import { PlayerRow, SwapOptions, type SwapOption } from "@/components/team/Lineup";
 import { Coach } from "@/components/team/Coach";
 import { InsightBoard, NewsWire, TeamStats } from "@/components/team/Rail";
 import { Notifications } from "@/components/team/Notifications";
+import { RosterMoves } from "@/components/team/Moves";
 
 export { slotOk };
 
@@ -44,7 +44,7 @@ export type MoveTarget = { slot: string; player: HubPlayer | null };
  */
 export function TeamDesk({
   hub, wire, moving, busy, crest = null, oppCrest = null, weather = null, matchups = null,
-  readOnly = false, picker = null,
+  readOnly = false, picker = null, settlesAt = null,
   onPickUp, onCancelMove, onDrop, onWeek, onEdit, onSetLineup,
 }: {
   hub: TeamHub;
@@ -66,6 +66,12 @@ export function TeamDesk({
   weather?: Map<string, GameWeather> | null;
   /** Each man's week against his own projection curve, from `useMatchups`. */
   matchups?: MatchupCurve | null;
+  /**
+   * When the wire next settles, from `useWaiverDeadline`. Drawn under the hero
+   * on the reader's own desk beside the doors to the transaction centre; null
+   * while it is still being asked.
+   */
+  settlesAt?: string | null;
   onPickUp: (p: HubPlayer) => void;
   onCancelMove: () => void;
   onDrop: (target: MoveTarget) => void;
@@ -120,6 +126,47 @@ export function TeamDesk({
   }, [hub.league.roster_slots, roster]);
 
   const bench = roster.filter((p) => p.slot === "BN");
+
+  // Everywhere the picked-up player could go. A swap is legal only if both men
+  // fit their new slots, so a starter's options check the incoming player
+  // against the slot being vacated as well — the drop handler itself only
+  // checks the half it can see. Best projection first, since that is usually
+  // the question being asked.
+  const swapOptions = useMemo((): SwapOption[] => {
+    if (!moving) return [];
+    const from = moving.slot;
+    const byProj = (a: SwapOption, b: SwapOption) =>
+      (b.player?.projection ?? -1) - (a.player?.projection ?? -1);
+    const fits = (s: { slot: string; player: HubPlayer | null }) =>
+      s.player?.player_id !== moving.player_id
+      && slotOk(s.slot, moving.position)
+      && (!s.player || slotOk(from, s.player.position));
+
+    const intoLineup = starters.filter(fits).map((s) => ({ key: s.key, slot: s.slot, player: s.player }));
+    if (from === "BN") return intoLineup.sort(byProj);
+
+    const fromBench = roster
+      .filter((p) => p.slot === "BN" && slotOk(from, p.position))
+      .map((p) => ({ key: p.player_id, slot: "BN", player: p }));
+    return [
+      ...fromBench.sort(byProj),
+      ...intoLineup.sort(byProj),
+      { key: "to-bench", slot: "BN", player: null },
+    ];
+  }, [moving, starters, roster]);
+
+  const swapPanel = (p: HubPlayer | null) =>
+    moving && p && moving.player_id === p.player_id ? (
+      <SwapOptions
+        player={moving}
+        options={swapOptions}
+        busy={busy}
+        onPick={(o) => onDrop({ slot: o.slot, player: o.player })}
+        onCancel={onCancelMove}
+      />
+    ) : null;
+  const toggle = (p: HubPlayer) => (moving?.player_id === p.player_id ? onCancelMove() : onPickUp(p));
+
   const empties = starters.filter((s) => !s.player).length;
 
   const mine = Number(hub.matchup?.my_points ?? hub.splits.starter_points ?? 0);
@@ -178,7 +225,9 @@ export function TeamDesk({
                     away, the same way this one was from the standings. */}
                 <h1>
                   {hub.matchup
-                    ? <Link className="tlink" href={`/team?id=${hub.matchup.opponent.id}`}>{hub.matchup.opponent.name}</Link>
+                    ? <TeamLink id={hub.matchup.opponent.id} name={hub.matchup.opponent.name}>
+                        {hub.matchup.opponent.name}
+                      </TeamLink>
                     : "No opponent"}
                 </h1>
                 <div className="th-side__meta">
@@ -223,6 +272,12 @@ export function TeamDesk({
           </div>
         </section>
 
+        {/* ------------------------------------------------- roster moves -- */}
+        {/* The reader's own desk only. The doors lead to *his* signings and
+            claims, and the deadline matters to the man with a claim to file —
+            not to somebody looking over another manager's roster. */}
+        {!readOnly && <RosterMoves settlesAt={settlesAt} />}
+
         {/* -------------------------------------------------- week picker -- */}
         <div className="scroll" style={{ overflowX: "auto", overflowY: "hidden", paddingBottom: 2 }}>
           <div className="segmented" style={{ width: "max-content" }}>
@@ -262,33 +317,22 @@ export function TeamDesk({
                   {empties} starting {empties === 1 ? "slot is" : "slots are"} empty — those score zero.
                 </div>
               )}
-              {moving && (
-                <div className="note" data-kind="info" style={{
-                  display: "flex", justifyContent: "space-between", alignItems: "center",
-                  gap: 10, flexWrap: "wrap",
-                }}>
-                  <span>Moving <strong>{moving.full_name}</strong> — pick a highlighted row.</span>
-                  <button className="btn" data-v="ghost" data-size="sm" onClick={onCancelMove}>Cancel</button>
-                </div>
-              )}
-
               <div>
                 {starters.map((s) => (
-                  <PlayerRow
-                    key={s.key}
-                    slot={s.slot}
-                    player={s.player}
-                    week={hub.week}
-                    injury={injuries.get(s.player?.player_id ?? "") ?? null}
-                    projection={s.player?.projection ?? null}
-                    moving={!!moving}
-                    target={!!moving && slotOk(s.slot, moving.position)}
-                    selected={!!moving && moving.player_id === s.player?.player_id}
-                    busy={busy}
-                    canMove={!readOnly}
-                    onPickUp={() => s.player && onPickUp(s.player)}
-                    onDrop={() => onDrop({ slot: s.slot, player: s.player })}
-                  />
+                  <Fragment key={s.key}>
+                    <PlayerRow
+                      slot={s.slot}
+                      player={s.player}
+                      week={hub.week}
+                      injury={injuries.get(s.player?.player_id ?? "") ?? null}
+                      projection={s.player?.projection ?? null}
+                      selected={!!moving && moving.player_id === s.player?.player_id}
+                      busy={busy}
+                      canMove={!readOnly}
+                      onPickUp={() => s.player && toggle(s.player)}
+                    />
+                    {swapPanel(s.player)}
+                  </Fragment>
                 ))}
               </div>
             </section>
@@ -304,21 +348,20 @@ export function TeamDesk({
               <div>
                 {bench.length === 0 && <div className="empty">Bench is empty.</div>}
                 {bench.map((p) => (
-                  <PlayerRow
-                    key={p.player_id}
-                    slot="BN"
-                    player={p}
-                    week={hub.week}
-                    injury={injuries.get(p.player_id) ?? null}
-                    projection={p.projection}
-                    moving={!!moving}
-                    target={!!moving && moving.slot !== "BN"}
-                    selected={moving?.player_id === p.player_id}
-                    busy={busy}
-                    canMove={!readOnly}
-                    onPickUp={() => onPickUp(p)}
-                    onDrop={() => onDrop({ slot: "BN", player: null })}
-                  />
+                  <Fragment key={p.player_id}>
+                    <PlayerRow
+                      slot="BN"
+                      player={p}
+                      week={hub.week}
+                      injury={injuries.get(p.player_id) ?? null}
+                      projection={p.projection}
+                      selected={moving?.player_id === p.player_id}
+                      busy={busy}
+                      canMove={!readOnly}
+                      onPickUp={() => toggle(p)}
+                    />
+                    {swapPanel(p)}
+                  </Fragment>
                 ))}
               </div>
             </section>

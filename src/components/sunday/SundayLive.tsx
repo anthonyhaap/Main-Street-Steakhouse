@@ -1,0 +1,189 @@
+"use client";
+
+/**
+ * The live game center: `GameCenter` under the app's live contract.
+ *
+ * Nobody's browser talks to ESPN or Sleeper. `pg_cron` polls them every two
+ * minutes during a game window, writes the stat lines and the NFL games once,
+ * and every connected phone learns about it from a realtime row change — as a
+ * signal to refetch one aggregated call, never as the data. So twelve managers
+ * with the page open all afternoon cost the providers exactly nothing more
+ * than one manager does.
+ *
+ * When the numbers stop — the provider is down, the socket dropped, the fetch
+ * failed — the page keeps what it has on screen, says the stats are delayed,
+ * and picks up again on the next successful refetch. The chat keeps working
+ * through all of it; it is a separate call on purpose.
+ */
+
+import { useCallback, useEffect, useState } from "react";
+import { supabaseBrowser } from "@/lib/supabase/client";
+import { useLive, useServerClock } from "@/lib/live";
+import { useSession } from "@/lib/session";
+import { LEAGUE_ID } from "@/lib/config";
+import { delayed, toggleReaction, type RecapExtras, type SundayBoard } from "@/lib/sunday";
+import { useUnreadCounts } from "@/lib/unread";
+import { loadSunday } from "@/lib/sunday-load";
+import { usePush } from "@/lib/push";
+import type { ChatFeed } from "@/lib/types";
+import { TopBar } from "@/components/Shell";
+import { GameCenter, GameCenterSkeleton } from "./GameCenter";
+
+export function SundayLive({ initial, week }: { initial: SundayBoard | null; week: number | null }) {
+  const { ready } = useSession();
+
+  // Fifteen seconds while a game is on, a minute when none is. Realtime does
+  // the real work; the poll is the net under it.
+  const [hot, setHot] = useState((initial?.games?.in_progress ?? 0) > 0);
+
+  const fetcher = useCallback(async (): Promise<SundayBoard> => {
+    const b = await loadSunday(supabaseBrowser(), week);
+    setHot((b.games?.in_progress ?? 0) > 0);
+    return b;
+  }, [week]);
+
+  const { data, status, error, refetch, mutate } = useLive<SundayBoard>(fetcher, {
+    // `sunday_events` is the one that matters most: a row there is the
+    // server saying something just happened.
+    tables: ["matchups", "rosters", "nfl_games", "sunday_events", "reactions", "league_messages", "challenges"],
+    channel: "sunday",
+    pollMs: hot ? 15000 : 60000,
+    enabled: ready,
+    initial,
+  });
+
+  const chatFetcher = useCallback(async (): Promise<ChatFeed> => {
+    const { data: feed, error: e } = await supabaseBrowser()
+      .rpc("ff_chat_feed", { p_league_id: LEAGUE_ID, p_limit: 30 });
+    if (e) throw new Error(e.message);
+    return feed as ChatFeed;
+  }, []);
+
+  const chat = useLive<ChatFeed>(chatFetcher, {
+    tables: ["league_messages", "reactions"],
+    channel: "sunday-chat",
+    pollMs: 45000,
+    enabled: ready,
+  });
+
+  const [chatError, setChatError] = useState<string | null>(null);
+  const send = useCallback(async (body: string, eventId?: string) => {
+    setChatError(null);
+    // Talk shit goes through ff_talk_about, which writes the moment above the
+    // words itself; anything else is an ordinary line in the room.
+    const { error: e } = eventId
+      ? await supabaseBrowser().rpc("ff_talk_about", { p_league_id: LEAGUE_ID, p_event_id: eventId, p_body: body })
+      : await supabaseBrowser().rpc("ff_send_message", {
+          p_league_id: LEAGUE_ID, p_body: body, p_parent_id: null, p_mentions: null,
+        });
+    if (e) {
+      setChatError(e.message);
+      throw new Error(e.message);
+    }
+    await Promise.all([chat.refetch(), eventId ? refetch() : Promise.resolve()]);
+  }, [chat, refetch]);
+
+  // One tap, shown at once: the count moves before the server answers, and the
+  // next refetch confirms it — or puts it back if the server said no.
+  const react = useCallback((eventId: string, emoji: string) => {
+    mutate((b) => (b ? toggleReaction(b, eventId, emoji) : b));
+    void supabaseBrowser()
+      .rpc("ff_react", { p_league_id: LEAGUE_ID, p_source: "sunday", p_target_id: eventId, p_emoji: emoji })
+      .then(({ error: e }) => {
+        if (e) setChatError(e.message);
+        void refetch();
+      });
+  }, [mutate, refetch]);
+
+  // The commissioner's dials. The server holds the bounds; its refusal is the
+  // message the panel shows.
+  const tune = useCallback(async (changes: Record<string, number | null>) => {
+    const { error: e } = await supabaseBrowser()
+      .rpc("ff_set_sunday_weights", { p_league_id: LEAGUE_ID, p_weights: changes });
+    if (e) throw new Error(e.message);
+    await refetch();
+  }, [refetch]);
+
+  // Tuesday's recap reads a little more than the board: the swings, the bets,
+  // the best line. Asked for once the week's last game is over — a live
+  // Sunday pays nothing for it — and absent, not an error, a migration behind.
+  const over = !!data && (data.games?.total ?? 0) > 0 && data.games.final === data.games.total;
+  const recapWeek = data?.week ?? null;
+  const recapFetcher = useCallback(async (): Promise<RecapExtras | null> => {
+    if (recapWeek === null) return null;
+    const { data: r, error: e } = await supabaseBrowser()
+      .rpc("ff_sunday_recap", { p_league_id: LEAGUE_ID, p_week: recapWeek });
+    if (e) return null;
+    return r as RecapExtras;
+  }, [recapWeek]);
+  const recapExtras = useLive<RecapExtras | null>(recapFetcher, {
+    tables: ["challenges", "reactions"],
+    channel: "sunday-recap",
+    pollMs: 300000,
+    enabled: ready && over,
+  });
+
+  const unread = useUnreadCounts();
+  const push = usePush();
+  // Whether game day is switched off on the account, for the push offer.
+  // Absent — a database a migration behind — means on, the kind's default.
+  const [gamedayOff, setGamedayOff] = useState(false);
+  useEffect(() => {
+    if (!ready) return;
+    let live = true;
+    void supabaseBrowser().rpc("ff_notification_prefs").then(({ data }) => {
+      if (live && data) setGamedayOff((data as { gameday?: boolean }).gameday === false);
+    });
+    return () => { live = false; };
+  }, [ready]);
+
+  // Server time, the same as every clock in the app.
+  const { serverNow, synced } = useServerClock();
+  const [now, setNow] = useState(() => (initial ? new Date(initial.now).getTime() : 0));
+  useEffect(() => {
+    const tick = () => setNow(synced ? serverNow() : Date.now());
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [synced, serverNow]);
+
+  const board = data;
+  const clock = now || (board ? new Date(board.now).getTime() : 0);
+
+  return (
+    <>
+      <TopBar status={status} />
+      {!board && !error && <GameCenterSkeleton />}
+      {!board && error && (
+        <div className="sun" data-desk="center" data-mob="feed">
+          <div className="sun-quiet" style={{ display: "grid", gap: "var(--s3)", justifyItems: "start" }}>
+            The game center didn&apos;t load. {error}
+            <button className="sun-btn" onClick={() => void refetch()}>Try again</button>
+          </div>
+        </div>
+      )}
+      {board && (
+        <GameCenter
+          board={board}
+          now={clock}
+          delayed={delayed(board, clock, !!error)}
+          chat={chat.data?.items ?? null}
+          onSend={send}
+          chatError={chatError ?? chat.error}
+          onReact={react}
+          onTune={tune}
+          recapExtras={recapExtras.data ?? null}
+          weeks={{
+            prev: board.week > 1 ? `/sunday?week=${board.week - 1}` : null,
+            // Forward only from a Sunday that was asked for; the page without
+            // a week is already this one.
+            next: week !== null ? `/sunday?week=${board.week + 1}` : null,
+            current: week !== null ? "/sunday" : null,
+          }}
+          unreadChat={unread?.chat ?? 0}
+          push={{ state: push.state, busy: push.busy, error: push.error, onEnable: () => void push.enable(), gamedayOff }}
+        />
+      )}
+    </>
+  );
+}

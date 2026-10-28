@@ -200,7 +200,7 @@ begin
   v_checks := v_checks + 1;
 
   -- ---------------------------------------------------- a poll in the feed --
-  v_j := ff_house_feed(v_league, null, 50);
+  v_j := ff_chat_feed(v_league, null, 50);
   if not exists (
     select 1 from jsonb_array_elements(v_j->'items') x
      where x->>'source' = 'poll' and (x->>'id')::uuid = v_poll

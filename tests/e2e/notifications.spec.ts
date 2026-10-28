@@ -33,8 +33,21 @@ test("the kinds follow the account, and say so", async ({ page }) => {
 
   const trades = page.getByLabel("Trade offers and answers");
   const waivers = page.getByLabel("Waiver results");
+  const challenges = page.getByLabel("Challenges and stakes");
+  const recaps = page.getByLabel("The Weekly Special, with your line in it");
+  const announcements = page.getByLabel("League announcements");
   await expect(trades).toBeChecked();
   await expect(waivers).toBeChecked();
+  await expect(challenges).toBeChecked();
+  await expect(recaps).toBeChecked();
+  await expect(announcements).toBeChecked();
+  // Game day is on like everything else; the league's moments are the one
+  // kind a manager has to ask for.
+  await expect(page.getByLabel(/Game day: my matchup/)).toBeChecked();
+  await expect(page.getByLabel(/League moments/)).not.toBeChecked();
+  await expect(page.getByLabel("When somebody @mentions me")).toBeChecked();
+  // Eight kinds, and no ninth: the card is the whole list of what can push.
+  await expect(page.getByRole("checkbox")).toHaveCount(8);
 
   await trades.uncheck();
   await expect(trades).not.toBeChecked();
@@ -42,7 +55,7 @@ test("the kinds follow the account, and say so", async ({ page }) => {
 
   await expect(page.getByText(/follow your account, not this device/)).toBeVisible();
   // The promise that this stays a small feature, written on the screen.
-  await expect(page.getByText(/scores, chat and the feed are all yours to look up/)).toBeVisible();
+  await expect(page.getByText(/ordinary scoring, chat and the feed are all yours to look up/)).toBeVisible();
 });
 
 test("a device count is shown once there is one", async ({ page }) => {

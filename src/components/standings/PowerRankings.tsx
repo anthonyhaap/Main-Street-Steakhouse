@@ -13,14 +13,13 @@
  */
 
 import { useMemo } from "react";
-import Link from "next/link";
 import { ArrowDown, ArrowUp, Minus, TrendingUp } from "lucide-react";
 import type { Outlook } from "@/lib/types";
 import {
   canRank, ordinal, powerHeadline, powerLine, powerRankings, tablePositions,
   RECENT_WEEKS, RECENT_WEIGHT, SEASON_WEIGHT,
 } from "@/lib/power";
-import { Seal, SkeletonRows } from "@/components/ui";
+import { Seal, SkeletonRows, TeamLink } from "@/components/ui";
 
 export function PowerRankings({ outlook, myTeamId, crestOf }: {
   outlook: Outlook | null;
@@ -95,7 +94,7 @@ export function PowerRankings({ outlook, myTeamId, crestOf }: {
               <Seal name={r.name} src={crestOf?.(r.team_id) ?? null} mine={mine} size={30} />
               <div className="pwr__who">
                 <div className="pwr__name">
-                  <Link className="tlink" href={mine ? "/team" : `/team?id=${r.team_id}`}>{r.name}</Link>
+                  <TeamLink id={r.team_id} name={r.name} mine={mine}>{r.name}</TeamLink>
                   {pos && (
                     <span className="pwr__pos">
                       {ordinal(pos)} in the table

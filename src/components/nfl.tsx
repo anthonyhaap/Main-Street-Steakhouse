@@ -129,16 +129,29 @@ export function Face({ player, size = 44 }: { player: HubPlayer; size?: number }
 
 const DAY = { weekday: "short", hour: "numeric", minute: "2-digit" } as const;
 
+/** "Sun 1:00 PM" before the game, the game's own clock ("Q3 4:12", "Final")
+ *  once it has started. Null when there is nothing to say. */
+function gameWhen(game: HubGame): string | null {
+  const kicked = game.status && !/^(pre|scheduled|status_scheduled)/i.test(game.status);
+  if (kicked) return game.status_detail ?? game.status;
+  return game.kickoff_at ? new Date(game.kickoff_at).toLocaleString(undefined, DAY) : null;
+}
+
+/** The same fact as `Kickoff`, as plain text — "@ PHI · Sun 1:00 PM" — for a
+ *  line that has no room for a logo. */
+export function kickoffLine(game: HubGame | null): string {
+  if (!game) return "Bye";
+  const when = gameWhen(game);
+  return `${game.home ? "vs" : "@"} ${game.opponent}${when ? ` · ${when}` : ""}`;
+}
+
 /** "@ PHI Sun 1:00" or "vs DAL · Final" — one line, no wrapping. */
 export function Kickoff({ game, week }: { game: HubGame | null; week: number }) {
   if (!game) {
     return <span style={{ color: "var(--faint)", fontSize: "var(--t-micro)" }}>Bye week {week}</span>;
   }
 
-  const kicked = game.status && !/^(pre|scheduled|status_scheduled)/i.test(game.status);
-  const when = game.kickoff_at
-    ? new Date(game.kickoff_at).toLocaleString(undefined, DAY)
-    : null;
+  const when = gameWhen(game);
 
   return (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 5, minWidth: 0 }}>
@@ -150,7 +163,7 @@ export function Kickoff({ game, week }: { game: HubGame | null; week: number }) 
         {game.opponent}
       </span>
       <span style={{ fontSize: "var(--t-micro)", color: "var(--faint)", whiteSpace: "nowrap" }}>
-        {kicked ? game.status_detail ?? game.status : when}
+        {when}
       </span>
     </span>
   );

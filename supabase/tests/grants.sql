@@ -51,17 +51,26 @@ declare
     'ff_roll_rosters', 'ff_materialize_roster', 'ff_refresh_wire', 'ff_refresh_projections',
     'ff_rebuild_season_projections', 'ff_load_season_projections', 'ff_load_sleeper_projections',
     'ff_load_espn_injuries', 'ff_load_espn_news', 'ff_backfill_bye_weeks',
+    'ff_load_nfl_schedule', 'ff_load_nfl_week',
     'ff_player_season', 'ff_recap_body', 'ff_injury_severity', 'ff_height_inches',
     'ff_club', 'ff_who',
     'ff_poll_live', 'ff_post_weekly_recaps', 'ff_resolve_matchup_challenges',
     'ff_settle_recent_weeks', 'ff_all_games', 'ff_all_sides', 'ff_streak',
-    'ff_audit_challenge_change',
+    'ff_audit_challenge_change', 'ff_pickem_members',
     -- The push drain and the trigger bodies behind it. ff_notify writes into
     -- another manager's outbox, and ff_push_batch reads every pending message
     -- in the league with the endpoints to deliver them — neither is a
     -- manager's to call, and the trigger functions are the database's alone.
     'ff_notify', 'ff_push_batch', 'ff_push_settle',
-    'ff_on_trade_proposed', 'ff_on_trade_answered', 'ff_on_waiver_settled'
+    'ff_on_trade_proposed', 'ff_on_trade_answered', 'ff_on_waiver_settled',
+    -- The bet's own trigger, its daily reminder, and the name lookup they share.
+    'ff_on_challenge_changed', 'ff_remind_overdue_challenges', 'ff_challenge_who',
+    -- The Special's lines go out from the publisher, never from a manager.
+    'ff_recap_notify',
+    -- The reply guard fires as a trigger, never called directly. The three
+    -- scheduled League Feed posts run from pg_cron, never from a manager.
+    'ff_validate_message_parent', 'ff_open_sunday_live', 'ff_close_sunday_live',
+    'ff_post_weekly_prediction'
   ];
 
   -- A representative handful the screens really do call. Asserted so that a
@@ -69,7 +78,8 @@ declare
   -- the managers out of their own app.
   v_manager_facing text[] := array[
     'ff_team_hub', 'ff_set_lineup', 'ff_add_drop', 'ff_claim_waiver', 'ff_waiver_board',
-    'ff_propose_trade', 'ff_respond_trade', 'ff_trade_desk', 'ff_briefing', 'ff_scoreboard'
+    'ff_propose_trade', 'ff_respond_trade', 'ff_trade_desk', 'ff_briefing', 'ff_scoreboard',
+    'ff_make_pick', 'ff_pickem_week'
   ];
 begin
   -- ------------------------------------- nobody signed in may call these --

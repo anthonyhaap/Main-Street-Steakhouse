@@ -104,6 +104,8 @@ test("the house writes the week up, and it reads as a column", async ({ page }) 
   // Written by the league, so it is nobody's line and carries no matchup.
   await expect(house).toHaveAttribute("data-mine", "false");
   await expect(house.locator(".club__on")).toHaveCount(0);
+  // But it has a page of its own, and the line says so.
+  await expect(house.getByRole("link", { name: "Read the Special →" })).toHaveAttribute("href", "/recap");
 
   // The line breaks it was composed with survive to the screen.
   await expect(house.locator("p")).toHaveCSS("white-space", "pre-wrap");
@@ -122,6 +124,14 @@ test("the primary nav fits the header it is in", async ({ page }, testInfo) => {
   expect(shown).toBe(width > 1180);
   const doc = await page.evaluate(() => document.documentElement.scrollWidth);
   expect(doc, `${testInfo.project.name} at ${width}px scrolls sideways`).toBeLessThanOrEqual(width);
+
+  // The standings are the widest thing in the app; the phone drops two columns
+  // rather than scrolling the whole page. tests/e2e/proportion.spec.ts holds
+  // the same line on every preview.
+  await page.goto("/preview/standings");
+  await expect(page.getByRole("heading", { name: "Standings" })).toBeVisible();
+  const table = await page.evaluate(() => document.documentElement.scrollWidth);
+  expect(table, `${testInfo.project.name} at ${width}px: standings scroll the page sideways`).toBeLessThanOrEqual(width);
 });
 
 test("the history wall hangs the plaques", async ({ page }) => {
@@ -152,10 +162,60 @@ test("the phone gets a manifest and a launch screen", async ({ request }) => {
   expect(json.display).toBe("standalone");
   expect(json.background_color).toBe("#191614");
 
+  // Android's richer install sheet wants pictures; both must actually serve.
+  expect(json.screenshots.length).toBeGreaterThanOrEqual(2);
+  for (const shot of json.screenshots) {
+    const png = await request.get(shot.src);
+    expect(png.ok(), `${shot.src} is missing`).toBeTruthy();
+    expect(png.headers()["content-type"]).toContain("image/png");
+  }
+
   const splash = await request.get("/splash/1170x2532.png");
   expect(splash.ok()).toBeTruthy();
   expect(splash.headers()["content-type"]).toContain("image/png");
 
   const bad = await request.get("/splash/evil.png");
   expect(bad.status()).toBe(404);
+});
+
+test("the Commissioner's statement is posted under the card", async ({ page }) => {
+  await page.goto("/preview/tonight");
+  const memo = page.getByRole("article", { name: /Official statement from the Commissioner/ });
+  await expect(memo).toBeVisible();
+  await expect(memo.getByText("We do not negotiate with terrorists.")).toBeVisible();
+  await expect(memo.getByText("Unless additional screenshots emerge.")).toBeVisible();
+  // It reads on a phone without pushing the page sideways.
+  await page.setViewportSize({ width: 360, height: 800 });
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  expect(overflow).toBeLessThanOrEqual(0);
+});
+
+test("the front page offers alerts once, and both answers take it away", async ({ page }) => {
+  await page.goto("/preview/tonight");
+  const offer = page.getByRole("complementary", { name: "Turn on alerts" });
+  await expect(offer).toContainText("Turn on alerts on this device.");
+  await expect(offer).toContainText("Lead changes in your matchup, trade offers, waiver results and the Weekly Special");
+  await offer.getByRole("button", { name: "Turn on" }).click();
+  await expect(offer).toHaveCount(0);
+  await page.reload();
+  await page.getByRole("complementary", { name: "Turn on alerts" }).getByRole("button", { name: "Not now" }).click();
+  await expect(page.getByRole("complementary", { name: "Turn on alerts" })).toHaveCount(0);
+});
+
+test("the trade deadline takes the front page only in the week it closes", async ({ page }) => {
+  await page.goto("/preview/tonight");
+  const card = page.getByRole("region", { name: "Trade deadline" });
+  await expect(card).toHaveCount(0);
+
+  const stages = page.getByRole("group", { name: "Trade deadline" });
+  await stages.getByRole("button", { name: "Deadline week" }).click();
+  await expect(card).toContainText("3 days left");
+  await expect(card).toContainText("Trades close Tue 12:15 AM ET, after Monday night's game.");
+  // The offers only you can answer come first.
+  await expect(card).toContainText("2 offers waiting on you · 3 on the table · 4 on the block");
+  await expect(card.getByRole("link", { name: "Answer your offers" })).toHaveAttribute("href", "/transactions?tab=trades");
+
+  await stages.getByRole("button", { name: "Last day" }).click();
+  await expect(card).toContainText("Last day · 8 hours left");
+  await expect(card).toHaveAttribute("data-phase", "day");
 });

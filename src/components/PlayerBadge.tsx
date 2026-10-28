@@ -75,10 +75,17 @@ export function PlayerFace({
  * reachable with the back button.
  */
 export function PlayerBadge({
-  id, name, position, team, espnId, size = 38, sub, tone = "plain", onOpen,
+  id, name, displayName, position, team, espnId, size = 38, sub, tone = "plain", onOpen,
 }: {
   id: string;
   name: string;
+  /**
+   * What the badge prints, when it isn't `name`. The link's title and the
+   * face's alt text stay the full name either way — this only shortens what
+   * a tight column has room to show, the way a scoreboard prints "J. Taylor"
+   * instead of clipping "Jonathan Taylor" mid-word.
+   */
+  displayName?: string;
   position?: string | null;
   team?: string | null;
   espnId?: string | null;
@@ -115,7 +122,7 @@ export function PlayerBadge({
       </span>
 
       <span className="pbadge__text">
-        <span className="pbadge__name">{name}</span>
+        <span className="pbadge__name">{displayName ?? name}</span>
         <span className="pbadge__sub">
           {sub ?? <>{position ?? "—"} · {normTeam(team) ?? "FA"}</>}
         </span>

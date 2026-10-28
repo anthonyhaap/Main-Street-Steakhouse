@@ -7,7 +7,8 @@ import { BlockSheet } from "@/components/trades/BlockSheet";
 import { OfferSheet } from "@/components/trades/OfferSheet";
 import type { Owned } from "@/components/players/DropPicker";
 import { LEAGUE_ID } from "@/lib/config";
-import { useLive, type WireStatus } from "@/lib/live";
+import { useLive, useServerClock, type WireStatus } from "@/lib/live";
+import type { TradeDeadline } from "@/lib/deadline";
 import { useWeekGames } from "@/lib/nfl/schedule";
 import { useSession } from "@/lib/session";
 import { supabaseBrowser } from "@/lib/supabase/client";
@@ -24,12 +25,19 @@ export function DeskPanel({ onStatus }: { onStatus?: (s: WireStatus) => void }) 
 
   const fetcher = useCallback(async () => {
     if (!team) return null;
-    const [desk, owners] = await Promise.all([
+    const [desk, owners, deadline] = await Promise.all([
       supabaseBrowser().rpc("ff_trade_desk", { p_team_id: team.id }),
       supabaseBrowser().rpc("ff_pool_owners", { p_league_id: LEAGUE_ID }),
+      supabaseBrowser().rpc("ff_trade_deadline", { p_league_id: LEAGUE_ID, p_team_id: team.id }),
     ]);
     if (desk.error) throw new Error(desk.error.message);
-    return { desk: desk.data as TradeDesk, owners: (owners.data ?? []) as Owned[] };
+    // The countdown is a nicety on top of the desk: without it the desk still
+    // says the week, so its failure is not the desk's.
+    return {
+      desk: desk.data as TradeDesk,
+      owners: (owners.data ?? []) as Owned[],
+      deadline: deadline.error ? null : (deadline.data as TradeDeadline),
+    };
   }, [team]);
 
   const { data, error, status, refetch } = useLive(fetcher, {
@@ -44,6 +52,17 @@ export function DeskPanel({ onStatus }: { onStatus?: (s: WireStatus) => void }) 
   useEffect(() => { onStatus?.(status); }, [status, onStatus]);
 
   const desk = data?.desk ?? null;
+  // The countdown is against the database's deadline, so it runs on the
+  // database's clock: a phone running fast must not shut the desk while
+  // trades are still legal. Ticks every thirty seconds.
+  const { serverNow } = useServerClock();
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    // Re-read at once whenever the offset is (re)measured, then every 30s.
+    const first = setTimeout(() => setNow(serverNow()), 0);
+    const id = setInterval(() => setNow(serverNow()), 30000);
+    return () => { clearTimeout(first); clearInterval(id); };
+  }, [serverNow]);
   const owners = useMemo(() => data?.owners ?? [], [data]);
   const mine = useMemo(
     () => (team ? owners.filter((o) => o.team_id === team.id) : []),
@@ -92,6 +111,8 @@ export function DeskPanel({ onStatus }: { onStatus?: (s: WireStatus) => void }) 
     <>
       <Desk
         desk={desk}
+        deadline={data?.deadline ?? null}
+        now={now}
         busy={busy}
         games={games}
         week={week}

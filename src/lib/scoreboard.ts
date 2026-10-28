@@ -27,6 +27,8 @@ export type ScoreStarter = {
   espn_id: string | null;
   points: number;
   projection: number | null;
+  /** The line `points` was scored from — Sleeper's own stat keys. Null until he has one. */
+  stats: Record<string, number> | null;
   kickoff_at: string | null;
   /** ESPN's: "pre" | "in" | "post". Null when he has no game this week. */
   game_status: string | null;
@@ -66,6 +68,13 @@ export type ScoreSide = {
   empty_slots: number;
   top: ScoreTop;
   starters: ScoreStarter[];
+  /**
+   * Who sat. Optional because it arrives with
+   * `20260921004635_scoreboard_carries_the_bench` and the browser ships
+   * ahead of a migration being applied — every reader of it treats an absent
+   * bench and an empty one the same way, which is to render nothing.
+   */
+  bench?: ScoreStarter[];
   mine: boolean;
 };
 
@@ -160,13 +169,47 @@ export type CardState = "pre" | "live" | "settled" | "between";
 export function cardState(c: ScoreCard): CardState {
   const left = c.home.yet_to_play + c.away.yet_to_play;
   const on = c.home.in_action + c.away.in_action;
-  const played = starters(c).some((s) => s.final && s.kickoff_at !== null);
+  // Points on the board mean the game was played, whatever the feed says
+  // about it: a game state that never left `pre` hid a whole Thursday night
+  // behind its projection once.
+  const played = starters(c).some((s) => (s.final && s.kickoff_at !== null) || Number(s.points) > 0);
   if (on > 0) return "live";
   if (left === 0) return played || starters(c).length > 0 ? "settled" : "pre";
   return played ? "between" : "pre";
 }
 
 const starters = (c: ScoreCard) => [...c.home.starters, ...c.away.starters];
+
+/** Who sat, whether or not the wire has learned to send them. */
+export const benchOf = (s: ScoreSide): ScoreStarter[] => s.bench ?? [];
+
+/**
+ * Which side is carrying the game — one answer, so the scoreboard, the sticky
+ * bar and the navigator pill for the same matchup can never disagree about it.
+ * Before anyone kicks, the projection is the only ranking there is; after that
+ * it is the score. Null for a dead heat and for a card with no lineups to
+ * rank.
+ */
+export function leader(c: ScoreCard): "home" | "away" | null {
+  if (c.home.starters.length + c.away.starters.length === 0) return null;
+  const [h, a] = cardState(c) === "pre"
+    ? [Number(c.home.proj), Number(c.away.proj)]
+    : [Number(c.home.points), Number(c.away.points)];
+  return h > a ? "home" : a > h ? "away" : null;
+}
+
+/** "DAL", not "Dallas Cowboys" — a scoreboard has three characters per team. */
+export const abbr = (name: string): string => name.trim().slice(0, 3).toUpperCase();
+
+/**
+ * The word for a card's state, for somewhere with room for one word: the
+ * navigator pill, the sticky bar. `cardLine` is the version with a sentence
+ * to spend.
+ */
+export function stateWord(state: CardState): string {
+  return state === "live" ? "live" : state === "settled" ? "final"
+    : state === "between" ? "in play" : "proj.";
+}
 
 /**
  * What a side has still to come.
@@ -406,13 +449,111 @@ export function freshness(iso: string | null | undefined, now: number): string {
  * The marker on a starter's row: where his real game is. ESPN's own words when
  * it has them, because "Q3 4:21" is worth more than anything paraphrased.
  */
-export function gameMark(s: ScoreStarter, now: number): { label: string; state: "live" | "final" | "pre" | "none" } {
-  if (s.on_bye) return { label: "BYE", state: "none" };
-  if (!s.kickoff_at && !s.game_status) return { label: "—", state: "none" };
-  if (s.game_status === "in") return { label: s.game_detail || "Live", state: "live" };
-  if (s.game_status === "post") return { label: "Final", state: "final" };
-  const vs = s.opponent ? `${s.at_home ? "vs" : "@"} ${s.opponent} · ` : "";
-  return { label: `${vs}${kickLabel(s.kickoff_at, now)}`, state: "pre" };
+export type GameMark = {
+  /** The state, in a word: LIVE, FINAL, BYE, or who he is playing. */
+  label: string;
+  /** The clock, when there is one — kept whole so it can wrap as a unit. */
+  detail: string | null;
+  state: "live" | "final" | "pre" | "none";
+};
+
+export function gameMark(s: ScoreStarter, now: number): GameMark {
+  if (s.on_bye) return { label: "BYE", detail: null, state: "none" };
+  if (!s.kickoff_at && !s.game_status) return { label: "—", detail: null, state: "none" };
+  // "Live" out loud, and not only as a colour and a pulsing dot: the one state
+  // on this row that changes what a manager does next is the one state that
+  // must survive being read in a screenshot, in sunlight, or by someone who
+  // cannot separate wine from grey.
+  if (s.game_status === "in") return { label: "Live", detail: s.game_detail, state: "live" };
+  if (s.game_status === "post") return { label: "Final", detail: null, state: "final" };
+  // Two pieces rather than one string, because half a lineup row on a phone is
+  // narrower than "vs NYG · Mon 8:15" and a single string breaks wherever the
+  // spaces fall — "LIVE · Q2" above "8:41". Kept apart, it breaks where it
+  // means something: the opponent on one line, the clock whole on the next.
+  const vs = s.opponent ? `${s.at_home ? "vs" : "@"} ${s.opponent}` : "";
+  const kick = kickLabel(s.kickoff_at, now);
+  return { label: vs || kick, detail: vs ? kick : null, state: "pre" };
+}
+
+/**
+ * What he actually did, not just what it was worth. `gameMark` says when;
+ * this says what — the same stat line `points` was scored from, read back in
+ * the shorthand a box score uses. Null before he has one, which is exactly
+ * when there is nothing yet to say.
+ */
+export function boxScoreLine(p: ScoreStarter): string | null {
+  const s = p.stats;
+  if (!s) return null;
+  const n = (k: string) => Number(s[k] ?? 0);
+  const parts: string[] = [];
+
+  if (p.position === "QB") {
+    if (n("pass_att") > 0) {
+      parts.push(`${n("pass_cmp")}/${n("pass_att")}, ${n("pass_yd")} YD${n("pass_td") ? `, ${n("pass_td")} TD` : ""}`);
+    }
+    if (n("pass_int") > 0) parts.push(`${n("pass_int")} INT`);
+    if (n("rush_att") > 0) {
+      parts.push(`${n("rush_yd")} rush YD${n("rush_td") ? `, ${n("rush_td")} TD` : ""}`);
+    }
+  } else if (p.position === "RB") {
+    if (n("rush_att") > 0) {
+      parts.push(`${n("rush_att")} CAR, ${n("rush_yd")} YD${n("rush_td") ? `, ${n("rush_td")} TD` : ""}`);
+    }
+    if (n("rec") > 0) {
+      parts.push(`${n("rec")} REC, ${n("rec_yd")} YD${n("rec_td") ? `, ${n("rec_td")} TD` : ""}`);
+    }
+  } else if (p.position === "WR" || p.position === "TE") {
+    if (n("rec") > 0 || n("rec_tgt") > 0) {
+      parts.push(`${n("rec")} REC, ${n("rec_yd")} YD${n("rec_td") ? `, ${n("rec_td")} TD` : ""}`);
+    }
+    if (n("rush_att") > 0) parts.push(`${n("rush_att")} CAR, ${n("rush_yd")} YD`);
+  } else if (p.position === "K") {
+    if (n("fgm") > 0 || n("fgmiss") > 0) parts.push(`${n("fgm")}/${n("fgm") + n("fgmiss")} FG`);
+    if (n("xpm") > 0 || n("xpmiss") > 0) parts.push(`${n("xpm")}/${n("xpm") + n("xpmiss")} XP`);
+  } else if (p.position === "DST") {
+    const bits: string[] = [];
+    if (n("sack")) bits.push(`${n("sack")} SACK`);
+    if (n("int")) bits.push(`${n("int")} INT`);
+    if (n("fum_rec")) bits.push(`${n("fum_rec")} FR`);
+    // `ff_score` reads def_st_td first — the one Sleeper actually populates —
+    // and falls back to def_td only when that is absent, plus a fumble
+    // recovered in the end zone, which is its own key. The same read here,
+    // or a defensive score can show its points with no TD in the line.
+    const td = n("def_st_td") || n("def_td");
+    const tds = td + n("fum_rec_ez_tds");
+    if (tds) bits.push(`${tds} TD`);
+    if (n("safe")) bits.push(`${n("safe")} SFTY`);
+    if (n("blk_kick")) bits.push(`${n("blk_kick")} BLK`);
+    if (bits.length) parts.push(bits.join(", "));
+    const pa = pointsAllowedLine(s);
+    if (pa) parts.push(pa);
+  }
+
+  return parts.length ? parts.join(" · ") : null;
+}
+
+/**
+ * Sleeper sends the exact number allowed most weeks, but on a shutout it
+ * omits `pts_allow` entirely and sends a tier flag instead — the bug
+ * `20260826030012_fix_dst_shutout_scoring` found in `ff_score` itself. Read
+ * the same fallback here, or a shutout defense shows every other stat with
+ * no "0 PA" to explain the biggest bonus in the line.
+ */
+function pointsAllowedLine(s: Record<string, number>): string | null {
+  if (s["pts_allow"] != null) return `${Number(s["pts_allow"])} PA`;
+  const tiers: [string, string][] = [
+    ["pts_allow_0", "0 PA"],
+    ["pts_allow_1_6", "1–6 PA"],
+    ["pts_allow_7_13", "7–13 PA"],
+    ["pts_allow_14_20", "14–20 PA"],
+    ["pts_allow_21_27", "21–27 PA"],
+    ["pts_allow_28_34", "28–34 PA"],
+    ["pts_allow_35p", "35+ PA"],
+  ];
+  for (const [key, label] of tiers) {
+    if (Number(s[key] ?? 0) > 0) return label;
+  }
+  return null;
 }
 
 /** "Sun 1:00", or "in 42m" once it is close enough to matter. */

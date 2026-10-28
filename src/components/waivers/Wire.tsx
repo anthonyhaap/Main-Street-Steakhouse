@@ -2,16 +2,12 @@
 
 import { ArrowDown, ArrowUp, Clock, Gavel, Trash2 } from "lucide-react";
 import type { WaiverBoard, WaiverPlayer } from "@/lib/types";
+import { when } from "@/lib/waivers";
+import { TeamLink } from "@/components/ui";
 import { Matchup } from "@/components/nfl";
 import { gameFor, type WeekGames } from "@/lib/nfl/schedule";
 
-/** "Wed 8:00 AM" rather than a countdown: a ticking clock on a weekly deadline
- *  is anxiety, not information. */
-export const when = (iso: string) =>
-  new Date(iso).toLocaleString(undefined, {
-    weekday: "short", month: "short", day: "numeric",
-    hour: "numeric", minute: "2-digit",
-  });
+export { when };
 
 /**
  * The wire, as a manager reads it: when it settles, what he has asked for and
@@ -21,7 +17,7 @@ export const when = (iso: string) =>
  * page above it owns the fetching and the RPCs; everything here is props.
  */
 export function Wire({
-  board, teamName, busy, claimed, games = null, week = null, onClaim, onCancelClaim, onMove,
+  board, teamName, busy, claimed, games = null, week = null, onClaim, onCancelClaim, onMove, teamIdOf,
 }: {
   board: WaiverBoard;
   teamName: string;
@@ -33,6 +29,15 @@ export function Wire({
   onClaim: (p: WaiverPlayer) => void;
   onCancelClaim: (claimId: string, playerName: string) => void;
   onMove: (index: number, by: -1 | 1) => void;
+  /**
+   * A team's id from its name — `teamIdsByName` over the league's own list.
+   * The waiver order is the one list on this screen that names other teams, and
+   * `ff_waiver_board` gives it as `{ team, priority }` with no id to link by.
+   *
+   * Optional, and absent in the fixture: `/preview/waivers` has no session to
+   * resolve against, so the order reads as the plain text it always was.
+   */
+  teamIdOf?: (name: string) => string | null;
 }) {
   return (
     <>
@@ -43,13 +48,22 @@ export function Wire({
             <span className="eyebrow">your call: <span className="num">#{board.my_priority}</span></span>
           )}
         </div>
-        <div className="card__body" style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <Clock size={15} style={{ color: "var(--faint)" }} />
-          <span className="eyebrow">
-            {board.settles_at
-              ? <>Next settlement <strong>{when(board.settles_at)}</strong>. Claims are blind until then.</>
-              : "No settlement scheduled."}
-          </span>
+        {/* The deadline is the one fact on this screen that decides what a
+            manager does tonight, so it is set in the size of a stat rather
+            than an eyebrow: readable from across the room, and first. */}
+        <div className="card__body" style={{ display: "flex", gap: 12, alignItems: "center" }}>
+          <Clock size={22} strokeWidth={1.75} style={{ color: "var(--gold)", flexShrink: 0 }} />
+          <div style={{ minWidth: 0 }}>
+            <div className="eyebrow">Next settlement</div>
+            <div style={{ font: "400 clamp(1.15rem, 0.9rem + 0.8vw, 1.5rem)/1.15 var(--serif)", letterSpacing: "-0.02em", marginTop: 2 }}>
+              {board.settles_at ? when(board.settles_at) : "Not scheduled"}
+            </div>
+            <div style={{ fontSize: "var(--t-small)", color: "var(--muted)", marginTop: 4 }}>
+              {board.settles_at
+                ? "Claims are blind until then. Anyone never owned is a free agent and can be signed now."
+                : "No settlement is on the calendar."}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -125,16 +139,24 @@ export function Wire({
           <span className="eyebrow">win a claim, go to the back</span>
         </div>
         <div className="rows">
-          {board.order.map((o) => (
-            <div className="row" key={o.team}>
-              <span className="num" style={{ width: 22, color: "var(--faint)", textAlign: "right" }}>
-                {o.priority ?? "–"}
-              </span>
-              <div style={{ flex: 1 }}>
-                {o.team}{o.team === teamName && <span className="eyebrow" style={{ marginLeft: 8 }}>you</span>}
+          {board.order.map((o) => {
+            // Whose row this is was already decided by name, for the "you"
+            // marker. The door reads the same answer rather than a second one:
+            // a row badged "you" that opened somebody else's desk would be the
+            // two of them disagreeing in public.
+            const mine = o.team === teamName;
+            return (
+              <div className="row" key={o.team}>
+                <span className="num" style={{ width: 22, color: "var(--faint)", textAlign: "right" }}>
+                  {o.priority ?? "–"}
+                </span>
+                <div style={{ flex: 1 }}>
+                  <TeamLink id={teamIdOf?.(o.team) ?? null} name={o.team} mine={mine}>{o.team}</TeamLink>
+                  {mine && <span className="eyebrow" style={{ marginLeft: 8 }}>you</span>}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
@@ -143,7 +165,7 @@ export function Wire({
           <div className="card__head"><h2>Recent settlements</h2></div>
           <div className="rows">
             {board.recent.map((r) => (
-              <div className="row" key={r.ran_at}>
+              <div className="row row--stack-sm" key={r.ran_at}>
                 <div style={{ flex: 1 }}>{when(r.ran_at)}</div>
                 <span className="eyebrow">
                   week <span className="num">{r.week}</span> ·{" "}

@@ -173,7 +173,7 @@ function NewsItem({ article, players, clubs }: Tagged) {
         {article.description && <p>{article.description}</p>}
         <span className="news__meta">
           {players.slice(0, 2).map((p) => (
-            <span key={p.player_id} className="badge" data-tone="wine" style={{ minHeight: 18, fontSize: 9 }}>
+            <span key={p.player_id} className="badge" data-tone="wine" data-size="sm">
               {p.full_name}
             </span>
           ))}

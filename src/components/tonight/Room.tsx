@@ -19,16 +19,19 @@
 
 import Link from "next/link";
 import { useCallback } from "react";
-import { MessageCircle } from "lucide-react";
+import { Flame, MessageCircle } from "lucide-react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { useLive } from "@/lib/live";
+import { useUnreadCounts } from "@/lib/unread";
 import { LEAGUE_ID } from "@/lib/config";
 import { aboutMyTable, roomLine, type RoomFeed as Feed } from "@/lib/briefing";
 import { freshness } from "@/lib/scoreboard";
+import type { UnreadCounts } from "@/lib/types";
 
-export function RoomBoard({ feed, now }: { feed: Feed; now: number }) {
+export function RoomBoard({ feed, now, unread }: { feed: Feed; now: number; unread?: UnreadCounts | null }) {
   const mine = feed.mine;
   const aboutMine = aboutMyTable(feed);
+  const total = unread ? unread.chat + unread.league_feed : 0;
 
   return (
     <section className="club" aria-label="The clubhouse">
@@ -39,6 +42,16 @@ export function RoomBoard({ feed, now }: { feed: Feed; now: number }) {
           Clubhouse →
         </Link>
       </div>
+
+      {/* The activity preview: don't make anyone click through to discover
+          something happened while they were away. */}
+      {total > 0 && (
+        <Link href="/chat" className="club__unread">
+          <Flame size={13} aria-hidden />
+          <b>{total} new</b> since your last visit
+          {unread?.teaser && <span> — {unread.teaser.author}: {unread.teaser.body}</span>}
+        </Link>
+      )}
 
       {/* Your own table first: the thread you are actually in. */}
       {mine && aboutMine && (
@@ -65,6 +78,9 @@ export function RoomBoard({ feed, now }: { feed: Feed; now: number }) {
               </span>
               {/* The recap arrives as written: a title, the card, the notes. */}
               <p>{line.body}</p>
+              {line.kind === "house" && (
+                <Link className="club__read" href="/recap">Read the Special →</Link>
+              )}
               {line.about && (
                 <Link className="club__on" href={`/matchups?week=${line.about.week}`}>
                   on {line.about.mine ? "your game" : `${line.about.away} vs ${line.about.home}`}
@@ -100,9 +116,10 @@ export function Room({ now, enabled }: { now: number; enabled: boolean }) {
     pollMs: 60000,
     enabled,
   });
+  const unread = useUnreadCounts();
 
   // No skeleton: the room is below the card and arrives when it arrives. A
   // shimmering box under a finished card is a worse lie than an empty space.
   if (!data) return null;
-  return <RoomBoard feed={data} now={now} />;
+  return <RoomBoard feed={data} now={now} unread={unread} />;
 }

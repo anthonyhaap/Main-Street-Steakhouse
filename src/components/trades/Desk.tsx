@@ -2,11 +2,27 @@
 
 import { ArrowLeftRight, Check, Tag, X } from "lucide-react";
 import type { TradeDesk, TradeOffer } from "@/lib/types";
+import { TeamLink } from "@/components/ui";
+import { closesLabel, deadlinePhase, timeLeft, type TradeDeadline } from "@/lib/deadline";
 import { Matchup } from "@/components/nfl";
 import { gameFor, type WeekGames } from "@/lib/nfl/schedule";
 
 const when = (iso: string) =>
   new Date(iso).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+
+/**
+ * Whoever is across the table on an offer, as a door to their desk.
+ *
+ * Which end that is depends on which way the offer went: the team the reader
+ * sent it to, or the team that sent it to them. One place decides, so the name
+ * printed and the roster opened can never come apart.
+ */
+function OtherSide({ offer }: { offer: TradeOffer }) {
+  const [id, name] = offer.mine
+    ? [offer.receiver_team_id, offer.to_team]
+    : [offer.proposer_team_id, offer.from_team];
+  return <TeamLink id={id} name={name}>{name}</TeamLink>;
+}
 
 /**
  * An offer, read from one side of the table.
@@ -34,8 +50,16 @@ function Offer({
     <div className="card" style={{ margin: 0 }}>
       <div className="card__head">
         <div>
+          {/* The team named here is always the one across the table, so its
+              door is never the reader's own. Linked by the id the offer already
+              carries rather than by the name it prints — `proposer_team_id` and
+              `receiver_team_id` have been on this payload all along. */}
           <div className="eyebrow" data-tone={live ? "gold" : undefined}>
-            {offer.mine ? `you offered ${offer.to_team}` : `${offer.from_team} offered you`}
+            {offer.mine ? (
+              <>you offered <OtherSide offer={offer} /></>
+            ) : (
+              <><OtherSide offer={offer} /> offered you</>
+            )}
             {offer.counters_id && " · a counter"}
           </div>
           <h2 style={{ fontFamily: "var(--serif)", margin: "var(--s1) 0", fontSize: "1.05rem" }}>
@@ -80,7 +104,7 @@ function Offer({
         {offer.message && <p className="eyebrow" style={{ fontStyle: "italic" }}>“{offer.message}”</p>}
 
         {live && (
-          <div style={{ display: "flex", gap: "var(--s2)", flexWrap: "wrap" }}>
+          <div className="offer__acts">
             {offer.mine ? (
               <button className="btn" data-v="ghost" data-size="sm" disabled={busy !== null}
                 onClick={() => onRespond(offer.id, "cancelled")}>
@@ -115,9 +139,12 @@ function Offer({
  * Presentation only, so /preview/trades can hold it still.
  */
 export function Desk({
-  desk, busy, games = null, week = null, onRespond, onCounter, onOpenBlock, onMakeOffer,
+  desk, deadline = null, now = 0, busy, games = null, week = null, onRespond, onCounter, onOpenBlock, onMakeOffer,
 }: {
   desk: TradeDesk;
+  /** When trades close, from ff_trade_deadline. Without it the desk says the week. */
+  deadline?: TradeDeadline | null;
+  now?: number;
   busy: string | null;
   /** This week's slate, so every name on the desk reads with who he plays. */
   games?: WeekGames | null;
@@ -129,7 +156,11 @@ export function Desk({
 }) {
   const live = desk.offers.filter((o) => o.status === "proposed");
   const done = desk.offers.filter((o) => o.status !== "proposed");
-  const past = desk.week > desk.deadline_week;
+  const phase = deadline ? deadlinePhase(deadline, now) : null;
+  // The desk's own week says it, and so does the clock passing the instant —
+  // whichever is first, so the button never stays pressable past the rule.
+  const past = desk.week > desk.deadline_week || phase === "closed";
+  const soon = (phase === "week" || phase === "day") && deadline?.closes_at ? deadline.closes_at : null;
 
   return (
     <>
@@ -139,9 +170,19 @@ export function Desk({
           <span className="eyebrow">
             {past
               ? <>deadline passed in week <span className="num">{desk.deadline_week}</span></>
-              : <>deadline: week <span className="num">{desk.deadline_week}</span></>}
+              : soon
+                ? <span className="desk__soon" data-phase={phase}>deadline in {timeLeft(soon, now)}</span>
+                : <>deadline: week <span className="num">{desk.deadline_week}</span></>}
           </span>
         </div>
+        {soon && (
+          <div className="card__body">
+            <p className="desk__deadline" data-phase={phase}>
+              Trades close <b>{closesLabel(soon, now)}</b>, after Monday night&apos;s game.
+              Anything still on the table then expires.
+            </p>
+          </div>
+        )}
         {past && (
           <div className="card__body">
             <span className="eyebrow">
@@ -186,7 +227,10 @@ export function Desk({
                   {b.player}
                 </div>
                 <div className="eyebrow" style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-                  <span>{b.nfl_team ?? "FA"} · {b.team}{b.mine && " · yours"}{b.note && ` · “${b.note}”`}</span>
+                  <span>
+                    {b.nfl_team ?? "FA"} · <TeamLink id={b.team_id} name={b.team} mine={b.mine}>{b.team}</TeamLink>
+                    {b.mine && " · yours"}{b.note && ` · “${b.note}”`}
+                  </span>
                   <Matchup game={gameFor(games, b.nfl_team)} week={week} />
                 </div>
               </div>
@@ -211,7 +255,7 @@ export function Desk({
               <div className="row" key={o.id}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {o.mine ? `to ${o.to_team}` : `from ${o.from_team}`}
+                    {o.mine ? "to " : "from "}<OtherSide offer={o} />
                   </div>
                   <div className="eyebrow">{o.outcome ?? o.status}</div>
                 </div>

@@ -416,6 +416,64 @@ begin
   end;
   v_checks := v_checks + 1;
 
+  -- ------------------------------------ the advertised settlement holds --
+  -- Between the scheduled instant and the cron tick that serves it, the board
+  -- used to say "next week" about a run minutes away. Its own league, because
+  -- the checks above have recorded runs at "now" and the question here is what
+  -- the board says when none has.
+  declare
+    v_l5 uuid; v_d5 uuid; v_r uuid; v_s uuid;
+    v_next timestamptz; v_said timestamptz;
+  begin
+    insert into leagues (name, season, team_count, roster_slots, settings)
+    values ('Holds', 2026, 2, '["QB","BN"]'::jsonb,
+            '{"waiver_run_day":"wednesday"}'::jsonb) returning id into v_l5;
+    insert into teams (league_id, name, draft_slot) values (v_l5,'R',1) returning id into v_r;
+    insert into teams (league_id, name, draft_slot) values (v_l5,'S',2) returning id into v_s;
+    insert into drafts (league_id, rounds, status) values (v_l5, 1, 'setup') returning id into v_d5;
+    v_next := ff_next_waiver_run(v_l5, now());
+
+    -- Undrafted: nothing can be outstanding, so the schedule is the answer.
+    if ff_waiver_settles_at(v_l5) <> v_next then
+      raise exception 'an undrafted league was told something other than its next scheduled run';
+    end if;
+
+    -- Drafted, and no run has ever served the most recent instant: the wire
+    -- settles at the next tick of the cron, which is within a day and at the
+    -- minute the job is scheduled for — not next Wednesday.
+    update drafts set status = 'complete' where id = v_d5;
+    v_said := ff_waiver_settles_at(v_l5);
+    if v_said <= now() or v_said > now() + interval '1 day' then
+      raise exception 'a due, unserved settlement was not placed at the next cron tick (said %)', v_said;
+    end if;
+    if extract(minute from v_said at time zone 'UTC') <>
+       split_part((select schedule from cron.job where jobname = 'waivers'), ' ', 1)::int then
+      raise exception 'the settlement is not on the cron''s minute (said %)', v_said;
+    end if;
+
+    -- A run recorded since the due instant serves it, and the schedule is the
+    -- answer again.
+    perform ff_run_waivers(v_l5, v_week);
+    if ff_waiver_settles_at(v_l5) <> v_next then
+      raise exception 'a served settlement did not fall through to the next scheduled run';
+    end if;
+
+    -- The board says what the function says.
+    if (ff_waiver_board(v_r)->>'settles_at')::timestamptz <> ff_waiver_settles_at(v_l5) then
+      raise exception 'the board and ff_waiver_settles_at disagree';
+    end if;
+
+    -- The wire as a manager sees it at 08:02 on a Wednesday: the run that
+    -- served last week is a week old, this week's instant has passed, and the
+    -- cron has not ticked yet. Aging the run is how a test gets there.
+    update waiver_runs set ran_at = ran_at - interval '7 days' where league_id = v_l5;
+    v_said := ff_waiver_settles_at(v_l5);
+    if v_said <= now() or v_said > now() + interval '1 day' then
+      raise exception 'between the instant and the tick the board did not point at the tick (said %)', v_said;
+    end if;
+  end;
+  v_checks := v_checks + 1;
+
   raise notice 'waivers: % checks passed', v_checks;
 end $$;
 

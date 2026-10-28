@@ -1,48 +1,42 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { Share, SquarePlus, X } from "lucide-react";
+import { isStandalone, platformOf, useInstallPrompt } from "@/lib/install";
 
 const KEY = "mss-install-nudge";
-
-type BeforeInstallPromptEvent = Event & {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
-};
 
 /**
  * "Add to Home Screen", once, on a phone.
  *
  * On an iPhone this is the difference between a website and the league app:
- * standalone mode drops Safari's chrome and the card fills the screen. Safari
+ * standalone mode drops Safari's chrome and the card fills the screen, and it
+ * is the only way iOS lets a web app send a notification — so the nudge says
+ * that too; it is the reason most managers would bother. Safari
  * has no install prompt, so the nudge shows the two taps. Android does have
  * one, and the button calls it.
  *
  * Shows on the first mobile visit only, never in the installed app, and a
- * dismissal sticks.
+ * dismissal sticks — /install, behind More, is the way back.
  */
 export function InstallNudge() {
   const [show, setShow] = useState(false);
   const [ios, setIos] = useState(false);
-  const [prompt, setPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const { prompt, install } = useInstallPrompt();
 
   useEffect(() => {
-    const standalone =
-      matchMedia("(display-mode: standalone)").matches
-      || (navigator as Navigator & { standalone?: boolean }).standalone === true;
-    const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const mobile = platformOf() !== "other";
     let dismissed = false;
     try { dismissed = !!localStorage.getItem(KEY); } catch { /* ignore */ }
-    if (standalone || !mobile || dismissed) return;
+    if (isStandalone() || !mobile || dismissed) return;
 
-    const onPrompt = (e: Event) => { e.preventDefault(); setPrompt(e as BeforeInstallPromptEvent); };
-    window.addEventListener("beforeinstallprompt", onPrompt);
     // After the curtain, not under it.
     const id = setTimeout(() => {
-      setIos(/iPhone|iPad|iPod/i.test(navigator.userAgent));
+      setIos(platformOf() === "ios");
       setShow(true);
     }, 2200);
-    return () => { clearTimeout(id); window.removeEventListener("beforeinstallprompt", onPrompt); };
+    return () => clearTimeout(id);
   }, []);
 
   if (!show) return null;
@@ -52,13 +46,6 @@ export function InstallNudge() {
     try { localStorage.setItem(KEY, String(Date.now())); } catch { /* ignore */ }
   };
 
-  const install = async () => {
-    if (!prompt) return;
-    await prompt.prompt();
-    await prompt.userChoice;
-    dismiss();
-  };
-
   return (
     <aside className="nudge" role="note">
       <div className="nudge__body">
@@ -66,16 +53,20 @@ export function InstallNudge() {
         {ios ? (
           <p>
             Tap <Share size={13} aria-label="Share" /> below, then <b>Add to Home Screen</b>{" "}
-            <SquarePlus size={13} aria-hidden />. No address bar, no tabs — just the league.
+            <SquarePlus size={13} aria-hidden />. No address bar, no tabs — and on an iPhone it&apos;s the only
+            way to get alerts when your matchup swings.
           </p>
         ) : prompt ? (
           <p>One tap and it opens like an app — full screen, from the home screen.</p>
         ) : (
           <p>Open the browser menu and choose <b>Add to Home screen</b>. It opens full screen, like an app.</p>
         )}
-        {prompt && (
-          <button className="btn" data-v="primary" data-size="sm" onClick={install}>Add to Home Screen</button>
-        )}
+        <div style={{ display: "flex", gap: "var(--s2)", alignItems: "center", flexWrap: "wrap" }}>
+          {prompt && (
+            <button className="btn" data-v="primary" data-size="sm" onClick={() => void install().then(dismiss)}>Add to Home Screen</button>
+          )}
+          <Link className="btn" data-v="ghost" data-size="sm" href="/install" onClick={dismiss}>Show me how</Link>
+        </div>
       </div>
       <button className="nudge__close" onClick={dismiss} aria-label="Not now"><X size={16} /></button>
     </aside>
