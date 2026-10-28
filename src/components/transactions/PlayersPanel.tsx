@@ -8,6 +8,7 @@ import type { PoolPlayer } from "@/lib/types";
 import { useToast } from "@/components/ui";
 import type { Owned } from "@/components/players/DropPicker";
 import { Pool, type SignResult } from "@/components/players/Pool";
+import { useWeekGames } from "@/lib/nfl/schedule";
 
 /**
  * The player pool, wired up: the first tab of the transaction centre, because
@@ -26,6 +27,9 @@ export function PlayersPanel() {
   const [week, setWeek] = useState<number | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [waivers, setWaivers] = useState<Map<string, string>>(new Map());
+  // Who each club plays this week. The pool view stops at the club, and the
+  // club is half of the question a manager asks before he signs anybody.
+  const { games } = useWeekGames(week);
 
   // Ownership comes from ff_pool_owners, not from the draft board. During the
   // draft the two agree — no transactions have happened — and after it only
@@ -140,6 +144,8 @@ export function PlayersPanel() {
       waivers={waivers}
       teamId={team?.id ?? null}
       busy={busy}
+      games={games}
+      week={week}
       onSign={sign}
       onRelease={release}
       onClaim={claim}

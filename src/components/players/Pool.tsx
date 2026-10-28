@@ -8,6 +8,8 @@ import { SkeletonRows } from "@/components/ui";
 import { DropPicker, type Owned } from "@/components/players/DropPicker";
 import { ClaimSheet } from "@/components/waivers/ClaimSheet";
 import { when } from "@/lib/waivers";
+import { Matchup } from "@/components/nfl";
+import { gameFor, type WeekGames } from "@/lib/nfl/schedule";
 
 const POSITIONS = ["ALL", "QB", "RB", "WR", "TE", "K", "DST"] as const;
 
@@ -48,7 +50,7 @@ export type SignResult = "done" | "full" | "failed";
  * filters, which sheet is open, the second click a release takes.
  */
 export function Pool({
-  pool, owners, waivers, teamId, busy, onSign, onRelease, onClaim,
+  pool, owners, waivers, teamId, busy, games = null, week = null, onSign, onRelease, onClaim,
 }: {
   /** Null while it is still loading. */
   pool: PoolPlayer[] | null;
@@ -59,6 +61,9 @@ export function Pool({
   teamId: string | null;
   /** The player a request is in flight for. */
   busy: string | null;
+  /** This week's slate: who each player faces, beside his club. */
+  games?: WeekGames | null;
+  week?: number | null;
   onSign: (add: PoolPlayer, dropId?: string) => Promise<SignResult>;
   onRelease: (playerId: string, name: string) => Promise<void>;
   onClaim: (add: PoolPlayer, dropId: string | null) => Promise<boolean>;
@@ -222,6 +227,9 @@ export function Pool({
                           {p.position_rank ? <span>{p.position}{p.position_rank}</span> : null}
                           {p.bye_week ? <span>Bye {p.bye_week}</span> : null}
                           {p.adp ? <span className="num">ADP {Number(p.adp).toFixed(1)}</span> : null}
+                          {/* The bye is already said above, so a club not on
+                              the slate prints nothing here. */}
+                          <Matchup game={gameFor(games, p.nfl_team)} week={week} showBye={false} />
                         </>
                       }
                     />
@@ -293,6 +301,8 @@ export function Pool({
           player={{ id: claiming.id, name: claiming.full_name }}
           roster={mine}
           settlesAt={waivers.get(claiming.id) ?? null}
+          games={games}
+          week={week}
           busy={busy === claiming.id}
           onCancel={() => setClaiming(null)}
           onSubmit={(dropId) => void claim(claiming, dropId)}
@@ -303,6 +313,8 @@ export function Pool({
         <DropPicker
           signing={signing}
           roster={mine}
+          games={games}
+          week={week}
           busy={busy === signing.id}
           onCancel={() => setSigning(null)}
           onDrop={(dropId) => void sign(signing, dropId)}

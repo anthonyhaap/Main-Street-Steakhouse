@@ -9,6 +9,7 @@ import type { Owned } from "@/components/players/DropPicker";
 import { LEAGUE_ID } from "@/lib/config";
 import { useLive, useServerClock, type WireStatus } from "@/lib/live";
 import type { TradeDeadline } from "@/lib/deadline";
+import { useWeekGames } from "@/lib/nfl/schedule";
 import { useSession } from "@/lib/session";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import type { TradeDesk, TradeOffer } from "@/lib/types";
@@ -20,6 +21,7 @@ export function DeskPanel({ onStatus }: { onStatus?: (s: WireStatus) => void }) 
   const [busy, setBusy] = useState<string | null>(null);
   const [blocking, setBlocking] = useState(false);
   const [offering, setOffering] = useState<{ counters?: TradeOffer } | null>(null);
+  const { week, games } = useWeekGames();
 
   const fetcher = useCallback(async () => {
     if (!team) return null;
@@ -112,6 +114,8 @@ export function DeskPanel({ onStatus }: { onStatus?: (s: WireStatus) => void }) 
         deadline={data?.deadline ?? null}
         now={now}
         busy={busy}
+        games={games}
+        week={week}
         onRespond={respond}
         onCounter={(offer) => setOffering({ counters: offer })}
         onOpenBlock={() => setBlocking(true)}
@@ -122,6 +126,8 @@ export function DeskPanel({ onStatus }: { onStatus?: (s: WireStatus) => void }) 
         <BlockSheet
           roster={mine}
           listed={desk.block.filter((b) => b.mine).map((b) => b.player_id)}
+          games={games}
+          week={week}
           busy={busy === "block"}
           onCancel={() => setBlocking(false)}
           onSave={(ids, note) => void run("block",
@@ -137,6 +143,8 @@ export function DeskPanel({ onStatus }: { onStatus?: (s: WireStatus) => void }) 
           teams={teams.filter((t) => t.id !== team.id).map((t) => ({ id: t.id, name: t.name }))}
           owners={owners}
           counters={offering.counters ?? null}
+          games={games}
+          week={week}
           busy={busy === "offer"}
           onCancel={() => setOffering(null)}
           onSubmit={(toTeamId, give, get, message, countersId) => void run("offer",

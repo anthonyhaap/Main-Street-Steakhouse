@@ -4,6 +4,8 @@ import { ArrowLeftRight, Check, Tag, X } from "lucide-react";
 import type { TradeDesk, TradeOffer } from "@/lib/types";
 import { TeamLink } from "@/components/ui";
 import { closesLabel, deadlinePhase, timeLeft, type TradeDeadline } from "@/lib/deadline";
+import { Matchup } from "@/components/nfl";
+import { gameFor, type WeekGames } from "@/lib/nfl/schedule";
 
 const when = (iso: string) =>
   new Date(iso).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
@@ -31,10 +33,12 @@ function OtherSide({ offer }: { offer: TradeOffer }) {
  * header for the case where it is somebody else's settled trade.
  */
 function Offer({
-  offer, busy, onRespond, onCounter,
+  offer, busy, games, week, onRespond, onCounter,
 }: {
   offer: TradeOffer;
   busy: string | null;
+  games: WeekGames | null;
+  week: number | null;
   onRespond: (id: string, response: "accepted" | "declined" | "cancelled") => void;
   onCounter: (offer: TradeOffer) => void;
 }) {
@@ -70,10 +74,11 @@ function Offer({
           <div className="eyebrow">You give</div>
           {leaving.length === 0 && <div className="eyebrow" style={{ color: "var(--faint)" }}>nobody</div>}
           {leaving.map((i) => (
-            <div key={i.player_id} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <div key={i.player_id} style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
               <span className="pos" data-p={i.position}>{i.position}</span>
               <span>{i.player}</span>
               <span className="eyebrow">{i.nfl_team ?? "FA"}</span>
+              <Matchup game={gameFor(games, i.nfl_team)} week={week} />
             </div>
           ))}
         </div>
@@ -87,10 +92,11 @@ function Offer({
           <div className="eyebrow">You get</div>
           {arriving.length === 0 && <div className="eyebrow" style={{ color: "var(--faint)" }}>nobody</div>}
           {arriving.map((i) => (
-            <div key={i.player_id} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <div key={i.player_id} style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
               <span className="pos" data-p={i.position}>{i.position}</span>
               <span>{i.player}</span>
               <span className="eyebrow">{i.nfl_team ?? "FA"}</span>
+              <Matchup game={gameFor(games, i.nfl_team)} week={week} />
             </div>
           ))}
         </div>
@@ -133,13 +139,16 @@ function Offer({
  * Presentation only, so /preview/trades can hold it still.
  */
 export function Desk({
-  desk, deadline = null, now = 0, busy, onRespond, onCounter, onOpenBlock, onMakeOffer,
+  desk, deadline = null, now = 0, busy, games = null, week = null, onRespond, onCounter, onOpenBlock, onMakeOffer,
 }: {
   desk: TradeDesk;
   /** When trades close, from ff_trade_deadline. Without it the desk says the week. */
   deadline?: TradeDeadline | null;
   now?: number;
   busy: string | null;
+  /** This week's slate, so every name on the desk reads with who he plays. */
+  games?: WeekGames | null;
+  week?: number | null;
   onRespond: (id: string, response: "accepted" | "declined" | "cancelled") => void;
   onCounter: (offer: TradeOffer) => void;
   onOpenBlock: () => void;
@@ -196,7 +205,7 @@ export function Desk({
       </div>
 
       {live.map((o) => (
-        <Offer key={o.id} offer={o} busy={busy} onRespond={onRespond} onCounter={onCounter} />
+        <Offer key={o.id} offer={o} busy={busy} games={games} week={week} onRespond={onRespond} onCounter={onCounter} />
       ))}
 
       <div className="card">
@@ -217,9 +226,12 @@ export function Desk({
                 <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {b.player}
                 </div>
-                <div className="eyebrow">
-                  <TeamLink id={b.team_id} name={b.team} mine={b.mine}>{b.team}</TeamLink>
-                  {b.mine && " · yours"}{b.note && ` · “${b.note}”`}
+                <div className="eyebrow" style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                  <span>
+                    {b.nfl_team ?? "FA"} · <TeamLink id={b.team_id} name={b.team} mine={b.mine}>{b.team}</TeamLink>
+                    {b.mine && " · yours"}{b.note && ` · “${b.note}”`}
+                  </span>
+                  <Matchup game={gameFor(games, b.nfl_team)} week={week} />
                 </div>
               </div>
             </div>

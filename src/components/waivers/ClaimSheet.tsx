@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { X } from "lucide-react";
 import type { Owned } from "@/components/players/DropPicker";
+import { Matchup } from "@/components/nfl";
+import { gameFor, type WeekGames } from "@/lib/nfl/schedule";
 
 /**
  * File a claim on a player who is on waivers.
@@ -17,11 +19,14 @@ import type { Owned } from "@/components/players/DropPicker";
  * marked invalid with those words, rather than silently dropped.
  */
 export function ClaimSheet({
-  player, roster, settlesAt, busy, onCancel, onSubmit,
+  player, roster, settlesAt, games = null, week = null, busy, onCancel, onSubmit,
 }: {
   player: { id: string; name: string };
   roster: Owned[];
   settlesAt: string | null;
+  /** This week's slate, beside each man you might release. */
+  games?: WeekGames | null;
+  week?: number | null;
   busy: boolean;
   onCancel: () => void;
   onSubmit: (dropPlayerId: string | null) => void;
@@ -75,7 +80,10 @@ export function ClaimSheet({
                 <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   Release {r.player}
                 </div>
-                <div className="eyebrow">{r.nfl_team ?? "FA"}</div>
+                <div className="eyebrow" style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                  <span>{r.nfl_team ?? "FA"}</span>
+                  <Matchup game={gameFor(games, r.nfl_team)} week={week} />
+                </div>
               </div>
             </label>
           ))}

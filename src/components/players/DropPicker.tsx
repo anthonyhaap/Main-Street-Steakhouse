@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { X } from "lucide-react";
 import type { PoolPlayer } from "@/lib/types";
+import { Matchup } from "@/components/nfl";
+import { gameFor, type WeekGames } from "@/lib/nfl/schedule";
 
 export type Owned = {
   player_id: string;
@@ -25,10 +27,13 @@ export type Owned = {
  * up having released somebody for a player he then fails to get.
  */
 export function DropPicker({
-  signing, roster, busy, onCancel, onDrop,
+  signing, roster, games = null, week = null, busy, onCancel, onDrop,
 }: {
   signing: PoolPlayer;
   roster: Owned[];
+  /** This week's slate: who goes is easier to decide beside who he plays. */
+  games?: WeekGames | null;
+  week?: number | null;
   busy: boolean;
   onCancel: () => void;
   onDrop: (playerId: string) => void;
@@ -76,7 +81,10 @@ export function DropPicker({
               <span className="pos" data-p={r.position}>{r.position}</span>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.player}</div>
-                <div className="eyebrow">{r.nfl_team ?? "FA"}</div>
+                <div className="eyebrow" style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                  <span>{r.nfl_team ?? "FA"}</span>
+                  <Matchup game={gameFor(games, r.nfl_team)} week={week} />
+                </div>
               </div>
             </label>
           ))}
