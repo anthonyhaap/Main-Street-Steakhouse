@@ -2,6 +2,7 @@
 
 import { ArrowLeftRight, Gavel, PenLine } from "lucide-react";
 import type { LedgerEntry, LedgerItem } from "@/lib/types";
+import { TeamLink } from "@/components/ui";
 
 /**
  * The ledger, as a manager reads it.
@@ -54,6 +55,28 @@ export function dayOf(iso: string, now = new Date()): string {
 const at = (iso: string) =>
   new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
 
+/**
+ * How a team is resolved to a door, for a screen whose rows name teams and
+ * nothing else. Both optional, and both absent in the fixture: `/preview/ledger`
+ * has no session to resolve against, so it renders the names as plain text and
+ * the rest of the screen is unchanged.
+ */
+type Doors = {
+  /** `teamIdsByName` from the league's own team list, where there is one. */
+  teamIdOf?: (name: string) => string | null;
+  myTeamId?: string | null;
+};
+
+/** A team in a sentence, as a door to its desk when its name can be placed. */
+function TeamName({ name, teamIdOf, myTeamId }: { name: string } & Doors) {
+  const id = teamIdOf?.(name) ?? null;
+  return (
+    <TeamLink id={id} name={name} mine={!!id && id === myTeamId}>
+      <strong>{name}</strong>
+    </TeamLink>
+  );
+}
+
 function Players({ items }: { items: LedgerItem[] }) {
   return (
     <>
@@ -74,7 +97,7 @@ function Players({ items }: { items: LedgerItem[] }) {
  * only one where two teams each give something up. Everything else has one
  * team acting, and the pool on the other side of it.
  */
-function Entry({ e }: { e: LedgerEntry }) {
+function Entry({ e, teamIdOf, myTeamId }: { e: LedgerEntry } & Doors) {
   const { label, Icon } = KIND[e.kind] ?? KIND.add;
   const teams = teamsOf(e);
 
@@ -96,14 +119,16 @@ function Entry({ e }: { e: LedgerEntry }) {
               if (got.length === 0) return null;
               return (
                 <div key={t} style={{ lineHeight: 1.5 }}>
-                  <strong>{t}</strong> get <Players items={got} />
+                  <TeamName name={t} teamIdOf={teamIdOf} myTeamId={myTeamId} /> get <Players items={got} />
                 </div>
               );
             })}
           </div>
         ) : (
           <div style={{ lineHeight: 1.5 }}>
-            {teams[0] ? <strong>{teams[0]}</strong> : "Somebody"}{" "}
+            {teams[0]
+              ? <TeamName name={teams[0]} teamIdOf={teamIdOf} myTeamId={myTeamId} />
+              : "Somebody"}{" "}
             {(() => {
               const t = teams[0] ?? "";
               const got = arriving(e.items, t);
@@ -140,7 +165,7 @@ const MATCHES: Record<LedgerFilter, (e: LedgerEntry) => boolean> = {
 };
 
 export function Ledger({
-  entries, filter, team, teams, onFilter, onTeam,
+  entries, filter, team, teams, onFilter, onTeam, teamIdOf, myTeamId,
 }: {
   entries: LedgerEntry[];
   filter: LedgerFilter;
@@ -148,7 +173,7 @@ export function Ledger({
   teams: string[];
   onFilter: (f: LedgerFilter) => void;
   onTeam: (t: string) => void;
-}) {
+} & Doors) {
   const shown = entries.filter(
     (e) => MATCHES[filter](e) && (team === "" || teamsOf(e).includes(team)),
   );
@@ -216,7 +241,9 @@ export function Ledger({
             <span className="eyebrow"><span className="num">{onDay.length}</span></span>
           </div>
           <div className="rows">
-            {onDay.map((e) => <Entry key={e.id} e={e} />)}
+            {onDay.map((e) => (
+              <Entry key={e.id} e={e} teamIdOf={teamIdOf} myTeamId={myTeamId} />
+            ))}
           </div>
         </div>
       ))}

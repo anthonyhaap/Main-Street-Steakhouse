@@ -21,7 +21,7 @@
  * `leader()`, so the gilded name cannot differ between them.
  */
 
-import { Seal, useCountUp } from "@/components/ui";
+import { Seal, TeamLink, useCountUp } from "@/components/ui";
 import { Odds, StateChip } from "@/components/Scoreboard";
 import { crestUrl } from "@/lib/crest";
 import {
@@ -77,7 +77,11 @@ function HeadSide({ s, lead, state, lineups, align = "start" }: {
   return (
     <div className="mhead__side" data-lead={lead} data-align={align} data-mine={s.mine}>
       <Seal name={s.name} src={crestUrl(s.logo_path)} mine={s.mine} size={34} />
-      <b className="mhead__name">{s.name}</b>
+      {/* The name only, not the whole side: this is a grid whose every child is
+          its own row, and an anchor around three of them would make them one. */}
+      <b className="mhead__name">
+        <TeamLink id={s.team_id} name={s.name} mine={s.mine}>{s.name}</TeamLink>
+      </b>
       <span className="mhead__who">
         {s.manager_name?.trim() || "—"}
         <i>{s.wins}–{s.losses}{s.ties ? `–${s.ties}` : ""}</i>

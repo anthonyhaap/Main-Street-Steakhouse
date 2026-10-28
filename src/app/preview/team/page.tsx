@@ -136,6 +136,7 @@ const player = (s: Seed, i: number): HubPlayer => {
     on_bye: false,
     game: { opponent: s.opp, home: s.home, kickoff_at: s.kick, status: "pre", status_detail: null },
     depth: { rank: s.rank, of: s.of, overall_rank: Math.round(s.adp), adp: s.adp },
+    pos_rank: posRank(s),
     form: {
       season: 2025,
       games: s.log.length,
@@ -154,6 +155,16 @@ const player = (s: Seed, i: number): HubPlayer => {
 };
 
 const round = (n: number) => Math.round(n * 100) / 100;
+
+/** A league-wide positional rank for the fixture, the shape `ff_position_ranks`
+ *  returns. Only fifteen players are known here, so the rank is their order at
+ *  the position by season points, spread across a plausible field. */
+const FIELD: Record<string, number> = { QB: 38, RB: 84, WR: 126, TE: 62, K: 34, DST: 32 };
+const total = (s: Seed) => round(s.log.reduce((a, b) => a + b, 0));
+function posRank(s: Seed) {
+  const ahead = SEEDS.filter((o) => o.pos === s.pos && total(o) > total(s)).length;
+  return { rank: ahead * 4 + 2, of: FIELD[s.pos] ?? 40, points: total(s), games: s.log.length };
+}
 
 const ROSTER = SEEDS.map(player);
 const STARTERS = ROSTER.filter((p) => p.slot !== "BN");

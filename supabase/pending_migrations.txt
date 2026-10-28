@@ -49,3 +49,4 @@
 # One name per line.
 weekly_awards
 scoreboard_carries_the_bench
+position_fantasy_ranks

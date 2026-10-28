@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { AlertTriangle, Check, CircleDollarSign, Copy, ExternalLink, HandCoins, ShieldCheck, X } from "lucide-react";
+import { TeamLogo } from "@/components/nfl";
 import { isHandheld, openVenmo, settlementNote, stakeText, venmoLinks } from "@/lib/settlement";
+import { cover, otherTeam, spreadText, type SpreadGame } from "@/lib/spread";
 import type { Challenge, LeagueProfile } from "@/lib/types";
 
 /**
@@ -18,6 +20,9 @@ import type { Challenge, LeagueProfile } from "@/lib/types";
  * shows the loser a Venmo link with the amount already in it and the winner a
  * request for the same; a paid bet asks the winner one question. Everybody
  * else sees the terms and the result.
+ *
+ * A spread bet also shows its two sides — each manager's team and line — and,
+ * once the game is on, the score and who is covering.
  */
 
 export type ChallengeActions = {
@@ -74,7 +79,7 @@ export function useTargetChallenge(ready: boolean): string | null {
 }
 
 export function ChallengeCard({
-  item, userId, busy, isCommissioner, profiles, nameOf, weekOf, target = false, actions,
+  item, userId, busy, isCommissioner, profiles, nameOf, weekOf, gameOf, target = false, actions,
 }: {
   item: Challenge;
   userId: string | null;
@@ -85,6 +90,8 @@ export function ChallengeCard({
   nameOf: (id: string | null) => string;
   /** The NFL week a matchup bet is about, or null for a custom one. */
   weekOf: (matchupId: string | null) => number | null;
+  /** The NFL game a spread bet is on, when it has been loaded. */
+  gameOf?: (gameId: string | null) => SpreadGame | null;
   target?: boolean;
   actions: ChallengeActions;
 }) {
@@ -94,7 +101,8 @@ export function ChallengeCard({
   const iWon = !!userId && item.winner_id === userId;
   const iLost = !!userId && loserId === userId;
   const amount = stakeText(item.stake_amount_cents);
-  const week = weekOf(item.matchup_id);
+  const game = item.proposition_type === "nfl_spread" ? gameOf?.(item.nfl_game_id) ?? null : null;
+  const week = weekOf(item.matchup_id) ?? game?.week ?? null;
   const note = settlementNote(week, item.title);
   const handleOf = (id: string | null) => profiles.find((p) => p.id === id && p.settlement_provider === "venmo")?.settlement_handle ?? null;
   const overdue = !!item.settlement_due_at && new Date(item.settlement_due_at) < new Date()
@@ -133,6 +141,10 @@ export function ChallengeCard({
         </div>
         <h2 className="bet__title">{item.title}</h2>
         <p className="bet__terms">{item.terms}</p>
+
+        {item.proposition_type === "nfl_spread" && item.spread_team && item.spread_line != null && (
+          <SpreadSides item={item} game={game} nameOf={nameOf} />
+        )}
 
         <dl className="bet__facts">
           <div><dt className="eyebrow">Stakes</dt><dd>{amount ?? item.stake_label}</dd></div>
@@ -238,4 +250,59 @@ export function ChallengeCard({
       </div>
     </article>
   );
+}
+
+/* ---------------------------------------------------------------- spread -- */
+
+function SpreadSides({ item, game, nameOf }: { item: Challenge; game: SpreadGame | null; nameOf: (id: string | null) => string }) {
+  const evidence = item.resolution_evidence as { home_team?: string; away_team?: string } | null;
+  const teams = game ?? (evidence?.home_team && evidence?.away_team
+    ? { home_team: evidence.home_team, away_team: evidence.away_team } : null);
+  const mine = item.spread_team!, line = Number(item.spread_line);
+  const sides = [
+    { who: item.challenger_id, team: mine, line },
+    ...(teams ? [{ who: item.opponent_id, team: otherTeam(teams, mine), line: -line }] : []),
+  ];
+  const scoreOf = (team: string) => !game || game.status === "pre" ? null
+    : team === game.home_team ? game.home_score : game.away_score;
+  const covering = (team: string, l: number) => (game ? cover(game, team, l) : null);
+  const live = game && game.status !== "pre" && game.home_score != null;
+
+  return (
+    <div className="bet__spread" data-testid="spread">
+      {sides.map((side) => {
+        const c = covering(side.team, side.line);
+        return (
+          <div className="bet__side" key={side.team} data-covering={c != null && c > 0 ? "true" : undefined}>
+            <TeamLogo abbr={side.team} size={22} />
+            <span className="bet__line num">{spreadText(side.team, side.line)}</span>
+            <span className="bet__who">{nameOf(side.who)}</span>
+            {scoreOf(side.team) != null && <span className="bet__score num">{scoreOf(side.team)}</span>}
+          </div>
+        );
+      })}
+      {game && (
+        <p className="bet__wait">
+          {game.status === "pre"
+            ? game.kickoff_at
+              ? `Kicks off ${new Date(game.kickoff_at).toLocaleString(undefined, { weekday: "short", hour: "numeric", minute: "2-digit" })}. It locks then.`
+              : "Kickoff to be set."
+            : live
+              ? `${game.status === "post" ? game.status_detail ?? "Final" : game.status_detail ?? "Live"} · ${coveringText(sides, covering, nameOf, game.status === "post")}`
+              : game.status_detail ?? ""}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function coveringText(
+  sides: { who: string; team: string; line: number }[],
+  covering: (team: string, line: number) => number | null,
+  nameOf: (id: string | null) => string,
+  final: boolean,
+) {
+  const ahead = sides.find((side) => (covering(side.team, side.line) ?? 0) > 0);
+  if (ahead) return `${nameOf(ahead.who)} ${final ? "covered" : "covering"}`;
+  return final ? "A push" : "On the number";
 }

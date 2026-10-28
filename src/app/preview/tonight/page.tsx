@@ -14,6 +14,13 @@ import { TopBar } from "@/components/Shell";
 import { TonightsTable } from "@/components/tonight/TonightsTable";
 import { Carousel } from "@/components/tonight/Carousel";
 import { RoomBoard } from "@/components/tonight/Room";
+import { Statement } from "@/components/tonight/Statement";
+import { PushInviteView } from "@/components/tonight/PushInvite";
+import { DeadlineCard } from "@/components/tonight/Deadline";
+import type { TradeDeadline } from "@/lib/deadline";
+import type { PushState } from "@/lib/push";
+import { HomeGameDayView, PlayingToday } from "@/components/tonight/GameDay";
+import { gcBoard, gcSeat, GC_MY_TEAM, GC_NOW } from "@/lib/fixtures/gamecenter";
 import { phaseOf, type Briefing, type BriefStarter, type RoomFeed } from "@/lib/briefing";
 import { DRAFT_STARTS_AT } from "@/lib/config";
 
@@ -236,8 +243,24 @@ function room(now: number): RoomFeed {
   };
 }
 
+// The trade deadline's week, on its own fixed clock: week 12 closes Tue Dec 1,
+// 12:15 AM ET. Off for most of the season, as it is for real.
+const DL: TradeDeadline = {
+  week: 12, deadline_week: 12, closes_at: "2026-12-01T05:15:00Z", open: true, offers: 3, trades: 2, block: 4, waiting: 2,
+};
+const DL_STAGES = [
+  { key: "off", label: "No deadline", now: 0 },
+  { key: "week", label: "Deadline week", now: Date.parse("2026-11-27T17:00:00Z") },
+  { key: "day", label: "Last day", now: Date.parse("2026-11-30T21:00:00Z") },
+] as const;
+
 export default function TonightPreview() {
   const [key, setKey] = useState("thu");
+  // The front page's offer of alerts, on a device that can take them. "Turn on"
+  // and "Not now" both take it away, as they do for real.
+  const [alerts, setAlerts] = useState<PushState | null>("off");
+  const [dl, setDl] = useState<(typeof DL_STAGES)[number]["key"]>("off");
+  const dlStage = DL_STAGES.find((s) => s.key === dl)!;
   const scene = SCENES.find((s) => s.key === key) ?? SCENES[0];
   const { b, now } = scene.make();
   const phase = phaseOf(b, now);
@@ -258,9 +281,24 @@ export default function TonightPreview() {
             ))}
           </div>
         </div>
+        <div className="segmented" role="group" aria-label="Trade deadline" style={{ width: "max-content" }}>
+          {DL_STAGES.map((s) => (
+            <button key={s.key} className="segmented__opt" data-on={s.key === dl} onClick={() => setDl(s.key)}>{s.label}</button>
+          ))}
+        </div>
       </div>
       <main className="page tonight">
         <TonightsTable b={b} now={now} onShare={() => alert("Share sheet")} />
+        <PlayingToday b={b} now={now} phase={phase} />
+        {/* The live panel reads the game center's own fixture — a different
+            invented league from the card's, so the names differ. */}
+        {(key === "sun" || key === "mon") && (
+          <HomeGameDayView board={gcSeat(gcBoard(key === "sun" ? "late" : "monday"), GC_MY_TEAM)} now={GC_NOW[key === "sun" ? "late" : "monday"]} />
+        )}
+        {dl !== "off" && <DeadlineCard d={DL} now={dlStage.now} />}
+        <PushInviteView state={alerts} busy={false} error={null}
+          onEnable={() => setAlerts("on")} onDismiss={() => setAlerts(null)} />
+        <Statement />
         <Carousel b={b} live={phase === "live"} />
         <RoomBoard feed={room(now)} now={now} />
         <p className="eyebrow tonight__foot">Main Street Steakhouse · Est. 2016 · Members Only</p>

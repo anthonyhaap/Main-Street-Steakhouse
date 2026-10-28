@@ -90,7 +90,20 @@ export type HubPlayer = {
   on_bye: boolean;
   game: HubGame | null;
   depth: { rank: number | null; of: number | null; overall_rank: number | null; adp: number | null };
+  /** Fantasy rank at his position across the whole NFL, by form-season
+      points in this league's scoring — "WR14 of 212". Not part of the hub:
+      the team page merges it in from `ff_position_ranks`, so it is absent
+      until that call lands and null for a player with no games. */
+  pos_rank?: PositionRank | null;
   form: HubForm | null;
+};
+
+export type PositionRank = { rank: number; of: number; points: number; games: number };
+
+/** The payload of `ff_position_ranks(league_id, week, player_ids)`. */
+export type PositionRanks = {
+  season: number | null;
+  ranks: Record<string, PositionRank>;
 };
 
 export type TeamHub = {

@@ -63,11 +63,13 @@ function Row({ item, busy, onReact }: {
         {item.detail && (
           <div className="eyebrow" style={{ marginTop: 3, color: "var(--faint)" }}>{item.detail}</div>
         )}
-        <Reactions reactions={item.reactions ?? []} busy={busy} onPress={onReact} />
+        {/* The time rides the reactions' line rather than a column of its own,
+            so the line itself gets the card's whole width. */}
+        <div className="row__foot">
+          <Reactions reactions={item.reactions ?? []} busy={busy} onPress={onReact} />
+          <time className="num row__stamp" suppressHydrationWarning>{stamp(item.at)}</time>
+        </div>
       </div>
-      <time className="num" suppressHydrationWarning style={{ color: "var(--dim)", fontSize: "var(--t-micro)" }}>
-        {stamp(item.at)}
-      </time>
     </div>
   );
 }

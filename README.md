@@ -231,8 +231,8 @@ his, and taps an Android wrist through `navigator.vibrate`.
 `/splash/<w>x<h>.png` draws the ink launch screen at whatever size an iPhone
 asks for (Satori, no PNGs in the repo), the layout lists them per device, and
 `InstallNudge` shows the two taps once on a first mobile visit. The tab bar
-carries four items — Tonight, Matchups, My Team, Standings — with everything
-else behind More; pull to refresh works in the installed app only, where the
+carries Tonight, Matchups, Game Center and Chat, with everything else behind
+More (see Game Day 2.0 below); pull to refresh works in the installed app only, where the
 browser's own is absent. Fraunces and Inter arrive through `next/font`, so the
 headline has an optical-size axis and every score sits in tabular figures.
 
@@ -354,6 +354,285 @@ authenticated-only. `20260904020439` corrects the grant and, so a future
 mistake cannot re-open it, makes the function refuse a caller with no
 `auth.uid()` outright rather than leaning on the grant the way its siblings do.
 
+### Steakhouse Sunday
+
+`/sunday` is the game center: NFL RedZone on the television, this on the
+phone. RedZone says what is happening around the NFL; the game center says
+why it matters to *this* league. On a phone or tablet it is a button in the
+top bar on every screen — red and pulsing on a Sunday — and on a Sunday it
+also takes the Matchups slot in the nav. On a laptop it is in the League menu
+the rest of the week, and linked from the board.
+
+It opens before its migration is applied: `src/lib/sunday-load.ts` falls back
+to `ff_scoreboard` plus the week's `nfl_games` rows when `ff_sunday` is not
+there yet, and only possession and the red zone wait for the migration.
+
+It reads one call. `ff_sunday(league_id, week)` is `ff_scoreboard` with the
+week's NFL games beside it: score, state, and — new — who has the ball and
+whether that drive is in the red zone. `ff_load_nfl_week` already read ESPN's
+scoreboard every two minutes during a game window; the same payload carries a
+`situation`, and three more fields off it (`possession`, `red_zone`,
+`down_distance`) land on `nfl_games` in the same upsert. No browser talks to
+ESPN or Sleeper: cron writes once, realtime tells every open phone to refetch,
+and the page is server-rendered from the same call so it arrives painted.
+
+`src/lib/sunday.ts` turns the payload into the page, and is pure:
+
+| function | decides |
+|----------|---------|
+| `sundayPhase` | `pre`, `live` (including the gap between windows), `final` |
+| `excitement` | a score per table from configurable weights (`EXCITEMENT`): within a point, within five, fourth quarter, upset, the week's high, standings, and — when the server can supply them — lead changes, touchdowns, rivalry and playoff stakes |
+| `featured` | the Game of the Week before kickoff, the Game to Watch during, the finish of the day after |
+| `moodOf` | ROLLING, SWEATING, COOKED — read off the live odds; a caption, not a claim |
+| `needs` | the points it would take to pass the other side's *projected* finish — never "score this and you win" |
+| `inTheRedZone` | our starters whose club has the ball inside the twenty (not kickers, not defenses) |
+| `alerts` | the Fantasy RedZone, levels 1–4, stable ids so a refetch never repeats a row |
+| `closeGames` | tables within five, late — lifted above the board for everyone |
+| `tickerItems`, `recap`, `delayed` | the bottom rail, Tuesday's tiles, and whether to say the stats are behind |
+
+Everything there is read from the *state* of the board. "Allen scored and it
+put Ray ahead" needs the board before and after, stored once and
+deduplicated — the event engine, which is the next phase and a server job,
+not a browser's. Nothing on the page invents a history it cannot see.
+
+Desktop is a broadcast dashboard (featured table and board left, RedZone rail
+right, chat as a drawer, ticker along the bottom); a phone is one column with
+the featured strip over sticky tabs, opening on the RedZone feed. Dark only
+here, scoped to `.sun`. Watch NFL RedZone links out to the NFL (`REDZONE_URL`)
+and never embeds it. When the provider goes quiet the page keeps every score,
+the chat and the feed on screen and says the stats are delayed.
+
+**Phase 2: the event engine.** Phase 1 could only say what the board looked
+like; "Allen scored and it put Ray ahead" is a difference between two boards.
+`ff_sunday_detect`, on the `sunday-events` cron every minute, keeps the other
+board — every starter's line and every table's leader in
+`sunday_player_state` / `sunday_matchup_state` / `sunday_game_state` — and
+writes what changed to `sunday_events`: touchdowns (a TD count that went up,
+"40+ yard" only when Sleeper's own `*_td_40p` bucket did), big plays, giveaways,
+lead changes, close games, upsets, red-zone drives and finals. Each carries a
+level (1–4), a priority from `ff_sunday_weights` (overridable per league in
+`settings.sunday_weights`) and a `dedupe_key` that names the thing, not the
+moment it was seen — `td:<week>:<team>:<player>:<n>`, `lead:<matchup>:<n>` —
+so a line seen in three polls is one touchdown and a corrected-then-restored
+one is still one. The first look at a week seeds silently. A touchdown that
+takes the lead is one card, not two. `supabase/tests/sunday_events.sql` plays
+a fourth quarter through it look by look.
+
+The page reads `events` from `ff_sunday`, refetches on a `sunday_events`
+row, shows each play's Fantasy Impact (both sides before and after), lets a
+level-4 moment hold the featured slot for ten minutes, and leads the ticker
+with the last half hour.
+
+`/preview/sunday` runs an invented week (`@/lib/fixtures/gamecenter`) —
+sixteen real fixtures, twelve lineups of real players — from Sunday morning
+to Tuesday, with a switch that takes the provider down.
+`tests/e2e/sunday.spec.ts` holds it.
+
+### Game Day 2.0
+
+Phases 1–5 built the game center as a broadcast: the game to watch, the red
+zone, the close games. Game Day 2.0 turns it to face the reader. The question
+every screen answers on a game day is "what matters to *me* right now", and
+the order down the page is the order that question is asked in.
+
+**My matchup first.** `/sunday` opens on the reader's own table, the widest and
+loudest thing on the page: both managers, both scores at hero size, Winning or
+Losing with the board's own win probability (`winOdds`, the model the
+scoreboard already documents — no new one, and none at all with no lineups or
+no projections), each side's projection, players remaining and live. Under it
+sits the **matchup moment** — the one thing worth saying right now, or nothing:
+a lead that changed hands in the last quarter hour (from the event, and only
+while that side still leads), a side down to its last one or two men ("Needs
+13.9 · Ray has one player left · Justin Jefferson — MIN"), one man each, a
+deficit cut close, or a game inside two. The featured "game to watch" is now
+chosen from the *other* tables, so no game is on screen twice. A manager with
+no game that week is told so and gets the league.
+
+**What just happened** is the last 45 minutes of `sunday_events`, told
+fantasy-first: the NFL fact is the title, the points and who they went to are
+the loudest line, and what it did to the game is the sentence under it
+("Marcus trails Anthony 127.3–130.6."). Anything that moved the reader's own
+score qualifies, however small.
+
+**League Pulse** is every other table in a line each, ranked the way the brief
+ranks them: lead changes and comebacks, games within five, big scoring plays,
+upsets (with the table's own ranks when there are results: "12th-place Lou is
+leading 5th-place Gus"), monster days, playoff consequences, bench pain, and
+the week's high — two lines a table at most. A line about something that
+*happened* is only written from an event; a line about something that *is*
+comes from the board in the present tense. "As it stands" re-ranks the table
+by the standings' own rule (wins, ties, points for) with every current leader
+winning, and speaks only when someone crosses the playoff line or moves three
+places. Bench pain waits until both the reserve's and the starter's games are
+over, and needs a ten-point swing at a slot the reserve could have filled.
+
+All of it is `src/lib/gameday.ts`, pure, over the same `ff_sunday` payload — the
+front page and the matchup page use the same functions, so the three screens
+cannot disagree about one game.
+
+**The ticker crawls** at a fixed reading speed (48px a second, so a long Sunday
+is not a faster one), pauses under a pointer or keyboard focus, and under
+`prefers-reduced-motion` stands still as a swipeable strip. The copy that
+makes the loop seamless is `aria-hidden` and out of the tab order. It now
+carries the pulse's monster days, bench pain and playoff lines too.
+
+**Two new events.** `20261002023710_sunday_swings` adds `ff_sunday_swings`,
+run after the detector and the moments pass: `monster_game` (a starter past
+`monster_points`, 30 by default — in this week's lineup, so a benched 33
+counts for nobody) and `tightening` (a side once down `tightening_from`, 15,
+now within `close_margin`: "Toby cuts Mike's lead to 4.7 / Was down 18.2",
+from the worst deficits the moments pass already keeps). Both thresholds are
+commissioner dials. Applied 2026-10-02. `supabase/tests/sunday_swings.sql`
+holds it.
+
+`tightening` was first told once per lead, keyed by the leader and the count
+of lead changes. In a game that changed hands every few minutes it re-armed
+after every flip, each time with the same "Was down" (the week's worst), so
+week 6 told one comeback six times. Once game-day push sent it, each of those
+would buzz a phone. `20261027002416_tightening_once_per_side` keys it by the
+matchup and the side that was behind, so a side's climb back is told once a
+week. The other side's climb is still its own story. The swings test now
+plays a seesaw and expects silence.
+
+**NFL games** are ordered live-first by how many Steakhouse starters are in
+them, each card says how many, and when the slate cannot be read the panel
+says the NFL feed is down while every fantasy score stays on screen. Before
+kickoff the page names the real next game off the slate and when the board
+starts moving.
+
+**The front page on a game day.** Under Tonight's Table: who plays today, mine
+and his by name (Thursday night's receiver, Monday's tight end); and once
+football is on, the latest event in my game, its moment, the league pulse and
+the door to the game center. That half is `ff_sunday` as a second call, made
+only on a day it can say something, and refetched on `sunday_events`.
+
+**The matchup page** carries the same moment under its scoreboard and this
+game's own events below it, read from `sunday_events` in the same refetch as
+the board.
+
+**The tab bar** on a phone is Tonight, Matchups, My Team, Chat and More.
+While an NFL game is live, Game Center takes My Team's slot. This is
+`phoneTabs` in `Shell.tsx`, which asks the same question as the red dot
+(`useNflLive`: one head-only count of in-progress `nfl_games`, shared by every
+page, every two minutes while visible). The calendar is not the trigger:
+Sunday morning before kickoff is not live, and Thursday night is. The lineup
+is set by then, and the afternoon is spent on the game center.
+
+- My Team stays one tap away: the crest in the top bar, and More.
+- More drops its own Game Center link while the tab carries it.
+- The tab also stays while you are on the game center after the last game
+  ends, so the screen you are on never loses its tab under your thumb.
+- On a phone narrower than 360px each tab starts from its own label, so "Game
+  Center" fits at 320.
+
+Chat carries its unread count, and Standings is on Tonight and in More. The
+desktop nav keeps every destination where it was.
+
+`/preview/sunday` now has a **seat** switch (cruising, getting crushed, a
+tight one, a fresh lead change, no matchup), a **Monday night** stage, and an
+**NFL feed down** switch; `tests/e2e/gameday.spec.ts` walks the brief's
+scenarios through them and checks nothing scrolls sideways at 375, 390, 430,
+820 and 1280.
+
+#### Under a thumb
+
+Sunday is read on a phone held in one hand. On a touch screen
+(`pointer: coarse`) every game-day control gets a target near the 44px the
+tab bar already takes, in two ways:
+
+- **Buttons grow.** The table chips, a feed card's actions, the reactions,
+  and Talk shit go from 23–30px to 36px.
+- **Text links reach past their words.** Not now, Everything, the recap's
+  results, and the front page's arrows would look wrong as fat buttons. They
+  get a hit area drawn with `::after`, so nothing around them moves.
+
+The mouse keeps the tighter sizes (`sunday.css`, "thumbs", and the
+coarse-pointer block in `globals.css`). Two of those reaches are cut short so
+they never take a tap from a neighbour:
+
+- the team name under the table chips;
+- each row of the recap's bets.
+
+`tests/e2e/thumbs.spec.ts` measures what a finger meets: the run of points
+through each control that land on it. It also checks that no control's reach
+covers another's drawn box.
+
+On a tablet, or a desktop with the chat open, the two lineups sit side by side
+in about 280px each. "@ MIN Mon 8:15 PM" used to leave a name eight letters:
+"Rome O…". In a panel 521–760px wide the name now takes the whole line, and
+the game's status moves to the line under it, beside the position.
+
+### Game day, on the lock screen
+
+Push was built for what a manager cannot look up in time — an offer, a claim,
+a bet, his name in the chat. A Sunday is the other thing: the game center says
+what every play meant to your matchup, but only while you are looking at it,
+and on a Sunday you are looking at the television.
+
+`20261021001736_gameday_push` puts a trigger on `sunday_events`, so the
+server's own record of what happened also writes to the outbox — inside the
+detector's transaction, drained by the existing `/api/push/drain` like every
+other kind. Two kinds, each with its own switch on the account:
+
+(In production it was applied in parts, because the Supabase connector holds
+any statement containing `drop` for a confirmation that never arrives. So the
+old six-argument `ff_set_notification_prefs` was renamed to
+`ff_set_notification_prefs_retired` with every grant revoked, not dropped.
+Drop it from the SQL editor whenever convenient; nothing calls it.)
+
+| kind | for | default |
+|------|-----|---------|
+| `gameday` | your own matchup: a lead changing hands (either way, with the play that did it), a comeback, a deficit cut close, a monster game on either roster, a season high, a game inside a point late, the final | on |
+| `moment` | the league's Steakhouse moments (level 4) in other people's games | **off** |
+
+`ff_gameday_words` writes each event from the reader's side of the table —
+"You take the lead over Ada · You 110.8, Ada 109.0. Push Star +6.8." to one
+manager, "Bo takes the lead · Bo 110.8, you 109.0." to the other — and every
+seat at the team hears it, co-owners included, each by their own switch.
+
+**Restraint.** An ordinary touchdown is not a push; one that takes the lead is,
+as the lead change it is. A lead change and a final always go out; a squeeze,
+a monster game or a comeback (which is written straight after its lead change)
+waits if this manager was pushed about game day in the last two minutes.
+Moments are at most one every ten minutes. The service worker tags by kind, so
+a new game-day push replaces the last on the lock screen instead of stacking.
+
+**Safety.** The trigger swallows its own failures into `ingest_log`
+(`push / gameday_failed`): `ff_sunday_detect_all` runs a league's whole pass
+in one block, and a push problem must never cost the league its events.
+
+**Asking.** One device in the league had push on, so the game center now asks
+— once, under your own matchup, on a game day, while push is off on that
+device: "Get buzzed when your matchup swings. Lead changes, comebacks and the
+final — not every catch." *Not now* is remembered per device. The settings
+card gains both switches, and the @mentions switch that had been missing from
+it since mentions shipped; a switch the database has not reported yet is
+neither shown nor sent, so the page works ahead of the migration.
+`supabase/tests/gameday_push.sql` holds the restraint.
+
+**Who could be asked.** After the first Sunday with push live (week 7), the
+league still had one device on push: a Mac, not a phone. Thirteen accounts
+had been active in the fortnight. The asking had three gaps:
+
+- **An iPhone in Safari was never asked.** iOS only lets a web app push from
+  the home screen, so `usePush` reports `ios-needs-install`, and the game
+  center's offer only spoke to `off`. Now the offer says what to do instead:
+  "On an iPhone, alerts start once the app is on your home screen", with
+  *Show me how* linking to `/install`.
+- **The install nudge left out its reason.** It is shown once, on a first
+  mobile visit, and sold the full-screen look. It now also says that on an
+  iPhone this is the only way to get alerts.
+- **The front page never asked.** The game center's offer needs a game day
+  and a visit to the game center. The front page, which every manager opens,
+  now offers alerts once to a manager with a team, on a device that can
+  subscribe (`off`): "Turn on alerts on this device." *Not now* is remembered
+  per device, apart from the game center's own offer (`useOfferDismissed` in
+  `src/lib/push.ts`).
+
+A device already on, blocked, or unable is not asked; the settings card on
+My Team says why. `/preview/sunday` has an *iPhone in Safari* switch, and
+`/preview/tonight` shows the front page's offer.
+
 ### The room, on the front page
 
 Tonight's Table answers three questions in the first second. The clubhouse is
@@ -464,6 +743,66 @@ signed. The alternative was posting as the commissioner, which is a lie about
 who wrote it. It renders in Overheard and in the clubhouse as a column: a gold
 rule, the serif, and the line breaks it was composed with.
 
+#### How it happened
+
+The column is written from final scores. A final score says nothing about how
+the game went: 120.7–112.8 reads the same whether it was never close or
+changed hands four times. The detector stored the rest in `sunday_events` as
+it happened. `/recap/N` now reads it back under the column, in a card called
+**How it happened**:
+
+- every table's result, in the words the detector wrote it, with yours first;
+- how many times the lead changed hands, and the change that held (**for good**): the last one,
+  made by the side that won;
+- the comebacks, monster games and season highs, in the order they came;
+- a link to that Sunday in the Game Center (`/sunday?week=N`).
+
+All of it is `weekStory` in `src/lib/recap.ts`, over `loadWeekStory`
+(`src/lib/sunday-load.ts`). The loader asks for the week's finals, comebacks,
+monster games and season highs by kind, plus every play that changed a lead.
+It does not take the newest few hundred rows, because a busy Sunday writes
+hundreds of scoring rows and the oldest lead changes are the ones it would
+lose. Its rules:
+
+- **No invented sentences.** Every line is a stored event's own, told through
+  `eventStory`, the same words the Game Center used on the day.
+- **No guessed decider.** A lead the loser took is counted, never told as the
+  one that decided it. A dead heat has no "for good".
+- **No story for a week with nothing stored.** A week from before the feed
+  existed shows no card at all.
+
+No migration. `/preview/recap` tells it from the Game Center test data's
+Tuesday; its second switch shows a week from before the feed.
+
+#### A manager's Sundays, and a rivalry's
+
+The wall's Sunday lines (`ff_sunday_history`) count what a manager did. The
+same stored events also say what was done to him, and which afternoons two
+managers shared. Both now appear where people look for them.
+
+- **A profile** (`/history?manager=…`) has an **On Sundays** block:
+  - leads taken, leads lost, and leads taken late (the detector's own `late`
+    flag);
+  - comebacks, and blown leads (comebacks made on him);
+  - monster games;
+  - one sentence each for the deepest comeback, the worst collapse and the
+    biggest game.
+- **A rivalry card** on the matchups board gets an **On Sundays** row: how
+  many times the lead changed hands between the two, in how many Sundays, the
+  deepest comeback either made on the other, and the biggest game in it.
+
+Both are `sundayLine` and `rivalrySundays` (`src/lib/sundayline.ts`), over one
+fetch, `loadCareerEvents` (`src/lib/sunday-load.ts`). That fetch asks for every
+lead change, comeback and monster game by kind, all seasons. "Changed the lead"
+is the recap's own `changesLead`, so a comeback is never counted twice and the
+three screens agree.
+
+A manager with nothing stored gets no block at all, not a row of zeros. Nothing
+is inferred from final scores.
+
+No migration. `/preview/history?manager=Anthony` and `/preview/matchups` show
+them from a short script of Sundays (`src/lib/fixtures/career.ts`).
+
 ### Odds that admit what they don't know
 
 The playoff simulation on `/standings` did exactly what it was asked before the
@@ -553,6 +892,52 @@ runs as the database owner, which bypasses RLS entirely.
 has an open desk and one after the deadline. The e2e caught a real split: the
 "Make an offer" button lived in the page while the deadline that disables it
 lived in the desk component, so the two could drift. It is one component now.
+
+### The deadline, felt before it arrives
+
+Until the run-up the deadline was a number — "deadline: week 12" on the desk —
+and the moment itself happened silently at a quarter past midnight on a
+Tuesday. Nobody was told it was coming, and an offer still on the table when it
+shut sat there as "proposed" for the rest of the season.
+
+**The moment is exact.** `ff_current_week()` moves on four hours after the
+week's last kickoff, and `ff_validate_trade` refuses once it has, so trades
+close at `last_kick + 4 hours` of the deadline week. `ff_trade_deadline_at`
+computes exactly that from the same view, so the countdown and the rule cannot
+disagree. In 2026 that is Tue Dec 1, 12:15 AM ET, after Monday night's game.
+
+`ff_trade_deadline(league, team)` is the read: when it closes, whether the
+market is open, and what is in play — offers on the table, players on the block,
+trades done, and the offers waiting on the caller's own team (only for a caller
+who sits there).
+
+- **The desk** says the week until the deadline week begins, then counts down —
+  "deadline in 3 days", gold, then wine in the last 24 hours — with the closing
+  time on the league's clock and the warning that anything still on the table
+  expires. The clock passing the instant shuts the desk even before its own
+  week number catches up.
+- **The front page** gets a card for that week only: how long is left, when it
+  closes, and what is in play, the offers only you can answer first. Silent the
+  rest of the season — a deadline five weeks out is a fact for the desk, not news.
+- **`ff_trade_deadline_tick`**, every fifteen minutes (`trade-deadline`), does
+  three things once each per league per deadline. A week out, it pins a house
+  line on the League Feed, posts a `deadline` activity event and pushes every
+  manager. On the last day it pushes again, naming the offers waiting on each
+  manager. At the deadline it expires every offer still proposed ("expired at
+  the trade deadline"), tells both sides of each, unpins the week's line and
+  says the market is shut. Each push is kind `trade`, so the trades switch
+  silences it.
+
+Bookkeeping is one row per (league, deadline instant, stage) in
+`trade_deadline_posts`, so re-running is a no-op and a moved deadline gets a
+fresh run-up. Each stage has a window: a job that first runs inside the last day
+skips the week post rather than sending both at once, and nothing is announced
+for a deadline more than two days gone. A league still drafting hears nothing.
+
+**Verified by 24 SQL checks** (`supabase/tests/trade_deadline.sql`, driving
+the job with an explicit clock) and e2e on `/preview/trades` (Open, Deadline
+week, Last day, Deadline gone) and `/preview/tonight` (the deadline toggle),
+both on fixed clocks so they hydrate the same whenever they are opened.
 
 ### The wire
 
@@ -933,6 +1318,41 @@ disagrees with the recorded one, a repeated version, and anything not shaped
 like a migration. It warns, without failing, when two files share a name —
 legal (`20260829020645` and `20260829021500` are both `team_hub`) but also what
 a migration checked in twice looks like.
+
+### Web Analytics
+
+`@vercel/analytics` (`src/components/WebAnalytics.tsx`, mounted in the root
+layout) counts page views by route, device, OS and browser. It is cookieless
+and knows no accounts. Before anything leaves the browser the query string is
+dropped, because `/history?manager=Ada` names a person and the path alone says
+which page it was.
+
+It is mounted only on Vercel's own builds (`VERCEL=1`). Anywhere else, such as
+`next start` in CI or a laptop, the collector script is not served, and asking
+for it would put a 404 in every e2e run's console.
+
+The data appears once **Analytics** is enabled for the project in the Vercel
+dashboard. That switch is not reachable through the API. It exists because
+"what phones does the league use?" had no answer when push adoption needed
+one.
+
+### Previews hydrate whenever they are opened
+
+Every `/preview/*` page is prerendered at build time and rendered again in the
+browser. A fixture that takes a date from the clock and prints it as a day
+writes different text on each side once midnight falls between the build and
+the visit. React then refuses the page (#418), and the test asserting no page
+errors fails. A CI run that built at 23:59 UTC and tested at 00:01 failed this
+way on `/preview/challenges`. Two pages that no other test opens (`/preview`
+and `/preview/admin`) had the same fault.
+
+The rule for a fixture: **print fixed instants, never `Date.now()` counted
+forward or back.** A page that also prints times relative to its own "now"
+(the dashboard's "in 13d 21h") fixes that "now" too and counts every fixture
+time from it. Relative times counted from each side's own clock, like "42m
+ago", are safe. `tests/e2e/hydration.spec.ts` opens every preview with the
+browser's clock a day and a half ahead of the build, so a fixture that breaks
+the rule fails the next test run, not one in a hundred CI runs after midnight.
 
 ### The directory builds, and that is now a test
 

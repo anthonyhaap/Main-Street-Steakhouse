@@ -42,15 +42,22 @@ but anything that touches `src/`, `tests/` or `supabase/` needs all five:
 The lint baseline is not clean. Compare your count to the one on `main` rather
 than to zero; the standing findings are not yours to fix on the way past.
 
-Two things that will otherwise cost you an afternoon:
+**The e2e suite serves itself.** `playwright.config.ts` declares a `webServer`
+that runs `next build && next start`, so `npx playwright test` is the whole
+command — nothing to start first, and nothing to remember to restart. The
+server it tests is built from the tree you are testing, every run.
 
-**The e2e suite needs a server you started yourself.** `playwright.config.ts`
-declares no `webServer`, so `npx playwright test` runs against whatever answers
-on `localhost:3000` — and against nothing at all if you forgot. Build, then
-`npx next start`.
+Two consequences worth knowing before they surprise you:
 
-**Rebuild and restart together.** A `next start` left over from an earlier
-build serves HTML pointing at CSS chunks the rebuild has already replaced. The
-pages then load unstyled, and every assertion about layout or a computed style
-fails — which reads exactly like a regression you did not write. If a run fails
-in a way that makes no sense, restart the server before you believe it.
+- **It will not reuse a server already on :3000**, including one of your own.
+  That is deliberate: reusing is how a run ends up testing an older build than
+  the one on disk, which fails every assertion about layout and reads exactly
+  like a regression you did not write. Stop your `next dev` and let the suite
+  start its own.
+- **A run therefore includes a build.** About eight seconds against a warm
+  `.next`, longer from cold — and it is the build you owed anyway.
+
+These four checks also run on every pull request that touches `src/`, `tests/`
+or `public/` (`.github/workflows/checks.yml`); migrations have had their own
+workflow for longer. CI is the backstop, not the point: a red pull request
+after the fact costs a round trip that running them here does not.

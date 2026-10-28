@@ -11,7 +11,9 @@ const KEY = "mss-install-nudge";
  * "Add to Home Screen", once, on a phone.
  *
  * On an iPhone this is the difference between a website and the league app:
- * standalone mode drops Safari's chrome and the card fills the screen. Safari
+ * standalone mode drops Safari's chrome and the card fills the screen, and it
+ * is the only way iOS lets a web app send a notification — so the nudge says
+ * that too; it is the reason most managers would bother. Safari
  * has no install prompt, so the nudge shows the two taps. Android does have
  * one, and the button calls it.
  *
@@ -51,7 +53,8 @@ export function InstallNudge() {
         {ios ? (
           <p>
             Tap <Share size={13} aria-label="Share" /> below, then <b>Add to Home Screen</b>{" "}
-            <SquarePlus size={13} aria-hidden />. No address bar, no tabs — just the league.
+            <SquarePlus size={13} aria-hidden />. No address bar, no tabs — and on an iPhone it&apos;s the only
+            way to get alerts when your matchup swings.
           </p>
         ) : prompt ? (
           <p>One tap and it opens like an app — full screen, from the home screen.</p>

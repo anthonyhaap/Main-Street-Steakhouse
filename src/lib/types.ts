@@ -227,7 +227,7 @@ export type Challenge = {
   league_id: string;
   challenger_id: string;
   opponent_id: string;
-  proposition_type: "weekly_matchup_winner" | "higher_player_points" | "season_finish" | "custom";
+  proposition_type: "weekly_matchup_winner" | "higher_player_points" | "season_finish" | "custom" | "nfl_spread";
   title: string;
   terms: string;
   stake_label: string;
@@ -248,6 +248,10 @@ export type Challenge = {
   disputed_at: string | null;
   dispute_reason: string | null;
   resolution_evidence: Record<string, unknown> | null;
+  /** An nfl_spread bet: the game, the challenger's side, and the challenger's line on it. */
+  nfl_game_id: string | null;
+  spread_team: string | null;
+  spread_line: number | null;
   created_at: string;
 };
 

@@ -2,12 +2,14 @@
 
 import { FormEvent, useCallback, useMemo, useState } from "react";
 import { Plus, Settings2, ShieldCheck, Swords, X } from "lucide-react";
+import { TeamLogo } from "@/components/nfl";
 import { TopBar } from "@/components/Shell";
 import { SkeletonRows } from "@/components/ui";
 import { ChallengeCard, useTargetChallenge, type ChallengeActions } from "@/components/challenges/ChallengeCard";
 import { LEAGUE_ID } from "@/lib/config";
 import { useLive } from "@/lib/live";
 import { useSession } from "@/lib/session";
+import { SPREAD_GAME_COLUMNS, isOpen, lineText, marketLine, otherTeam, spreadText, validLine, type SpreadGame } from "@/lib/spread";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import type { Challenge, LeagueProfile, Matchup } from "@/lib/types";
 
@@ -21,11 +23,16 @@ import type { Challenge, LeagueProfile, Matchup } from "@/lib/types";
  * reason for a review. `window.prompt` used to do the last two, and a prompt
  * is a thing the installed app on a phone does not reliably show.
  *
+ * A bet is decided one of three ways: your own fantasy matchup, the
+ * commissioner, or an NFL game against the spread — any two managers, any
+ * game still to kick off, ESPN's line to start from. The spread bet's terms
+ * are written by the database from the game, not typed.
+ *
  * A push lands at `/challenges#<id>`; `useTargetChallenge` scrolls to that
  * card and lights it for a moment.
  */
 
-type ChallengeData = { challenges: Challenge[]; profiles: LeagueProfile[]; matchups: Matchup[] };
+type ChallengeData = { challenges: Challenge[]; profiles: LeagueProfile[]; matchups: Matchup[]; games: SpreadGame[] };
 
 const firstName = (s: string | null | undefined) => s?.trim().split(/\s+/)[0] || null;
 
@@ -38,21 +45,36 @@ export default function ChallengesPage() {
   const [error, setError] = useState<string | null>(null);
 
   const fetcher = useCallback(async (): Promise<ChallengeData> => {
-    const [challenges, profiles, matchups] = await Promise.all([
+    const [challenges, profiles, matchups, upcoming] = await Promise.all([
       supabaseBrowser().from("challenges").select("*").eq("league_id", LEAGUE_ID).order("created_at", { ascending: false }),
       supabaseBrowser().from("profiles").select("id,display_name,settlement_provider,settlement_handle,settlement_opt_in_at"),
       supabaseBrowser().from("matchups").select("*").eq("league_id", LEAGUE_ID).order("week"),
+      // Every game a spread bet can still be made on: not yet kicked off. No
+      // limit — a whole regular season is under 300 rows, and a cap would
+      // quietly hide the later weeks in September.
+      supabaseBrowser().from("nfl_games").select(SPREAD_GAME_COLUMNS).eq("status", "pre")
+        .gt("kickoff_at", new Date().toISOString()).order("kickoff_at"),
     ]);
-    const failure = challenges.error ?? profiles.error ?? matchups.error;
+    const failure = challenges.error ?? profiles.error ?? matchups.error ?? upcoming.error;
     if (failure) throw failure;
+    const games = (upcoming.data ?? []) as SpreadGame[];
+    // And the games the bets already on the desk are about, live or final.
+    const wanted = [...new Set((challenges.data ?? []).map((c) => c.nfl_game_id as string | null).filter(Boolean))]
+      .filter((id) => !games.some((g) => g.id === id)) as string[];
+    if (wanted.length) {
+      const bet = await supabaseBrowser().from("nfl_games").select(SPREAD_GAME_COLUMNS).in("id", wanted);
+      if (bet.error) throw bet.error;
+      games.push(...((bet.data ?? []) as SpreadGame[]));
+    }
     return {
       challenges: (challenges.data ?? []) as Challenge[],
       profiles: (profiles.data ?? []) as LeagueProfile[],
       matchups: (matchups.data ?? []) as Matchup[],
+      games,
     };
   }, []);
   const { data, status, refetch } = useLive(fetcher, {
-    tables: ["challenges", "profiles"], channel: "league-challenges", pollMs: 30000, enabled: ready,
+    tables: ["challenges", "profiles", "nfl_games"], channel: "league-challenges", pollMs: 30000, enabled: ready,
   });
   const target = useTargetChallenge(!!data);
 
@@ -64,6 +86,8 @@ export default function ChallengesPage() {
   }, [teams, data?.profiles]);
   const weekOf = useCallback((matchupId: string | null) =>
     data?.matchups.find((m) => m.id === matchupId)?.week ?? null, [data?.matchups]);
+  const gameOf = useCallback((gameId: string | null) =>
+    data?.games.find((g) => g.id === gameId) ?? null, [data?.games]);
 
   const run = async (fn: () => PromiseLike<{ error: { message: string } | null }>) => {
     setBusy(true); setError(null);
@@ -122,14 +146,14 @@ export default function ChallengesPage() {
             {data.challenges.map((item) => (
               <ChallengeCard
                 key={item.id} item={item} userId={user?.id ?? null} busy={busy} isCommissioner={isCommissioner}
-                profiles={data.profiles} nameOf={nameOf} weekOf={weekOf} target={target === item.id} actions={actions}
+                profiles={data.profiles} nameOf={nameOf} weekOf={weekOf} gameOf={gameOf} target={target === item.id} actions={actions}
               />
             ))}
           </div>
         )}
 
         {dialog?.kind === "challenge" && data && (
-          <ChallengeDialog matchups={data.matchups} close={() => setDialog(null)} done={async () => { setDialog(null); await refetch(); }} />
+          <ChallengeDialog matchups={data.matchups} games={data.games} close={() => setDialog(null)} done={async () => { setDialog(null); await refetch(); }} />
         )}
         {dialog?.kind === "profile" && (
           <ProfileDialog
@@ -222,14 +246,17 @@ function ProfileDialog({ initial, displayName, close, done }: { initial?: League
   );
 }
 
-function ChallengeDialog({ matchups, close, done }: { matchups: Matchup[]; close: () => void; done: () => Promise<void> }) {
+function ChallengeDialog({ matchups, games, close, done }: { matchups: Matchup[]; games: SpreadGame[]; close: () => void; done: () => Promise<void> }) {
   const { user, teams } = useSession();
   const [opponent, setOpponent] = useState("");
   const [title, setTitle] = useState("");
   const [terms, setTerms] = useState("");
   const [amount, setAmount] = useState("");
-  const [kind, setKind] = useState<"custom" | "weekly_matchup_winner">("weekly_matchup_winner");
+  const [kind, setKind] = useState<"custom" | "weekly_matchup_winner" | "nfl_spread">("weekly_matchup_winner");
   const [matchup, setMatchup] = useState("");
+  const [gameId, setGameId] = useState("");
+  const [side, setSide] = useState("");
+  const [line, setLine] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -242,15 +269,37 @@ function ChallengeDialog({ matchups, close, done }: { matchups: Matchup[]; close
       && [item.home_team_id, item.away_team_id].includes(theirs.id));
   }, [matchups, opponent, teams, user?.id]);
 
+  // Spread bets: only games still to kick off, soonest first.
+  const openGames = useMemo(() => games.filter((g) => isOpen(g)).sort((x, y) =>
+    (x.kickoff_at ?? "").localeCompare(y.kickoff_at ?? "")), [games]);
+  // Grouped by week, so a full season's schedule is still a list you can scan.
+  const openWeeks = useMemo(() => [...new Set(openGames.map((g) => g.week))], [openGames]);
+  const game = openGames.find((g) => g.id === gameId) ?? null;
+  const lineNumber = line.trim() === "" ? NaN : Number(line);
+  const spreadReady = !!game && !!side && validLine(lineNumber);
+  const opponentName = choices.find((item) => item.id === opponent)?.manager_name?.trim().split(/\s+/)[0] ?? "They";
+
+  // Choosing a side starts from ESPN's line on it; the challenger can shade it.
+  function pickSide(team: string) {
+    setSide(team);
+    const market = game ? marketLine(game, team) : null;
+    setLine(market == null ? "" : String(market));
+  }
+
   async function submit(event: FormEvent) {
     event.preventDefault(); setBusy(true); setError(null);
     const opponentTeam = choices.find((item) => item.id === opponent);
     const cents = amount ? Math.round(Number(amount) * 100) : null;
-    const { error: createError } = await supabaseBrowser().rpc("ff_create_challenge", {
-      p_league_id: LEAGUE_ID, p_opponent_id: opponentTeam?.owner_id, p_title: title, p_terms: terms,
-      p_stake_label: cents ? "External settlement" : "Bragging rights", p_proposition_type: kind,
-      p_stake_amount_cents: cents, p_matchup_id: kind === "weekly_matchup_winner" ? matchup : null,
-    });
+    const { error: createError } = kind === "nfl_spread"
+      ? await supabaseBrowser().rpc("ff_create_spread_challenge", {
+          p_league_id: LEAGUE_ID, p_opponent_id: opponentTeam?.owner_id, p_game_id: gameId,
+          p_team: side, p_line: lineNumber, p_stake_amount_cents: cents,
+        })
+      : await supabaseBrowser().rpc("ff_create_challenge", {
+          p_league_id: LEAGUE_ID, p_opponent_id: opponentTeam?.owner_id, p_title: title, p_terms: terms,
+          p_stake_label: cents ? "External settlement" : "Bragging rights", p_proposition_type: kind,
+          p_stake_amount_cents: cents, p_matchup_id: kind === "weekly_matchup_winner" ? matchup : null,
+        });
     setBusy(false);
     if (createError) return setError(createError.message);
     await done();
@@ -268,6 +317,7 @@ function ChallengeDialog({ matchups, close, done }: { matchups: Matchup[]; close
         <Field label="Decided by">
           <select className="field" value={kind} onChange={(event) => setKind(event.target.value as typeof kind)}>
             <option value="weekly_matchup_winner">The week&apos;s result, automatically</option>
+            <option value="nfl_spread">An NFL game, against the spread</option>
             <option value="custom">The commissioner</option>
           </select>
         </Field>
@@ -279,12 +329,67 @@ function ChallengeDialog({ matchups, close, done }: { matchups: Matchup[]; close
             </select>
           </Field>
         )}
-        <Field label="Title">
-          <input className="field" required maxLength={90} value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Higher Week 1 score" />
-        </Field>
-        <Field label="Exact terms">
-          <textarea className="field" required maxLength={1000} value={terms} onChange={(event) => setTerms(event.target.value)} rows={3} placeholder="Winner has the higher final fantasy score…" />
-        </Field>
+        {kind === "nfl_spread" && (
+          <>
+            <Field label="Game">
+              <select className="field" required value={gameId} onChange={(event) => { setGameId(event.target.value); setSide(""); setLine(""); }}>
+                <option value="">{openGames.length ? "Choose a game" : "No games left to kick off"}</option>
+                {openWeeks.map((week) => (
+                  <optgroup key={week} label={`Week ${week}`}>
+                    {openGames.filter((g) => g.week === week).map((g) => (
+                      <option key={g.id} value={g.id}>
+                        {g.away_team} at {g.home_team}
+                        {g.home_spread != null ? ` · ${spreadText(g.home_team, Number(g.home_spread))}` : ""}
+                        {g.kickoff_at ? ` · ${new Date(g.kickoff_at).toLocaleString(undefined, { weekday: "short", hour: "numeric", minute: "2-digit" })}` : ""}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+            </Field>
+            {game && (
+              <div>
+                <span className="eyebrow" style={{ display: "block", marginBottom: 6 }}>Your side</span>
+                <div className="spread-pick" role="group" aria-label="Your side">
+                  {[game.away_team, game.home_team].map((team) => {
+                    const market = marketLine(game, team);
+                    return (
+                      <button type="button" key={team} className="spread-pick__opt" aria-pressed={side === team} onClick={() => pickSide(team)}>
+                        <TeamLogo abbr={team} size={22} />{team}{market != null ? ` ${lineText(market)}` : ""}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            {game && side && (
+              <Field label={`Your line on ${side}`}>
+                <input
+                  className="field" inputMode="decimal" type="number" required min="-50" max="50" step="0.5"
+                  value={line} onChange={(event) => setLine(event.target.value)}
+                  placeholder={marketLine(game, side) == null ? "No line from ESPN yet — set one, e.g. -3.5" : undefined}
+                />
+              </Field>
+            )}
+            {spreadReady && (
+              <p className="note" data-kind="info" style={{ margin: 0 }} data-testid="spread-summary">
+                You take <strong>{spreadText(side, lineNumber)}</strong>. {opponentName} takes{" "}
+                <strong>{spreadText(otherTeam(game!, side), -lineNumber)}</strong>. Decided by the final, overtime
+                included; landing on the number is a push. Locks at kickoff.
+              </p>
+            )}
+          </>
+        )}
+        {kind !== "nfl_spread" && (
+          <>
+            <Field label="Title">
+              <input className="field" required maxLength={90} value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Higher Week 1 score" />
+            </Field>
+            <Field label="Exact terms">
+              <textarea className="field" required maxLength={1000} value={terms} onChange={(event) => setTerms(event.target.value)} rows={3} placeholder="Winner has the higher final fantasy score…" />
+            </Field>
+          </>
+        )}
         <Field label="Stake in dollars (optional)">
           <input className="field" inputMode="decimal" type="number" min="1" max="500" step="0.01" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="Leave blank for bragging rights" />
         </Field>
@@ -294,7 +399,9 @@ function ChallengeDialog({ matchups, close, done }: { matchups: Matchup[]; close
           </p>
         )}
         {error && <div className="note" data-kind="error" role="alert">{error}</div>}
-        <button className="btn" data-v="primary" disabled={busy || !choices.length}><Swords size={14} />{busy ? "Sending…" : "Send challenge"}</button>
+        <button className="btn" data-v="primary" disabled={busy || !choices.length || (kind === "nfl_spread" && !spreadReady)}>
+          <Swords size={14} />{busy ? "Sending…" : "Send challenge"}
+        </button>
       </form>
     </Modal>
   );
