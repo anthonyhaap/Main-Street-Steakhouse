@@ -102,6 +102,43 @@ test("the board takes the glass on a phone", async ({ page }, info) => {
   // Nothing bought the width by scrolling the document sideways.
   expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth))
     .toBeLessThanOrEqual(0);
+
+  // The lineup's own header is two halves, not two thirds and a hole. Hiding
+  // the "Lineups" label on a phone does not leave an empty middle track —
+  // `display: none` removes the grid item — so the home team used to slide
+  // into the `auto` column, size itself to its content, and leave a phantom
+  // `1fr` at the end. The away name was cut to "Dry Ag…" against a home name
+  // sitting comfortably, which is the tell: two tracks, and both names whole.
+  const tracks = await hero.locator(".sb__vs-head")
+    .evaluate((e) => getComputedStyle(e).gridTemplateColumns.split(" ").map(parseFloat));
+  expect(tracks).toHaveLength(2);
+  expect(Math.abs(tracks[0] - tracks[1])).toBeLessThanOrEqual(1);
+  const names = hero.locator(".sb__vs-head .sb__vs-team b");
+  for (let i = 0; i < await names.count(); i++) {
+    const [scroll, client] = await names.nth(i)
+      .evaluate((e) => [e.scrollWidth, e.clientWidth]);
+    expect(scroll, `"${await names.nth(i).innerText()}" is truncated`)
+      .toBeLessThanOrEqual(client + 1);
+  }
+});
+
+test("the state chip keeps its line on a phone, in every state", async ({ page }, info) => {
+  test.skip(info.project.name !== "mobile", "a claim about a phone's width");
+  await page.goto("/preview/matchups");
+
+  // The card's top row held four things — the state, "Your table" and two
+  // icon buttons — and the one that gave was the only one carrying a fact:
+  // "Live · 6 players in action" broke over two lines and doubled the height
+  // of the first thing on the card.
+  for (const stage of ["Nothing kicked", "One o'clock games on", "Late window", "Monday night"]) {
+    await page.getByRole("button", { name: stage, exact: true }).click();
+    const chips = page.locator(".sb__top .badge");
+    for (let i = 0; i < await chips.count(); i++) {
+      const box = (await chips.nth(i).boundingBox())!;
+      expect(box.height, `${stage}: "${await chips.nth(i).innerText()}" wrapped`)
+        .toBeLessThanOrEqual(26);
+    }
+  }
 });
 
 test("the numbers say when they were written", async ({ page }) => {
