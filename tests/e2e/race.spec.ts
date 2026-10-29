@@ -23,6 +23,16 @@ test("a team on the bubble is told what Sunday does to it, and whose games to wa
   await expect(path.locator("li").first()).toContainText("2 more5%");
 });
 
+test("a long shot is not told what the simulation never looked at", async ({ page }) => {
+  await page.goto("/preview/standings");
+  await page.getByRole("group", { name: "Your seat" }).getByRole("button", { name: "Long shot" }).click();
+  // 2–8 with four left: winning all four came up in too few seasons to call.
+  const card = race(page);
+  await expect(card).toContainText("In the seasons where you win three more, you get in <1%.");
+  await expect(card).toContainText("Winning all four came up too rarely in the simulation to say.");
+  await expect(card).not.toContainText("Even winning all four");
+});
+
 test("the race and the table are the same seasons", async ({ page }) => {
   await page.goto("/preview/standings");
   await page.getByRole("group", { name: "Your seat" }).getByRole("button", { name: "Bubble" }).click();

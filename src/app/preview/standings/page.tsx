@@ -43,6 +43,7 @@ const BEFORE = preseason();
 const SEATS = [
   { id: "t4", label: "In" },
   { id: "t8", label: "Bubble" },
+  { id: "t10", label: "Long shot" },
   { id: "t11", label: "Out" },
   { id: null, label: "Signed out" },
 ] as const;

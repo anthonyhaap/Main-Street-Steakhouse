@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { ArrowRight, Flag } from "lucide-react";
 import type { Outlook } from "@/lib/types";
-import { SIMS, stakesFor, winsNeeded, type PlayoffRace, type WinsPath } from "@/lib/playoffs";
+import { SIMS, sampled, stakesFor, winsNeeded, type PlayoffRace, type WinsPath } from "@/lib/playoffs";
 
 /**
  * The playoff picture as a race: what this week is worth.
@@ -117,13 +117,18 @@ function Takes({ paths }: { paths: WinsPath[] }) {
   const seen = first < 0 ? reached.slice(-1) : reached.slice(first);
   if (seen.length === 0) return null;
   const need = winsNeeded(paths);
-  const last = paths[paths.length - 1];
+  const all = paths[paths.length - 1];
+  // The most wins the simulation saw often enough to speak for.
+  const best = sampled(paths).at(-1);
+  if (!need && !best) return null;
   return (
     <div className="race__takes">
       <p className="race__root">
         {need
           ? <>{need.more === 0 ? "Even with no more wins" : `${words(need.more)} more win${need.more === 1 ? "" : "s"}`} and you are in {pct(need.pct)} of the seasons that go that way.</>
-          : <>Even winning all {words(last.more).toLowerCase()} gets you in {pct(last.pct)} of the time — you need help.</>}
+          : best && best.more === all.more
+          ? <>Even winning all {words(all.more).toLowerCase()} gets you in {pct(best.pct)} of the time — you need help.</>
+          : best && <>In the seasons where you win {words(best.more).toLowerCase()} more, you get in {pct(best.pct)}. Winning all {words(all.more).toLowerCase()} came up too rarely in the simulation to say.</>}
       </p>
       <ol className="race__path" aria-label="Your odds by how many more games you win">
         {seen.map((p) => (

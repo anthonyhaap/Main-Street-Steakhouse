@@ -176,12 +176,22 @@ export function stakesFor(race: PlayoffRace, teamId: string, limit = 2, minGain 
 }
 
 /**
+ * A win count is evidence only if enough seasons reached it: 0.5% of 4,000 is
+ * twenty. Below that, a 0% is the simulation not having looked, not an answer
+ * — a 2–8 team wins out in a handful of seasons, and "<1% even winning all
+ * four" from fourteen of them is a claim nothing backs.
+ */
+export const MIN_SHARE = 0.5;
+
+/** The win counts the simulation saw often enough to say anything about. */
+export const sampled = (paths: WinsPath[]) => paths.filter((w) => w.share >= MIN_SHARE);
+
+/**
  * The fewest extra wins that get this team in at least `pct` of the time,
- * among the counts the simulation actually reached. Null when none does —
- * winning out is not enough on its own.
+ * among the counts the simulation saw often enough. Null when none does.
  */
 export function winsNeeded(paths: WinsPath[], pct = 90): WinsPath | null {
-  return paths.find((w) => w.share > 0 && w.pct >= pct) ?? null;
+  return sampled(paths).find((w) => w.pct >= pct) ?? null;
 }
 
 /* ------------------------------------------------------- the simulation */
