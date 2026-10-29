@@ -172,6 +172,34 @@ four games of evidence. The top *N* by wins-then-points are in. Clinches and
 eliminations are worked out exactly, not read off the simulation, so a
 "Clinched" badge is a mathematical claim and ">99%" is not.
 
+**The race says what this week is worth.** The table says where everybody
+stands; it cannot say what a manager on the bubble wants to know on a Tuesday.
+`playoffRace` is the same simulation, same seed and same draws, so its odds
+agree with the table to the decimal (`projectPlayoffs` is now a view of it). It
+also keeps two things the table throws away: which side won each of this
+week's games in every simulated season, and how many more games each team won.
+Conditioning on those gives the card under the standings:
+
+- **Your stake:** "You are at 11%. Beat Tomahawk Chop: 19%. Lose: 3%."
+- **Whose games to watch:** the other results this week that move you most
+  ("root for Sirloin Syndicate over Wagyu Warriors, +13 for you").
+- **What it takes:** your odds by how many more you win, starting at the first
+  count with a real chance. Either "Three more wins and you are in 94% of the
+  seasons that go that way", or "even winning all four gets you in 87% of the
+  time — you need help".
+- **The games that move it most:** this week's games ranked by how far they
+  swing the two teams' own odds, each opening its matchup.
+
+A clinched or eliminated seat is told so in a line. A visitor sees only the
+games. The front page carries the race in one line (`RaceSoon`) while it is
+still a race for you.
+
+Verified by `tests/e2e/race.spec.ts` on `/preview/standings`, whose seat switch
+(In, Bubble, Out, Signed out) picks whose race is told. One test reads the
+table's odds for the bubble team and asserts the card says the same number.
+The old and new simulation were compared on the fixture before the switch: the
+projections came out identical.
+
 **The commissioner edits rules all year.** `/admin` has the league rules
 (season length, playoff teams and byes, trade deadline, waivers, keepers,
 roster slots) and every scoring value. Scoring changes are versioned by

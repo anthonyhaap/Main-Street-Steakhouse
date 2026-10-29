@@ -8,6 +8,10 @@
  * The switch also renders the state the board spends its whole preseason in:
  * twelve undrafted teams, where the simulation has nothing to separate them
  * and the odds are withheld rather than printed as twelve coin flips.
+ *
+ * The seat decides whose race the card under the table tells: a team all but
+ * in, one on the bubble with plenty riding on Sunday, one already out — or
+ * nobody's, signed out.
  */
 
 import { useState } from "react";
@@ -36,8 +40,17 @@ function preseason(): Outlook {
 
 const BEFORE = preseason();
 
+const SEATS = [
+  { id: "t4", label: "In" },
+  { id: "t8", label: "Bubble" },
+  { id: "t10", label: "Long shot" },
+  { id: "t11", label: "Out" },
+  { id: null, label: "Signed out" },
+] as const;
+
 export default function Preview() {
   const [drafted, setDrafted] = useState(true);
+  const [seat, setSeat] = useState<string | null>("t4");
   return (
     <>
       <TopBar status="live" />
@@ -50,8 +63,15 @@ export default function Preview() {
             Week 11
           </button>
         </div>
-        <StandingsBoard outlook={drafted ? outlook : BEFORE} myTeamId="t4" />
-        <PowerRankings outlook={drafted ? outlook : BEFORE} myTeamId="t4" />
+        <div className="segmented" role="group" aria-label="Your seat" style={{ width: "max-content", marginTop: "var(--s2)" }}>
+          {SEATS.map((x) => (
+            <button key={x.label} className="segmented__opt" data-on={seat === x.id} onClick={() => setSeat(x.id)}>
+              {x.label}
+            </button>
+          ))}
+        </div>
+        <StandingsBoard outlook={drafted ? outlook : BEFORE} myTeamId={seat} />
+        <PowerRankings outlook={drafted ? outlook : BEFORE} myTeamId={seat} />
       </main>
     </>
   );

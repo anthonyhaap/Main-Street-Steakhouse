@@ -85,15 +85,131 @@ export function projectPlayoffs(
   sims = SIMS,
   rand: () => number = mulberry32(0x5eed),
 ): PlayoffProjection[] | null {
+  return simulate(o, sims, rand)?.projections ?? null;
+}
+
+/* ------------------------------------------------------------- the race */
+
+/**
+ * One game this week, and what its result does to everybody's odds.
+ *
+ * `ifHome` and `ifAway` are each team's playoff chance in the simulated
+ * seasons where that side won this game, in the outlook's team order — so a
+ * manager can read his own stake in a game he is not playing in.
+ */
+export type GameStakes = {
+  matchup_id: string;
+  home_team_id: string;
+  away_team_id: string;
+  ifHome: number[];
+  ifAway: number[];
+  /** How far the two teams' own odds swing on it, added together. */
+  leverage: number;
+};
+
+/** A team's chances by how many of its remaining games it wins. */
+export type WinsPath = { more: number; pct: number; share: number };
+
+export type PlayoffRace = {
+  projections: PlayoffProjection[];
+  /** The week being looked at: the first with a game still to play. */
+  week: number | null;
+  /** This week's games, the biggest swing first. */
+  games: GameStakes[];
+  /** Team id → its chances by extra wins, 0 to all of them. */
+  paths: Map<string, WinsPath[]>;
+  teamIndex: Map<string, number>;
+};
+
+/**
+ * The playoff picture as a race rather than a table: the same simulation as
+ * `projectPlayoffs` — same seed, same draws, so the odds agree to the decimal
+ * with the column beside them — with two things kept that the table throws
+ * away. For every game this week, which side won in each simulated season;
+ * and for every team, how many more games it won. Conditioning on those turns
+ * "you are at 48%" into "win and you are at 64%, lose and you are at 31%",
+ * and "how many more do I need".
+ */
+export function playoffRace(
+  o: Outlook,
+  sims = SIMS,
+  rand: () => number = mulberry32(0x5eed),
+): PlayoffRace | null {
+  return simulate(o, sims, rand);
+}
+
+export type MyStakes = {
+  now: number;
+  /** Null when this team has no game in the race's week. */
+  ifWin: number | null;
+  ifLose: number | null;
+  /** Other games this week, the side to root for, and what it is worth. */
+  rootFor: { matchup_id: string; team_id: string; against_id: string; gain: number }[];
+  paths: WinsPath[];
+};
+
+/** One team's stake in this week: its own game, and the others worth watching. */
+export function stakesFor(race: PlayoffRace, teamId: string, limit = 2, minGain = 1.5): MyStakes | null {
+  const i = race.teamIndex.get(teamId);
+  const p = race.projections.find((x) => x.team_id === teamId);
+  if (i === undefined || !p) return null;
+  const own = race.games.find((g) => g.home_team_id === teamId || g.away_team_id === teamId);
+  const home = own?.home_team_id === teamId;
+  const rootFor = race.games
+    .filter((g) => g !== own)
+    .map((g) => {
+      const d = g.ifHome[i] - g.ifAway[i];
+      return d >= 0
+        ? { matchup_id: g.matchup_id, team_id: g.home_team_id, against_id: g.away_team_id, gain: d }
+        : { matchup_id: g.matchup_id, team_id: g.away_team_id, against_id: g.home_team_id, gain: -d };
+    })
+    .filter((r) => r.gain >= minGain)
+    .sort((a, b) => b.gain - a.gain)
+    .slice(0, limit);
+  return {
+    now: p.playoff_pct,
+    ifWin: own ? (home ? own.ifHome[i] : own.ifAway[i]) : null,
+    ifLose: own ? (home ? own.ifAway[i] : own.ifHome[i]) : null,
+    rootFor,
+    paths: race.paths.get(teamId) ?? [],
+  };
+}
+
+/**
+ * A win count is evidence only if enough seasons reached it: 0.5% of 4,000 is
+ * twenty. Below that, a 0% is the simulation not having looked, not an answer
+ * — a 2–8 team wins out in a handful of seasons, and "<1% even winning all
+ * four" from fourteen of them is a claim nothing backs.
+ */
+export const MIN_SHARE = 0.5;
+
+/** The win counts the simulation saw often enough to say anything about. */
+export const sampled = (paths: WinsPath[]) => paths.filter((w) => w.share >= MIN_SHARE);
+
+/**
+ * The fewest extra wins that get this team in at least `pct` of the time,
+ * among the counts the simulation saw often enough. Null when none does.
+ */
+export function winsNeeded(paths: WinsPath[], pct = 90): WinsPath | null {
+  return sampled(paths).find((w) => w.pct >= pct) ?? null;
+}
+
+/* ------------------------------------------------------- the simulation */
+
+function simulate(o: Outlook, sims: number, rand: () => number): PlayoffRace | null {
   const teams = o.teams;
   const n = teams.length;
   if (n === 0 || o.matchups.length === 0) return null;
 
   const idx = new Map(teams.map((t, i) => [t.id, i]));
-  const remaining = o.matchups
+  const open = o.matchups
     .filter((m) => !m.played && m.week <= o.regular_season_weeks)
-    .map((m) => [idx.get(m.home_team_id), idx.get(m.away_team_id)] as const)
-    .filter((p): p is readonly [number, number] => p[0] !== undefined && p[1] !== undefined);
+    .map((m) => ({ m, h: idx.get(m.home_team_id), a: idx.get(m.away_team_id) }))
+    .filter((x): x is { m: typeof x.m; h: number; a: number } => x.h !== undefined && x.a !== undefined);
+  const remaining = open.map((x) => [x.h, x.a] as const);
+  const focusWeek = open.length ? Math.min(...open.map((x) => x.m.week)) : null;
+  // Positions in `remaining` of this week's games.
+  const focus = open.flatMap((x, k) => (x.m.week === focusWeek ? [k] : []));
 
   /* ------------------------------------------------------------ strength */
   const projected = teams.map((t) => Number(t.proj_ppg)).filter((v) => Number.isFinite(v) && v > 0);
@@ -128,25 +244,49 @@ export function projectPlayoffs(
   const seedSum = new Array<number>(n).fill(0);
   const order = teams.map((_, i) => i);
 
+  // This week's games: seasons each side won, and who got in in those.
+  const fWon = focus.map(() => [0, 0]);
+  const fMade = focus.map(() => [new Array<number>(n).fill(0), new Array<number>(n).fill(0)]);
+  // Per team, by extra wins: seasons, and seasons that ended in the playoffs.
+  const pathAll = left.map((l) => new Array<number>(l + 1).fill(0));
+  const pathMade = left.map((l) => new Array<number>(l + 1).fill(0));
+  const winner = new Array<number>(remaining.length).fill(-1);
+  const inThisSim = new Array<boolean>(n).fill(false);
+
   for (let s = 0; s < sims; s++) {
     const wins = baseWins.slice();
     const pf = basePf.slice();
-    for (const [h, a] of remaining) {
+    for (let k = 0; k < remaining.length; k++) {
+      const [h, a] = remaining[k];
       const hs = normal(mu[h], sd[h], rand);
       const as = normal(mu[a], sd[a], rand);
       pf[h] += hs; pf[a] += as;
-      if (hs > as) wins[h] += 1;
-      else if (as > hs) wins[a] += 1;
-      else { wins[h] += 0.5; wins[a] += 0.5; }
+      if (hs > as) { wins[h] += 1; winner[k] = 0; }
+      else if (as > hs) { wins[a] += 1; winner[k] = 1; }
+      else { wins[h] += 0.5; wins[a] += 0.5; winner[k] = -1; }
     }
     order.sort((x, y) => wins[y] - wins[x] || pf[y] - pf[x]);
     for (let seed = 0; seed < n; seed++) {
       const t = order[seed];
       seedSum[t] += seed + 1;
       winSum[t] += wins[t];
+      inThisSim[t] = seed < o.playoff_teams;
       if (seed < o.playoff_teams) made[t]++;
       if (seed < o.playoff_byes) byes[t]++;
       if (seed === 0) tops[t]++;
+    }
+    for (let f = 0; f < focus.length; f++) {
+      const side = winner[focus[f]];
+      if (side < 0) continue;
+      fWon[f][side]++;
+      const row = fMade[f][side];
+      for (let t = 0; t < n; t++) if (inThisSim[t]) row[t]++;
+    }
+    for (let t = 0; t < n; t++) {
+      // Whole wins only: a tie is half of one and rare enough to round down.
+      const more = Math.min(left[t], Math.max(0, Math.floor(wins[t] - baseWins[t])));
+      pathAll[t][more]++;
+      if (inThisSim[t]) pathMade[t][more]++;
     }
   }
 
@@ -167,7 +307,7 @@ export function projectPlayoffs(
     return null;
   });
 
-  return teams.map((t, i) => {
+  const projections = teams.map((t, i): PlayoffProjection => {
     const games = Number(t.wins) + Number(t.losses) + Number(t.ties) + left[i];
     const projWins = winSum[i] / sims;
     return {
@@ -182,6 +322,24 @@ export function projectPlayoffs(
       status: status[i],
     };
   });
+
+  const pctOf = (hits: number[], of: number) => hits.map((c) => (of ? (c / of) * 100 : 0));
+  const games = focus.map((k, f): GameStakes => {
+    const { m, h, a } = open[k];
+    const ifHome = pctOf(fMade[f][0], fWon[f][0]);
+    const ifAway = pctOf(fMade[f][1], fWon[f][1]);
+    return {
+      matchup_id: m.id, home_team_id: m.home_team_id, away_team_id: m.away_team_id,
+      ifHome, ifAway,
+      leverage: Math.abs(ifHome[h] - ifAway[h]) + Math.abs(ifHome[a] - ifAway[a]),
+    };
+  }).sort((x, y) => y.leverage - x.leverage);
+
+  const paths = new Map(teams.map((t, i) => [t.id, pathAll[i].map((c, more): WinsPath => ({
+    more, share: (c / sims) * 100, pct: c ? (pathMade[i][more] / c) * 100 : 0,
+  }))]));
+
+  return { projections, week: focusWeek, games, paths, teamIndex: idx };
 }
 
 /* ------------------------------------------------------------------ maths */

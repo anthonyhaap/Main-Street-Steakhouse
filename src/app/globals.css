@@ -2817,6 +2817,39 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
 .tdl__line, .tdl__play { margin: 0; font-size: var(--t-small); line-height: 1.5; color: var(--muted); }
 .tdl__line b { color: var(--cream); }
 .tdl .tdl__go { display: inline-flex; align-items: center; gap: 4px; justify-self: start; margin-top: 2px; }
+/* The race: what this week is worth, under the standings and on the front page. */
+.race__mine { display: grid; gap: 8px; }
+.race__lead { margin: 0; font-size: var(--t-body); line-height: 1.5; color: var(--muted); }
+.race__lead b { color: var(--cream); }
+.race__root { margin: 0; font-size: var(--t-small); line-height: 1.5; color: var(--muted); }
+.race__root b { color: var(--cream); }
+.race .race__up { color: var(--win); }
+.race .race__down { color: var(--lose); }
+.race__gain { color: var(--dim); white-space: nowrap; }
+.race__takes { display: grid; gap: 8px; }
+.race__path { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.race__path li {
+  display: grid; gap: 1px; min-width: 64px; padding: 6px 10px;
+  border: 1px solid var(--rule-soft); border-radius: var(--r-sm); background: var(--ink-1);
+}
+.race__path li[data-need] { border-color: var(--gold-lit); background: var(--gold-haze); }
+.race__more { font-size: var(--t-micro); color: var(--dim); text-transform: uppercase; letter-spacing: 0.06em; }
+.race__path b { font-family: var(--serif); font-size: var(--t-body); color: var(--cream); }
+.race__games { display: grid; gap: 8px; }
+.race__games ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.race__game {
+  display: grid; gap: 3px; padding: 8px 10px; text-decoration: none; color: inherit;
+  border: 1px solid var(--rule-soft); border-radius: var(--r-sm); background: var(--ink-1);
+}
+.race__game:hover { border-color: var(--gold-dim); }
+.race__vs { font-weight: 600; color: var(--cream); overflow-wrap: anywhere; }
+.race__vs i { font-style: normal; font-weight: 400; color: var(--dim); }
+.race__sides { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: var(--t-small); color: var(--muted); }
+.race__team { color: var(--muted); }
+.race__flat { color: var(--dim); }
+.race__note { font-size: var(--t-micro); line-height: 1.5; color: var(--dim); }
+.race--line .race__go { display: inline-flex; align-items: center; gap: 4px; justify-self: start; }
+.race--line .eyebrow { display: inline-flex; align-items: center; gap: 6px; }
 /* …and on the desk itself. */
 .desk__soon { color: var(--gold); }
 .desk__soon[data-phase="day"] { color: var(--wine); }

@@ -191,7 +191,8 @@ test("playoff odds are withheld until the draft", async ({ page }) => {
   // Mid-season, the same board publishes them.
   await page.getByRole("button", { name: "Week 11" }).click();
   await expect(page.getByRole("columnheader", { name: "Playoffs" })).toBeVisible();
-  await expect(page.getByText(/simulated seasons/)).toBeVisible();
+  // The table's own note; the race card under it says the same words.
+  await expect(page.locator(".note").getByText(/simulated seasons/)).toBeVisible();
 });
 
 test("a card can be sent to the chat from the board it is on", async ({ page }) => {
