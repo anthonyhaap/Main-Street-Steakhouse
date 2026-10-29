@@ -20,6 +20,7 @@ import { Statement } from "@/components/tonight/Statement";
 import { TonightSkeleton, TonightsTable, type Flash } from "@/components/tonight/TonightsTable";
 import { HomeGameDay, PlayingToday } from "@/components/tonight/GameDay";
 import { DeadlineSoon } from "@/components/tonight/Deadline";
+import { RaceSoon } from "@/components/tonight/RaceSoon";
 
 /**
  * The first screen, live.
@@ -134,6 +135,8 @@ export function Tonight({ initial, serverNow }: { initial: Briefing | null; serv
           {b && phase && <HomeGameDay b={b} now={clock} phase={phase} enabled={ready} />}
           {/* The trade deadline, only in the week it closes. */}
           {b && <DeadlineSoon teamId={b.me?.team_id ?? null} now={clock} enabled={ready} />}
+          {/* Your playoff race, while it is still a race. */}
+          {b?.me && <RaceSoon teamId={b.me.team_id} enabled={ready} />}
           {/* Alerts, offered once, to a manager with a team on a device that can take them. */}
           {b?.me && <PushInvite />}
 

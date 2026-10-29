@@ -17,6 +17,9 @@ import { RoomBoard } from "@/components/tonight/Room";
 import { Statement } from "@/components/tonight/Statement";
 import { PushInviteView } from "@/components/tonight/PushInvite";
 import { DeadlineCard } from "@/components/tonight/Deadline";
+import { RaceLine } from "@/components/standings/Race";
+import { buildOutlook } from "@/lib/fixtures/outlook";
+import { playoffRace } from "@/lib/playoffs";
 import type { TradeDeadline } from "@/lib/deadline";
 import type { PushState } from "@/lib/push";
 import { HomeGameDayView, PlayingToday } from "@/components/tonight/GameDay";
@@ -254,6 +257,11 @@ const DL_STAGES = [
   { key: "day", label: "Last day", now: Date.parse("2026-11-30T21:00:00Z") },
 ] as const;
 
+// The playoff race, from the standings fixture's season, for a 5–5 team on
+// the bubble — the case the line is for.
+const RACE_OUTLOOK = buildOutlook();
+const RACE = playoffRace(RACE_OUTLOOK)!;
+
 export default function TonightPreview() {
   const [key, setKey] = useState("thu");
   // The front page's offer of alerts, on a device that can take them. "Turn on"
@@ -261,6 +269,7 @@ export default function TonightPreview() {
   const [alerts, setAlerts] = useState<PushState | null>("off");
   const [dl, setDl] = useState<(typeof DL_STAGES)[number]["key"]>("off");
   const dlStage = DL_STAGES.find((s) => s.key === dl)!;
+  const [race, setRace] = useState(false);
   const scene = SCENES.find((s) => s.key === key) ?? SCENES[0];
   const { b, now } = scene.make();
   const phase = phaseOf(b, now);
@@ -286,6 +295,10 @@ export default function TonightPreview() {
             <button key={s.key} className="segmented__opt" data-on={s.key === dl} onClick={() => setDl(s.key)}>{s.label}</button>
           ))}
         </div>
+        <div className="segmented" role="group" aria-label="Playoff race" style={{ width: "max-content" }}>
+          <button className="segmented__opt" data-on={!race} onClick={() => setRace(false)}>No race line</button>
+          <button className="segmented__opt" data-on={race} onClick={() => setRace(true)}>On the bubble</button>
+        </div>
       </div>
       <main className="page tonight">
         <TonightsTable b={b} now={now} onShare={() => alert("Share sheet")} />
@@ -296,6 +309,7 @@ export default function TonightPreview() {
           <HomeGameDayView board={gcSeat(gcBoard(key === "sun" ? "late" : "monday"), GC_MY_TEAM)} now={GC_NOW[key === "sun" ? "late" : "monday"]} />
         )}
         {dl !== "off" && <DeadlineCard d={DL} now={dlStage.now} />}
+        {race && <RaceLine race={RACE} outlook={RACE_OUTLOOK} myTeamId="t8" />}
         <PushInviteView state={alerts} busy={false} error={null}
           onEnable={() => setAlerts("on")} onDismiss={() => setAlerts(null)} />
         <Statement />

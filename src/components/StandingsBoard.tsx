@@ -3,9 +3,10 @@
 import { useMemo } from "react";
 import { Trophy } from "lucide-react";
 import type { Outlook } from "@/lib/types";
-import { SIMS, oddsCanSeparate, projectPlayoffs, rankKey, type PlayoffProjection } from "@/lib/playoffs";
+import { SIMS, oddsCanSeparate, playoffRace, rankKey, type PlayoffProjection } from "@/lib/playoffs";
 import { Seal, SkeletonRows, TeamLink, fmtPts } from "@/components/ui";
 import { Meter } from "@/components/dash";
+import { RaceCard } from "@/components/standings/Race";
 
 /**
  * The standings, with the playoff picture worked out. Pure function of the
@@ -25,10 +26,13 @@ export function StandingsBoard({ outlook, myTeamId, crestOf }: {
   // simulation says so by producing twelve coin flips. Withhold it rather than
   // dress it up: see `oddsCanSeparate`.
   const separable = outlook ? oddsCanSeparate(outlook) : true;
-  const proj = useMemo(
-    () => (outlook && separable ? projectPlayoffs(outlook) : null),
+  // One run serves the table and the race under it, so the two cannot
+  // disagree about anybody's odds.
+  const race = useMemo(
+    () => (outlook && separable ? playoffRace(outlook) : null),
     [outlook, separable],
   );
+  const proj = race?.projections ?? null;
   const byId = useMemo(() => new Map((proj ?? []).map((p) => [p.team_id, p])), [proj]);
 
   const rows = useMemo(() => {
@@ -57,6 +61,7 @@ export function StandingsBoard({ outlook, myTeamId, crestOf }: {
     : ["", "Team", "W", "L", "T"];
 
   return (
+    <>
     <div className="card">
       <div className="card__head">
         <div>
@@ -194,6 +199,9 @@ export function StandingsBoard({ outlook, myTeamId, crestOf }: {
         </>
       )}
     </div>
+    {/* What this week is worth, from the same simulated seasons. */}
+    {race && outlook && <RaceCard race={race} outlook={outlook} myTeamId={myTeamId} />}
+    </>
   );
 }
 
