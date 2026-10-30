@@ -1,9 +1,12 @@
 "use client";
 
-import { ArrowLeftRight, Lock, Plane } from "lucide-react";
+import { useEffect, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
+import { ArrowLeftRight, Lock, Plane, X } from "lucide-react";
 import { InjuryBadge, Kickoff, Spark, kickoffLine, usageLine } from "@/components/nfl";
 import { PlayerBadge } from "@/components/PlayerBadge";
 import { fmtPts } from "@/components/ui";
+import { inProgress } from "@/components/team/MobileDesk";
 import type { HubPlayer, WireInjury } from "@/lib/nfl/types";
 import { ordinal } from "@/lib/power";
 
@@ -67,6 +70,7 @@ export function PlayerRow({
               <span>{player.position} · {player.nfl_team ?? "FA"}</span>
               {player.pos_rank ? (
                 <span
+                  className="plr__rank"
                   style={{ color: "var(--faint)" }}
                   title={`${ordinal(player.pos_rank.rank)} of ${player.pos_rank.of} at ${player.position} in fantasy points this season`}
                 >
@@ -75,10 +79,17 @@ export function PlayerRow({
               ) : null}
               {/* The kickoff column is only drawn once the row is wide
                   enough for it; on a phone the game time rides here. */}
-              <span className="plr__when">{kickoffLine(player.game)}</span>
+              <span className="plr__when" data-live={inProgress(player) || undefined}>
+                {kickoffLine(player.game)}
+              </span>
               {locked && <Lock size={11} color="var(--faint)" aria-label="Locked" />}
               {player.on_bye && <Plane size={11} color="var(--warn)" aria-label="On bye" />}
-              {injury && <InjuryBadge injury={injury} />}
+              {injury && <span className="plr__inj-full"><InjuryBadge injury={injury} /></span>}
+              {injury && (
+                <span className="plr__inj" data-sev={injury.severity} title={`${injury.status}${injury.detail ? ` · ${injury.detail}` : ""}`}>
+                  {injuryTag(injury.status)}
+                </span>
+              )}
             </>
           }
         />
@@ -123,8 +134,11 @@ export function PlayerRow({
           type="button"
           className="plr__act"
           onClick={onPickUp}
-          disabled={!player || locked || busy}
+          // A locked row still opens: the sheet says why nothing can move,
+          // which a greyed button never could.
+          disabled={!player || busy}
           data-on={selected}
+          data-locked={locked || undefined}
           aria-expanded={selected}
           title={locked ? "Locked — his game has started" : selected ? "Close swap options" : "Swap with another player"}
           aria-label={player ? `Swap ${player.full_name}` : "Empty slot"}
@@ -148,6 +162,34 @@ export type SwapOption = {
   player: HubPlayer | null;
 };
 
+/** ESPN's word, shortened to what fits beside a name: "Q", "O", "IR". */
+export function injuryTag(status: string): string {
+  const s = status.trim().toLowerCase();
+  if (s.startsWith("injured reserve") || s === "ir") return "IR";
+  if (s.startsWith("physically unable") || s === "pup") return "PUP";
+  if (s.startsWith("susp")) return "SUS";
+  if (s.startsWith("day")) return "DTD";
+  return status.trim().charAt(0).toUpperCase() || "?";
+}
+
+/**
+ * Whether the phone layout is on. Read through `useSyncExternalStore` so the
+ * server snapshot (false) and the first client render agree, and the swap
+ * opens in the right place from the first tap after hydration.
+ */
+const NARROW = "(max-width: 759px)";
+export function useNarrow(): boolean {
+  return useSyncExternalStore(
+    (cb) => {
+      const mq = window.matchMedia(NARROW);
+      mq.addEventListener("change", cb);
+      return () => mq.removeEventListener("change", cb);
+    },
+    () => window.matchMedia(NARROW).matches,
+    () => false,
+  );
+}
+
 /**
  * The list that drops open under a row when its Swap button is pressed.
  *
@@ -155,8 +197,110 @@ export type SwapOption = {
  * where from, and what he is projected for, which is the number the choice is
  * usually about. Locked players are listed but cannot be picked, so the
  * manager can see why the obvious answer is missing rather than wonder.
+ *
+ * A player who is himself locked opens too, and says so: his game has
+ * started, and that is the whole answer — better said than implied by a
+ * button that does nothing.
  */
 export function SwapOptions({
+  player, options, busy, onPick, onCancel, bare = false,
+}: {
+  player: HubPlayer;
+  options: SwapOption[];
+  busy: boolean;
+  onPick: (option: SwapOption) => void;
+  onCancel: () => void;
+  /** Drawn inside the swap sheet, which has its own head. */
+  bare?: boolean;
+}) {
+  const open = options.filter((o) => !o.player?.locked).length;
+  return (
+    <div className="swap" data-bare={bare || undefined} role="region" aria-label={`Swap options for ${player.full_name}`}>
+      {!bare && (
+        <div className="swap__head">
+          <span>Swap <strong>{player.full_name}</strong> with…</span>
+          <button type="button" className="btn" data-v="ghost" data-size="sm" onClick={onCancel}>
+            Cancel
+          </button>
+        </div>
+      )}
+
+      {player.locked ? (
+        <div className="swap__none" data-kind="locked">
+          <Lock size={13} aria-hidden />
+          <span>
+            {player.full_name}&apos;s game has started, so he stays
+            {player.slot === "BN" ? " on the bench" : ` at ${player.slot}`} until the week is over.
+            Each player locks at his own kickoff — anyone whose game hasn&apos;t started can still move.
+          </span>
+        </div>
+      ) : options.length === 0 ? (
+        <div className="swap__none">Nobody on this roster can take his place.</div>
+      ) : (
+        <>
+          <ul className="swap__list">
+            {options.map((o) => {
+              const locked = o.player?.locked ?? false;
+              return (
+                <li key={o.key}>
+                  <button
+                    type="button"
+                    className="swap__opt"
+                    onClick={() => onPick(o)}
+                    disabled={busy || locked}
+                    title={locked ? "Locked — his game has started" : undefined}
+                  >
+                    <span className="pos" data-p={o.slot}>{o.slot}</span>
+                    <span className="swap__who">
+                      {o.player ? (
+                        <>
+                          <b>{o.player.full_name}</b>
+                          <span>
+                            {o.player.position} · {o.player.nfl_team ?? "FA"} · {kickoffLine(o.player.game)}
+                            {locked && " · locked, game started"}
+                          </span>
+                        </>
+                      ) : o.slot === "BN" ? (
+                        <b>Move to bench</b>
+                      ) : (
+                        <b style={{ fontStyle: "italic" }}>Empty slot</b>
+                      )}
+                    </span>
+                    <span className="swap__proj">
+                      {o.player ? (
+                        <>
+                          <b className="num">{fmtPts(o.player.points)}</b>
+                          {o.player.projection != null && <span>{o.player.projection.toFixed(1)} proj</span>}
+                        </>
+                      ) : ""}
+                    </span>
+                    {locked && <Lock size={11} color="var(--faint)" aria-hidden />}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+          <p className="swap__rule">
+            {open === 0
+              ? "Everyone who could take his place is locked — their games have started."
+              : `Only players eligible for ${player.slot === "BN" ? "an open lineup slot" : player.slot} are listed.`}
+          </p>
+        </>
+      )}
+    </div>
+  );
+}
+
+/**
+ * The same options as a bottom sheet, for a phone.
+ *
+ * Opening a list under the row worked on a wide screen, where the row and its
+ * options are both in view. On a phone the list pushed the rest of the lineup
+ * off the bottom and the manager scrolled to find his own choice. The sheet
+ * rises over the tab bar instead, with the player being moved at its head, and
+ * one tap on a name makes the move and closes it.
+ */
+export function SwapSheet({
   player, options, busy, onPick, onCancel,
 }: {
   player: HubPlayer;
@@ -165,57 +309,40 @@ export function SwapOptions({
   onPick: (option: SwapOption) => void;
   onCancel: () => void;
 }) {
-  return (
-    <div className="swap" role="region" aria-label={`Swap options for ${player.full_name}`}>
-      <div className="swap__head">
-        <span>Swap <strong>{player.full_name}</strong> with…</span>
-        <button type="button" className="btn" data-v="ghost" data-size="sm" onClick={onCancel}>
-          Cancel
-        </button>
-      </div>
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onCancel(); };
+    document.addEventListener("keydown", onKey);
+    // The page behind a sheet should not scroll under the thumb.
+    const was = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = was;
+    };
+  }, [onCancel]);
 
-      {options.length === 0 ? (
-        <div className="swap__none">Nobody on this roster can take his place.</div>
-      ) : (
-        <ul className="swap__list">
-          {options.map((o) => {
-            const locked = o.player?.locked ?? false;
-            return (
-              <li key={o.key}>
-                <button
-                  type="button"
-                  className="swap__opt"
-                  onClick={() => onPick(o)}
-                  disabled={busy || locked}
-                  title={locked ? "Locked — his game has started" : undefined}
-                >
-                  <span className="pos" data-p={o.slot}>{o.slot}</span>
-                  <span className="swap__who">
-                    {o.player ? (
-                      <>
-                        <b>{o.player.full_name}</b>
-                        <span>
-                          {o.player.position} · {o.player.nfl_team ?? "FA"}
-                          {o.player.on_bye && " · bye"}
-                          {locked && " · locked"}
-                        </span>
-                      </>
-                    ) : o.slot === "BN" ? (
-                      <b>Move to bench</b>
-                    ) : (
-                      <b style={{ fontStyle: "italic" }}>Empty slot</b>
-                    )}
-                  </span>
-                  <span className="swap__proj">
-                    {o.player?.projection != null ? `${o.player.projection.toFixed(1)} proj` : ""}
-                  </span>
-                  {locked && <Lock size={11} color="var(--faint)" aria-hidden />}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-    </div>
+  return createPortal(
+    <div className="modal" data-sheet="true" role="dialog" aria-modal aria-label={`Swap ${player.full_name}`} onClick={onCancel}>
+      <section className="modal__panel swap-sheet" onClick={(e) => e.stopPropagation()}>
+        <span className="swap-sheet__grip" aria-hidden />
+        <div className="swap-sheet__head">
+          <span className="pos" data-p={player.slot}>{player.slot}</span>
+          <span className="swap__who">
+            <b>{player.full_name}</b>
+            <span>{player.position} · {player.nfl_team ?? "FA"} · {kickoffLine(player.game)}</span>
+          </span>
+          <span className="swap__proj">
+            <b className="num">{fmtPts(player.points)}</b>
+            {player.projection != null && <span>{player.projection.toFixed(1)} proj</span>}
+          </span>
+          <button type="button" className="btn" data-v="ghost" data-size="icon" aria-label="Close" onClick={onCancel}>
+            <X size={16} />
+          </button>
+        </div>
+        <span className="eyebrow swap-sheet__label">{player.locked ? "Locked" : "Swap with"}</span>
+        <SwapOptions player={player} options={options} busy={busy} onPick={onPick} onCancel={onCancel} bare />
+      </section>
+    </div>,
+    document.body,
   );
 }

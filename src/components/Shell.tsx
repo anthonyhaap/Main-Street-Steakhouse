@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useRouter } from "next/navigation";
-import { ArrowLeftRight, BarChart3, ChevronDown, CircleDollarSign, Crown, Landmark, LogOut, Megaphone, MessageCircle, MoreHorizontal, Newspaper, Radio, Shield, Smartphone, Swords, Target, UtensilsCrossed, X } from "lucide-react";
+import { ArrowLeftRight, BarChart3, ChevronDown, CircleDollarSign, Crown, Home, Landmark, LogOut, Megaphone, Menu, MessageCircle, Newspaper, Radio, Shield, Smartphone, Swords, Target, UtensilsCrossed, X } from "lucide-react";
 import { useStandalone } from "@/lib/install";
 import { useCrests, useSession } from "@/lib/session";
 import { supabaseBrowser } from "@/lib/supabase/client";
@@ -97,6 +97,12 @@ const LEAGUE_PAGES: NavItem[] = [
 /**
  * The phone's tab bar is its own list, not the first four of the desktop nav.
  *
+ * The labels are the plain ones a manager reaches for — Home and Matchup,
+ * the words every fantasy app on his phone already uses — and the fifth slot,
+ * which used to be "More", is League: the sheet behind it opens on League
+ * Home and holds every other room, so the word says what is there. The same
+ * sheet opens from the menu button in the top bar.
+ *
  * The bar is Tonight, Matchups, My Team, Chat and More: the matchup, the
  * lineup and the room are what a manager reaches for from anywhere. While an
  * NFL game is live — the red dot's signal, not the calendar — the game center
@@ -108,8 +114,8 @@ const LEAGUE_PAGES: NavItem[] = [
  * keeps every destination where it was.
  */
 const PHONE_TABS: NavItem[] = [
-  { href: "/",         label: "Tonight",     Icon: UtensilsCrossed },
-  { href: "/matchups", label: "Matchups",    Icon: Swords },
+  { href: "/",         label: "Home",        Icon: Home },
+  { href: "/matchups", label: "Matchup",     Icon: Swords },
   { href: "/team",     label: "My Team",     Icon: Shield },
   { href: "/chat",     label: "Chat",        Icon: MessageCircle, badge: "chat" },
 ];
@@ -310,6 +316,20 @@ export function TopBar({ status }: { status?: WireStatus }) {
               </span>
             </Link>
           )}
+          {/* The phone's door to every room, beside the account controls. The
+              tab bar's League button opens the same sheet; this one is for the
+              reader whose hand is already at the top of the screen. */}
+          <button
+            type="button"
+            className="btn topbar__menu"
+            data-v="ghost"
+            data-size="icon"
+            aria-label="Menu"
+            aria-expanded={more}
+            onClick={() => setMore((v) => !v)}
+          >
+            <Menu size={18} />
+          </button>
           <button
             className="btn"
             data-v="ghost"
@@ -360,16 +380,16 @@ export function TopBar({ status }: { status?: WireStatus }) {
           onClick={() => setMore((v) => !v)}
           style={{ border: 0, background: "none", cursor: "pointer" }}
         >
-          <MoreHorizontal strokeWidth={1.75} />
-          <span>More</span>
+          <Crown strokeWidth={1.75} />
+          <span>League</span>
         </button>
       </nav>
 
       {more && (
-        <div className="sheet" role="dialog" aria-label="More pages" onClick={close}>
+        <div className="sheet" role="dialog" aria-label="League and every other page" onClick={close}>
           <div className="sheet__panel" onClick={(e) => e.stopPropagation()}>
             <div className="sheet__head">
-              <span className="eyebrow">Everything else</span>
+              <span className="eyebrow">{league?.name ?? "The league"}</span>
               <button className="btn" data-v="ghost" data-size="icon" aria-label="Close" onClick={close}>
                 <X size={16} />
               </button>
@@ -474,6 +494,8 @@ export function TopBar({ status }: { status?: WireStatus }) {
           background: var(--wine); color: #fff;
           font: 700 9px/16px var(--sans); text-align: center;
         }
+        .topbar__menu { display: none; }
+        @media (max-width: 1180px) { .topbar__menu { display: inline-grid; } }
         .topbar__team[data-on="true"] .seal { outline: 2px solid var(--gold-lit); outline-offset: 2px; border-radius: 50%; }
 
         .nav__live--tab { position: absolute; top: 10px; left: calc(50% + 10px); margin: 0; }

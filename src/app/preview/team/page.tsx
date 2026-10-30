@@ -19,6 +19,11 @@
  * `?as=visitor` draws the same desk the way another manager in the league
  * sees it: read-only, with nothing to move, edit or set. That mode has no
  * moving parts to click through, which is exactly what the test asserts.
+ *
+ * `?state=live` is the same week in the middle of a Sunday: Mahomes's game in
+ * the second quarter and Taylor's final, so both are locked where they stand,
+ * and everybody else has not kicked off. It exists for the locks — the swap
+ * has to say why a locked man cannot move, rather than just refuse.
  */
 
 import { Suspense, useState } from "react";
@@ -204,6 +209,17 @@ const HUB: TeamHub = {
   generated_at: new Date().toISOString(),
 };
 
+/** Mid-Sunday: one game on, one over, the rest to come. Locks follow kickoff. */
+const LIVE: TeamHub = {
+  ...HUB,
+  roster: HUB.roster.map((p) =>
+    p.full_name === "Patrick Mahomes"
+      ? { ...p, locked: true, game: { ...p.game!, status: "in", status_detail: "Q2 8:41" } }
+      : p.full_name === "Jonathan Taylor"
+        ? { ...p, locked: true, game: { ...p.game!, status: "post", status_detail: "Final" } }
+        : p),
+};
+
 /** Invented reports on invented players — enough to fire every rule once. */
 const WIRE: Wire = {
   fetchedAt: new Date(Date.now() - 42 * 60000).toISOString(),
@@ -293,8 +309,9 @@ const WEATHER = new Map<string, GameWeather>(
 );
 
 function TeamPreview() {
-  const visitor = useSearchParams().get("as") === "visitor";
-  const [hub, setHub] = useState<TeamHub>(HUB);
+  const params = useSearchParams();
+  const visitor = params.get("as") === "visitor";
+  const [hub, setHub] = useState<TeamHub>(params.get("state") === "live" ? LIVE : HUB);
   const [moving, setMoving] = useState<HubPlayer | null>(null);
 
   /** Swap in local state so the lineup interaction is real to click through. */

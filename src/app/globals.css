@@ -5457,3 +5457,315 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
   .pl-shot { width: 72px; height: 72px; }
   .proj { padding: var(--s3) var(--s4); }
 }
+
+/* ============================================================================
+   PHONE LAYER — one layout below 760px, the wide one above it
+   ----------------------------------------------------------------------------
+   Some screens draw a phone-only and a wide-only version of the same block
+   and let CSS choose (`.m-only` / `.d-only`), rather than asking a media query
+   in JavaScript: the pages are prerendered, and a layout chosen after
+   hydration draws the wrong one first and then jumps.
+   ========================================================================== */
+
+@media (min-width: 760px) { .m-only { display: none !important; } }
+@media (max-width: 759px) { .d-only { display: none !important; } }
+
+/* --- modals become bottom sheets ----------------------------------------- */
+/* On a phone a dialog rises from the bottom edge, where the thumb already is,
+   instead of floating in the middle of the glass. Every `.modal` in the app
+   takes it — the coach, the trade offer, the claim, the swap — so a sheet
+   looks and closes the same way wherever it opens. It sits above the tab bar
+   (z 100 against 60), so nothing in the bar can be tapped through it. */
+@media (max-width: 759px) {
+  .modal { place-items: end stretch; padding: 0; }
+  .modal__panel,
+  .modal__panel[data-wide="true"] {
+    width: 100%;
+    max-height: 88dvh;
+    border-radius: var(--r-lg) var(--r-lg) 0 0;
+    border-left: 0; border-right: 0; border-bottom: 0;
+    padding-bottom: env(safe-area-inset-bottom);
+    animation: sheet-rise .24s var(--ease);
+  }
+}
+@keyframes sheet-rise { from { transform: translateY(24px); opacity: .6 } to { transform: none; opacity: 1 } }
+@media (prefers-reduced-motion: reduce) {
+  .modal__panel { animation: none !important; }
+}
+
+/* --- the phone's top bar -------------------------------------------------- */
+/* Fifty-two pixels instead of sixty-eight: it carries a crest, the live dot,
+   your team and the menu, and none of those need the extra height. Everything
+   sticky under it measures from --topbar, so it all moves up with it. */
+@media (max-width: 759px) {
+  :root { --topbar: calc(52px + env(safe-area-inset-top)); }
+  .topbar { gap: var(--s3); }
+  .topbar .mark__seal { width: 32px !important; height: 32px !important; }
+  .topbar__actions { gap: var(--s2); }
+}
+
+/* --- My Team on a phone -------------------------------------------------- */
+
+@media (max-width: 759px) {
+  .page[data-desk="team"] { gap: var(--s3); padding-top: var(--s3); }
+  .page[data-desk="team"] .th-grid,
+  .page[data-desk="team"] .th-col { gap: var(--s3); }
+}
+
+/* The team's own band: the wordmark's burgundy, the crest's brass ring, and
+   the record — the one block on the page in the club's colours rather than
+   on its paper. */
+.mt-head {
+  position: relative;
+  overflow: hidden;
+  padding: var(--s3) var(--s4);
+  border-radius: var(--r);
+  color: var(--ink-text);
+  background:
+    radial-gradient(420px 180px at 100% -30%, #c99c3f40, transparent 70%),
+    linear-gradient(160deg, var(--wine-lit), var(--wine) 55%, #4a0716);
+  box-shadow: var(--shadow-2);
+}
+.mt-head::after {
+  content: ""; position: absolute; inset: auto 0 0 0; height: 2px;
+  background: linear-gradient(90deg, transparent, var(--gold-lit), transparent);
+}
+.mt-head__eyebrow {
+  display: flex; align-items: center; gap: var(--s2);
+  min-height: 24px;
+  font: 700 var(--t-micro)/1 var(--sans);
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--gold-dim);
+}
+.mt-head__eyebrow > span:first-child { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mt-head__visiting {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 8px; border-radius: 999px;
+  background: #ffffff1f; color: var(--ink-text); letter-spacing: 0.06em;
+}
+.mt-head__icon {
+  display: grid; place-items: center;
+  width: 36px; height: 36px; margin: -6px -8px -6px 0;
+  border: 0; border-radius: 50%; background: none; color: var(--gold-dim); cursor: pointer;
+}
+.mt-head__icon:active { background: #ffffff1f; }
+.mt-head__team { display: flex; align-items: center; gap: var(--s3); margin-top: 6px; min-width: 0; }
+.mt-head__team .seal { box-shadow: 0 0 0 2px var(--gold-lit); }
+.mt-head__name { flex: 1; min-width: 0; }
+.mt-head__name h1 {
+  margin: 0;
+  font: 400 1.25rem/1.1 var(--serif);
+  letter-spacing: -0.01em;
+  color: #fff;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.mt-head__rec { display: block; margin-top: 3px; font-size: var(--t-small); color: var(--gold-dim); font-weight: 600; }
+/* A chevron the size of a thumb, with the native team select laid over it. */
+.mt-head__pick {
+  position: relative;
+  display: grid; place-items: center;
+  width: 44px; height: 44px; flex-shrink: 0;
+  margin-right: -8px;
+  border-radius: 50%;
+  color: var(--ink-text);
+}
+.mt-head__pick:focus-within { background: #ffffff1f; }
+.mt-head__pick select {
+  position: absolute; inset: 0;
+  width: 100% !important; height: 100% !important; min-height: 0 !important;
+  opacity: 0; cursor: pointer;
+  font-size: 16px !important;   /* iOS zooms into anything smaller */
+}
+
+/* This week, in one card: the score, the projection, how many are left. */
+.mt-score {
+  padding: var(--s3) var(--s4);
+  border: 1px solid var(--rule);
+  border-radius: var(--r);
+  background: var(--ink-1);
+  box-shadow: var(--shadow-1);
+}
+.mt-score__top { display: flex; align-items: center; justify-content: space-between; gap: var(--s2); }
+.mt-score__week {
+  position: relative;
+  display: inline-flex; align-items: center; gap: 5px;
+  min-height: 28px; padding: 0 10px;
+  border-radius: 999px;
+  background: var(--gold-haze);
+  border: 1px solid var(--gold-wash);
+  color: var(--gold);
+  font: 700 var(--t-tiny)/1 var(--sans);
+  cursor: pointer;
+}
+.mt-score__week[data-state="live"] { background: #16794c14; border-color: #16794c33; color: var(--live); }
+.mt-score__week select {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  opacity: 0; cursor: pointer; font-size: 16px;
+}
+.mt-score__dot {
+  width: 7px; height: 7px; border-radius: 50%; background: var(--live);
+  animation: nav-live 1.6s ease-in-out infinite;
+}
+.mt-score__proj { font-size: var(--t-tiny); color: var(--dim); }
+.mt-score__proj b { color: var(--muted); font-weight: 700; }
+.mt-score__board {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: end;
+  gap: var(--s2);
+  margin-top: var(--s2);
+  padding-right: 18px;
+  color: inherit; text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.mt-score__side { display: grid; gap: 2px; min-width: 0; }
+.mt-score__side[data-align="end"] { text-align: right; justify-items: end; }
+.mt-score__who {
+  display: inline-flex; align-items: center; gap: 5px; min-width: 0; max-width: 100%;
+  font: 700 var(--t-micro)/1.2 var(--sans); letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--muted);
+}
+.mt-score__opp { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.mt-score__side b {
+  font: 400 2rem/1 var(--serif); letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+.mt-score__side b[data-lead="true"] { color: var(--cream); }
+.mt-score__side b[data-lead="false"] { color: var(--dim); }
+.mt-score__vs { padding-bottom: 6px; font: 700 var(--t-micro)/1 var(--sans); letter-spacing: 0.14em; text-transform: uppercase; color: var(--faint); }
+.mt-score__go { position: absolute; right: 0; bottom: 8px; color: var(--faint); }
+.mt-score__bar {
+  height: 5px; margin-top: var(--s3);
+  border-radius: 999px; overflow: hidden;
+  background: var(--gold-dim);
+}
+.mt-score__bar i { display: block; height: 100%; background: var(--wine); border-radius: 999px; transition: width .5s var(--ease); }
+.mt-score__foot {
+  display: flex; justify-content: space-between; gap: var(--s2);
+  margin-top: 6px;
+  font-size: var(--t-micro); color: var(--dim);
+}
+.mt-score__foot b { color: var(--cream); }
+
+/* My Team / Matchup / Players. */
+.mt-tabs {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 2px; padding: 3px;
+  border-radius: 999px;
+  background: var(--ink-2);
+  border: 1px solid var(--rule-soft);
+}
+.mt-tabs__opt {
+  display: grid; place-items: center;
+  min-height: 36px;
+  border-radius: 999px;
+  font: 600 var(--t-small)/1 var(--sans);
+  color: var(--muted); text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.mt-tabs__opt[data-on="true"] { background: var(--ink-1); color: var(--wine); box-shadow: var(--shadow-1); }
+.mt-tabs__opt:active { background: var(--ink-3); }
+
+/* Starters / Bench, pinned under the top bar. */
+.mt-jump {
+  position: sticky; top: var(--topbar); z-index: 20;
+  display: flex; align-items: center; gap: var(--s2);
+  margin: 0 calc(var(--gutter) * -1);
+  padding: var(--s2) var(--gutter);
+  background: color-mix(in srgb, var(--ink-0) 90%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.mt-jump button {
+  display: inline-flex; align-items: center; gap: 6px;
+  min-height: 32px; padding: 0 12px;
+  border: 1px solid var(--rule); border-radius: 999px;
+  background: var(--ink-1); color: var(--muted);
+  font: 600 var(--t-small)/1 var(--sans); cursor: pointer;
+}
+.mt-jump button span { color: var(--dim); font-size: var(--t-micro); }
+.mt-jump button { white-space: nowrap; flex-shrink: 0; }
+.mt-jump button.mt-jump__coach { flex-shrink: 1; min-width: 0; overflow: hidden; }
+/* At 320 the three do not fit with their counts; the counts go first. */
+@media (max-width: 360px) {
+  .mt-jump { gap: 6px; }
+  .mt-jump button { padding: 0 10px; }
+  .mt-jump button > span { display: none; }
+}
+.mt-jump button[data-on="true"] { background: var(--wine); border-color: var(--wine); color: #fff; }
+.mt-jump button[data-on="true"] span { color: var(--gold-dim); }
+.mt-jump button.mt-jump__coach { margin-left: auto; color: var(--gold); border-color: var(--gold-wash); background: var(--gold-haze); }
+.mt-jump button.mt-jump__coach[data-gain="true"] { color: var(--wine); background: linear-gradient(180deg, #e3bd62, var(--gold-lit)); border-color: var(--gold-lit); }
+.mt-jump button.mt-jump__coach span { color: inherit; font-size: var(--t-micro); font-weight: 700; }
+
+/* --- compact roster rows -------------------------------------------------- */
+/* Below the width where the extra columns arrive a row is one line of name
+   and one of game, about 54px: seven of them on a phone's first screen, where
+   there used to be four. The position rank and the long injury badge give
+   way to a one-letter tag beside the kickoff — the full words are its title,
+   and the player's page. */
+.plr__inj { display: none; }
+@container (max-width: 539px) {
+  .plr { padding: 8px var(--s3); gap: 10px; grid-template-columns: 34px minmax(0, 1fr) auto auto; }
+  .plr .pbadge__name { display: block; -webkit-line-clamp: unset; white-space: nowrap; }
+  .plr .pbadge__sub { flex-wrap: nowrap; overflow: hidden; }
+  .plr .pbadge__sub > span { white-space: nowrap; flex-shrink: 0; }
+  .plr .pbadge__sub > .plr__when { flex-shrink: 1; }
+  .plr__rank, .plr__inj-full { display: none; }
+  .plr__when { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .plr__inj {
+    display: inline-grid; place-items: center;
+    min-width: 18px; height: 16px; padding: 0 4px;
+    border-radius: 4px;
+    font: 800 var(--t-micro)/1 var(--sans); letter-spacing: 0.02em;
+    color: #fff; background: var(--warn); flex-shrink: 0;
+  }
+  .plr__inj[data-sev="out"], .plr__inj[data-sev="doubtful"] { background: var(--lose); }
+  .plr__inj[data-sev="probable"] { background: var(--win); }
+  .plr__inj[data-sev="unknown"] { background: var(--dim); }
+  .plr .pos { min-width: 34px; padding: 0 4px; }
+  .plr__pts { font-size: 1.15rem; line-height: 1.05; }
+  .plr__act { width: 40px; height: 40px; border-color: var(--rule); }
+  .plr__act[data-locked="true"] { color: var(--faint); border-style: dashed; }
+  .plr[data-locked="true"] { opacity: 0.8; }
+}
+.plr__when[data-live="true"] { color: var(--live); font-weight: 700; }
+.plr__when[data-live="true"]::before {
+  content: ""; display: inline-block; width: 6px; height: 6px; margin-right: 4px;
+  border-radius: 50%; background: var(--live); vertical-align: 1px;
+}
+
+/* --- swap options, inline and in the sheet -------------------------------- */
+.swap__none[data-kind="locked"] {
+  display: flex; gap: var(--s2); align-items: flex-start;
+  font-style: normal; color: var(--muted); line-height: 1.45;
+}
+.swap__none[data-kind="locked"] svg { flex-shrink: 0; margin-top: 3px; color: var(--gold); }
+.swap__proj { display: grid; justify-items: end; gap: 2px; }
+.swap__proj b { font: 400 var(--t-body)/1 var(--serif); color: var(--cream); }
+.swap__proj span { font-size: var(--t-micro); font-weight: 600; color: var(--gold); }
+.swap__rule { margin: var(--s2) 4px 0; font-size: var(--t-micro); color: var(--dim); }
+.swap[data-bare="true"] { margin: 0; padding: 0 var(--s4) var(--s4); border: 0; border-radius: 0; background: none; }
+.swap[data-bare="true"] .swap__opt { min-height: 56px; padding: 8px var(--s3); }
+
+.swap-sheet { position: relative; padding-top: var(--s2); }
+.swap-sheet__grip {
+  display: block; width: 40px; height: 4px; margin: 0 auto var(--s2);
+  border-radius: 999px; background: var(--rule-hard);
+}
+.swap-sheet__head {
+  display: grid; align-items: center; gap: var(--s3);
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  padding: var(--s2) var(--s3) var(--s3) var(--s4);
+  border-bottom: 1px solid var(--rule-soft);
+}
+.swap-sheet__label { display: block; padding: var(--s3) var(--s4) var(--s2); }
+
+/* The lineup's own head on a phone: one line, the title and the coach. The
+   points it also carried are on the Starters / Bench bar above it. */
+@media (max-width: 759px) {
+  .page[data-desk="team"] .lineup > .card__head { padding: var(--s3) var(--s3) var(--s3) var(--s4); flex-wrap: nowrap; }
+  .page[data-desk="team"] .lineup > .card__head h2 { font-size: 1.1rem; white-space: nowrap; }
+  .page[data-desk="team"] .lineup > .card__head .eyebrow { display: none; }
+}
