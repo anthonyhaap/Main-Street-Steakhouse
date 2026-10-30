@@ -22,13 +22,19 @@ type SessionValue = {
   teams: Team[];
   seat: Seat | null;
   isCommissioner: boolean;
+  /**
+   * Came in through a commissioner's watch link: an anonymous session that
+   * reads the league and writes nothing. The database enforces that on its own
+   * (20261030140000); this only decides which buttons and rooms to draw.
+   */
+  spectator: boolean;
   ready: boolean;
   reload: () => Promise<void>;
 };
 
 const Ctx = createContext<SessionValue>({
   user: null, team: null, league: null, teams: [], seat: null,
-  isCommissioner: false, ready: false, reload: async () => {},
+  isCommissioner: false, spectator: false, ready: false, reload: async () => {},
 });
 
 export const useSession = () => useContext(Ctx);
@@ -78,6 +84,16 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         supabase.from("teams").select("*").eq("league_id", LEAGUE_ID).order("draft_slot"),
       ]);
 
+      // A watch link that has been revoked or has run out leaves its visitor
+      // signed in to nothing. Say so, rather than drawing an empty league.
+      if (u.is_anonymous && !lg) {
+        await supabase.auth.signOut();
+        // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+        window.location.href = "/login?error=" + encodeURIComponent(
+          "This view-only link has expired or been switched off. Ask the commissioner for a new one.");
+        return;
+      }
+
       const mine = Array.isArray(linked) ? linked[0] : linked;
       setTeam((mine as Team) ?? null);
       setLeague((lg as League) ?? null);
@@ -102,6 +118,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     user, team, league, teams, ready,
     seat: !user || !team ? null : team.owner_id === user.id ? "owner" : "co_owner",
     isCommissioner: !!user && !!league && league.commissioner_id === user.id,
+    spectator: !!user?.is_anonymous,
     reload: load,
   };
 

@@ -32,7 +32,7 @@ import { RaceSoon } from "@/components/tonight/RaceSoon";
  * (his), and an Android phone taps you on the wrist.
  */
 export function Tonight({ initial, serverNow }: { initial: Briefing | null; serverNow: number }) {
-  const { ready } = useSession();
+  const { ready, spectator } = useSession();
   const toast = useToast();
 
   // The clock starts at the server's time so the first client render agrees
@@ -146,7 +146,8 @@ export function Tonight({ initial, serverNow }: { initial: Briefing | null; serv
           {b && <Carousel b={b} live={phase === "live"} />}
           {b && <Table b={b} />}
           {/* A second call, on purpose: the room arrives after the card. */}
-          {b && <Room now={clock} enabled={ready} />}
+          {/* The room is chat; a watch link does not read it. */}
+          {b && !spectator && <Room now={clock} enabled={ready} />}
 
           <Statement />
 

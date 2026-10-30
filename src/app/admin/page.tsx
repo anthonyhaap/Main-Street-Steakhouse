@@ -2,9 +2,10 @@
 
 import { useCallback, useMemo, useState } from "react";
 import {
-  ChevronDown, ChevronUp, Crown, Dices, Landmark, Link2, ListChecks, Mail, Save, Scale, ScrollText, Send, Timer, Users,
+  ChevronDown, ChevronUp, Crown, Dices, Eye, Landmark, Link2, ListChecks, Mail, Save, Scale, ScrollText, Send, Timer, Users,
 } from "lucide-react";
 import { HistoryImport } from "@/components/admin/HistoryImport";
+import { WatchLinks } from "@/components/admin/WatchLinks";
 import { CoOwners } from "@/components/team/CoOwners";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { useLive } from "@/lib/live";
@@ -314,6 +315,17 @@ export default function AdminPage() {
                 <Landmark size={17} color="var(--gold)" />
               </div>
               <HistoryImport />
+            </section>
+
+            <section className="card">
+              <div className="card__head">
+                <div>
+                  <h2>View-only links</h2>
+                  <div className="eyebrow" style={{ marginTop: 5 }}>Look around, change nothing</div>
+                </div>
+                <Eye size={17} color="var(--gold)" />
+              </div>
+              <WatchLinks />
             </section>
           </>
         )}
