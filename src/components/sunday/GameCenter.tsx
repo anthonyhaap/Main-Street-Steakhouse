@@ -22,7 +22,7 @@ import { useCallback, useMemo, useState } from "react";
 import { X } from "lucide-react";
 import { freshness, slateLine } from "@/lib/scoreboard";
 import {
-  alerts as alertsOf, closeGames, eventContext, excitement, featured, intelContext, liveMoment, storylines,
+  alerts as alertsOf, closeGames, eventContext, excitement, featured, intelContext, storylines,
   sundayPhase, talkContext, tickerItems, weightsFrom,
   type CardContext, type Phase, type RecapExtras, type SundayBoard, type SundayEvent, type TickerTarget,
 } from "@/lib/sunday";
@@ -107,19 +107,17 @@ export function GameCenter({
     [board, seat],
   );
   const ranked = useMemo(() => featured(others, phase, ctx, weights), [others, phase, ctx, weights]);
-  // A Steakhouse moment takes the featured slot for a few minutes, then gives
-  // it back. The reader's own pick always wins over both.
-  const moment = liveMoment((board.events ?? []).filter((e) => e.matchup_id !== seat?.card.id), now);
-  const momentCard = moment ? board.matchups.find((c) => c.id === moment.matchup_id) ?? null : null;
-  const auto = momentCard
-    ? { card: momentCard, label: "🚨 Steakhouse moment", score: Infinity }
-    : ranked && { ...ranked, label: `${phase === "live" ? "🔥" : "🏆"} ${ranked.label}` };
+  // The featured slot is always the best-ranked other game. A big swing used
+  // to take it over for ten minutes as a "Steakhouse moment"; the swing is
+  // already the loudest card in the feed, and the slot holding still is what
+  // makes it worth reading. The reader's own pick wins over the ranking.
+  const auto = ranked && { ...ranked, label: `${phase === "live" ? "🔥" : "🏆"} ${ranked.label}` };
   const pickedCard = picked ? board.matchups.find((c) => c.id === picked) ?? null : null;
   const focus = pickedCard ?? auto?.card ?? null;
-  // Why the page chose it, in the words the score counted. Not for a pick or
-  // a moment: the reader chose the one, and the moment explains itself.
-  const why = useMemo(() => (focus && !pickedCard && !momentCard
-    ? excitement(focus, board, ctx[focus.id], weights).reasons : []), [focus, pickedCard, momentCard, board, ctx, weights]);
+  // Why the page chose it, in the words the score counted. Not for a pick:
+  // the reader chose that one.
+  const why = useMemo(() => (focus && !pickedCard
+    ? excitement(focus, board, ctx[focus.id], weights).reasons : []), [focus, pickedCard, board, ctx, weights]);
   // A minute is plenty of resolution for "the last half hour".
   const minute = Math.floor(now / 60_000);
   const pulse = useMemo(() => leaguePulse(board, minute * 60_000), [board, minute]);
