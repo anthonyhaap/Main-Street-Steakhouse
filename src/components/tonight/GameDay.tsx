@@ -10,7 +10,7 @@
  *   Today      who plays today — mine by name, his by name — from the
  *              briefing alone: Thursday night's receiver, Monday's tight end,
  *              Sunday morning's eight
- *   Live       the latest thing that happened in my game, its moment, what
+ *   Live       the latest thing that happened in my game, what
  *              the rest of the league is doing, and the door to the game
  *              center — from `ff_sunday`, the game center's own payload
  *
@@ -28,8 +28,8 @@ import { useLive } from "@/lib/live";
 import { loadSunday } from "@/lib/sunday-load";
 import { fmt, fmtKick, leagueDay, playingToday, who, type Briefing, type BriefStarter, type Phase } from "@/lib/briefing";
 import { sundayPhase, type SundayBoard } from "@/lib/sunday";
-import { latestFor, leaguePulse, matchupMoment, nextUp, seatOf } from "@/lib/gameday";
-import { LeaguePulse, MomentBox, StoryCard } from "@/components/sunday/GameDay";
+import { latestFor, leaguePulse, nextUp, seatOf } from "@/lib/gameday";
+import { LeaguePulse, StoryCard } from "@/components/sunday/GameDay";
 import "@/components/sunday/sunday.css";
 
 /* ------------------------------------------------------------------ today -- */
@@ -84,7 +84,6 @@ export function HomeGameDayView({ board, now }: { board: SundayBoard; now: numbe
   const events = board.events ?? [];
   const pulse = leaguePulse(board, now, 4);
   const latest = seat ? latestFor(events, seat.card.id, now, 90) : null;
-  const moment = seat ? matchupMoment(seat.card, events, board.nfl ?? [], now) : null;
   const next = nextUp(board, now);
   const live = (board.games?.in_progress ?? 0) > 0;
 
@@ -111,7 +110,6 @@ export function HomeGameDayView({ board, now }: { board: SundayBoard; now: numbe
         <span className="gd-eyebrow">{live && <i className="sun-dot" aria-hidden />} {phase === "final" ? "The day, finished" : "Live now"}</span>
         <Link href="/sunday" className="home-gd__cta">{phase === "final" ? "The recap" : "Open Game Center"} <ArrowRight size={14} aria-hidden /></Link>
       </div>
-      {moment && <MomentBox m={moment} />}
       {latest && (
         <div className="home-gd__latest">
           <span className="home-gd__label">Latest in your matchup</span>

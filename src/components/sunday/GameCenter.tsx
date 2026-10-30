@@ -34,7 +34,7 @@ import { SundayTicker } from "./Ticker";
 import { ChatPanel, type TalkContext } from "./ChatPanel";
 import { ManagerStatusBoard, Storylines, TuneExcitement, WhatDoINeed, WhyFeatured, storiesFor } from "./Intel";
 import { JustHappened, LeaguePulse, MyMatchup, NextUp, PushPrompt, type PushOffer } from "./GameDay";
-import { justHappened, leaguePulse, matchupMoment, nextUp, pulseTicker, seatOf, weekdayName } from "@/lib/gameday";
+import { justHappened, leaguePulse, nextUp, pulseTicker, seatOf, weekdayName } from "@/lib/gameday";
 import "./sunday.css";
 
 type Desk = "center" | "redzone" | "matchups" | "nfl";
@@ -124,10 +124,6 @@ export function GameCenter({
   const minute = Math.floor(now / 60_000);
   const pulse = useMemo(() => leaguePulse(board, minute * 60_000), [board, minute]);
   const happened = useMemo(() => justHappened(board.events ?? [], minute * 60_000, board.my_team_id), [board, minute]);
-  const myMoment = useMemo(
-    () => (seat ? matchupMoment(seat.card, board.events ?? [], board.nfl ?? [], minute * 60_000) : null),
-    [seat, board, minute],
-  );
   const upNext = useMemo(() => nextUp(board, minute * 60_000), [board, minute]);
   // The pulse lines the ticker does not already carry from the events and the
   // alerts: monster days, bench pain, the table as it stands.
@@ -223,7 +219,7 @@ export function GameCenter({
         </div>
       )}
 
-      {seat && <MyMatchup seat={seat} moment={myMoment} onNeed={phase === "live" ? needPanel : undefined} />}
+      {seat && <MyMatchup seat={seat} onNeed={phase === "live" ? needPanel : undefined} />}
       {seat && push && phase !== "final" && <PushPrompt push={push} />}
       {!seat && !empty && phase !== "final" && (
         <p className="gd-noseat">You don&apos;t have a matchup this week — here&apos;s the whole league.</p>

@@ -4,7 +4,6 @@
  * The game center, from the reader's chair.
  *
  *   MyMatchup      your table, the widest and loudest thing on the page
- *   MomentBox      the one thing worth saying about a table right now
  *   JustHappened   the last few moments that mattered, fantasy-first
  *   LeaguePulse    every other table, a line each
  *   NextUp         what the page says when nothing is on
@@ -21,7 +20,7 @@ import { cardState, fmt1, pctLabel, projectedFinal, who, type ScoreSide } from "
 import type { Phase, SundayEvent } from "@/lib/sunday";
 import {
   eventStory, leftOf, oddsFor, standingOf,
-  type Moment, type NextUp as Next, type PulseItem, type Seat, type Standing,
+  type NextUp as Next, type PulseItem, type Seat, type Standing,
 } from "@/lib/gameday";
 import { LiveScore } from "./bits";
 import { useOfferDismissed } from "@/lib/push";
@@ -35,8 +34,8 @@ const ago = (iso: string, now: number) => {
 
 /* ------------------------------------------------------------ my matchup -- */
 
-export function MyMatchup({ seat, moment, onNeed }: {
-  seat: Seat; moment: Moment | null;
+export function MyMatchup({ seat, onNeed }: {
+  seat: Seat;
   /** Open the "What do I need?" panel, when there is one. */
   onNeed?: () => void;
 }) {
@@ -70,7 +69,6 @@ export function MyMatchup({ seat, moment, onNeed }: {
           <span style={{ width: `${100 - pMe!}%` }} />
         </div>
       )}
-      {moment && <MomentBox m={moment} />}
       <div className="gd-mine__act">
         <Link className="sun-btn" href={`/matchups/${card.id}?week=${card.week}`}>
           {state === "live" ? "View live matchup" : "Full matchup"} <ArrowRight size={14} aria-hidden />
@@ -109,18 +107,6 @@ function MineSide({ s, st, pct, align, pre, settled }: {
           {n.live > 0 && <em> · {n.live} live</em>}
         </span>
       )}
-    </div>
-  );
-}
-
-/* ---------------------------------------------------------------- moment -- */
-
-export function MomentBox({ m, className = "gd-moment" }: { m: Moment; className?: string }) {
-  return (
-    <div className={className} data-tone={m.tone} role="status">
-      <span className={`${className}__tag`}>{m.tag}</span>
-      <b className={`${className}__title`}>{m.title}</b>
-      {m.lines.map((l) => <span key={l} className={`${className}__line`}>{l}</span>)}
     </div>
   );
 }
