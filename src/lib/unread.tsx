@@ -23,7 +23,8 @@ import type { UnreadCounts } from "@/lib/types";
 const UnreadCtx = createContext<UnreadCounts | null>(null);
 
 export function UnreadProvider({ children }: { children: React.ReactNode }) {
-  const { ready } = useSession();
+  // A watch link's visitor has no read state to keep and no chat to count.
+  const { ready, spectator } = useSession();
 
   const fetcher = useCallback(async (): Promise<UnreadCounts> => {
     const { data, error } = await supabaseBrowser()
@@ -36,7 +37,7 @@ export function UnreadProvider({ children }: { children: React.ReactNode }) {
     tables: ["league_messages", "activity_events"],
     channel: "unread",
     pollMs: 30000,
-    enabled: ready,
+    enabled: ready && !spectator,
   });
 
   return <UnreadCtx.Provider value={data}>{children}</UnreadCtx.Provider>;

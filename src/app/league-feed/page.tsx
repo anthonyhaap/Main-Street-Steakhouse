@@ -21,7 +21,7 @@ import { LeagueFeed } from "@/components/league-feed/LeagueFeed";
  * Talk lives at /chat.
  */
 export default function LeagueFeedPage() {
-  const { ready, isCommissioner } = useSession();
+  const { ready, isCommissioner, spectator } = useSession();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [unpinning, setUnpinning] = useState<string | null>(null);
@@ -35,8 +35,8 @@ export default function LeagueFeedPage() {
   const [reacting, setReacting] = useState<string | null>(null);
 
   useEffect(() => {
-    if (ready) void markSeen("league_feed");
-  }, [ready]);
+    if (ready && !spectator) void markSeen("league_feed");
+  }, [ready, spectator]);
 
   const fetcher = useCallback(async (): Promise<LeagueFeedData> => {
     const { data, error: rpcError } = await supabaseBrowser()

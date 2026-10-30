@@ -24,7 +24,7 @@ import { AskSheet, Composer } from "@/components/chat/Composer";
  * League news moved to /league-feed; this stayed the room.
  */
 export default function ChatPage() {
-  const { ready, team, teams } = useSession();
+  const { ready, team, teams, spectator } = useSession();
   const [body, setBody] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -50,8 +50,8 @@ export default function ChatPage() {
   const [options, setOptions] = useState<string[]>(["", ""]);
 
   useEffect(() => {
-    if (ready) void markSeen("chat");
-  }, [ready]);
+    if (ready && !spectator) void markSeen("chat");
+  }, [ready, spectator]);
 
   const fetcher = useCallback(async (): Promise<ChatFeed> => {
     const { data, error: rpcError } = await supabaseBrowser()
@@ -64,7 +64,7 @@ export default function ChatPage() {
     tables: ["league_messages", "activity_events", "reactions", "polls", "poll_votes", "message_mentions"],
     channel: "chat",
     pollMs: 20000,
-    enabled: ready,
+    enabled: ready && !spectator,
   });
 
   async function loadMore() {
@@ -166,6 +166,27 @@ export default function ChatPage() {
   const items = [...(data?.items ?? []), ...older];
   const hasMore = (cursor ?? data?.next_before ?? null) !== null;
   const teammates = (teams ?? []).filter((t) => t.owner_id && t.id !== team?.id);
+
+  // The room is the managers'. A watch link reads the league, not the table
+  // talk, and ff_chat_feed refuses it; this says so instead of an error.
+  if (spectator) {
+    return (
+      <>
+        <TopBar />
+        <main className="page chat-page">
+          <div className="card">
+            <div className="eyebrow" data-tone="gold">Chat</div>
+            <h1 className="display">Managers only.</h1>
+            <p className="prose">
+              You&apos;re looking through a view-only link, and the room stays with
+              the managers. What the league has been up to is on
+              the <Link href="/league-feed">League Feed</Link>.
+            </p>
+          </div>
+        </main>
+      </>
+    );
+  }
 
   return (
     <>

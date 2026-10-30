@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useRouter } from "next/navigation";
-import { ArrowLeftRight, BarChart3, ChevronDown, CircleDollarSign, Crown, Home, Landmark, LogOut, Megaphone, Menu, MessageCircle, Newspaper, Radio, Shield, Smartphone, Swords, Target, UtensilsCrossed, X } from "lucide-react";
+import { ArrowLeftRight, BarChart3, ChevronDown, CircleDollarSign, Crown, Eye, Home, Landmark, LogOut, Megaphone, Menu, MessageCircle, Newspaper, Radio, Shield, Smartphone, Swords, Target, UtensilsCrossed, X } from "lucide-react";
 import { useStandalone } from "@/lib/install";
 import { useCrests, useSession } from "@/lib/session";
 import { supabaseBrowser } from "@/lib/supabase/client";
@@ -123,13 +123,28 @@ const PHONE_TABS: NavItem[] = [
 const GAME_CENTER: NavItem = { href: "/sunday", label: "Game Center", Icon: Radio, live: true };
 
 /**
+ * A watch link's visitor holds no seat and may not read the room, so My Team,
+ * Chat and the Commish desk are not drawn for them, and the two phone tabs
+ * those held go to the table and the record of what happened. The database
+ * refuses all of it regardless; this is only the nav not offering it.
+ */
+const SPECTATOR_HIDDEN = new Set(["/team", "/chat", "/admin"]);
+const SPECTATOR_TABS: Record<string, NavItem> = {
+  "/team": { href: "/standings",   label: "Standings", Icon: BarChart3 },
+  "/chat": { href: "/league-feed", label: "Feed",      Icon: Megaphone },
+};
+const forSpectator = (items: NavItem[], on: boolean) =>
+  on ? items.filter((i) => !SPECTATOR_HIDDEN.has(i.href)) : items;
+
+/**
  * The bar for this moment. The tab also stays while you are on the game center
  * after the last game ends, so the screen you are looking at never loses its
  * tab under your thumb; it gives My Team its slot back on the next page.
  */
-function phoneTabs(nflLive: boolean, path: string): NavItem[] {
+function phoneTabs(nflLive: boolean, path: string, spectator: boolean): NavItem[] {
   const football = nflLive || isOn(path, GAME_CENTER.href);
-  return football ? PHONE_TABS.map((t) => (t.href === "/team" ? GAME_CENTER : t)) : PHONE_TABS;
+  const tabs = football ? PHONE_TABS.map((t) => (t.href === "/team" ? GAME_CENTER : t)) : PHONE_TABS;
+  return spectator ? tabs.map((t) => SPECTATOR_TABS[t.href] ?? t) : tabs;
 }
 
 /**
@@ -207,7 +222,9 @@ function LeagueMenu({ path, counts }: { path: string; counts?: { chat: number; l
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const active = isOn(path, "/league") || LEAGUE_PAGES.some((i) => isOn(path, i.href));
+  const { spectator } = useSession();
+  const pages = forSpectator(LEAGUE_PAGES, spectator);
+  const active = isOn(path, "/league") || pages.some((i) => isOn(path, i.href));
 
   const close = () => setOpen(false);
   const closeAndRefocus = () => {
@@ -246,15 +263,19 @@ function LeagueMenu({ path, counts }: { path: string; counts?: { chat: number; l
       </button>
       {open && (
         <div className="nav__dropdown-panel">
-          <Link href="/league" className="nav__dropdown-item" data-on={isOn(path, "/league")} onClick={close}>
-            <Crown size={14} strokeWidth={1.75} aria-hidden />
-            League Home
-          </Link>
+          {/* League Home is the commissioner's pulse, managers' addresses and
+              all, and ff_league_pulse does not open to a spectator. */}
+          {!spectator && (
+            <Link href="/league" className="nav__dropdown-item" data-on={isOn(path, "/league")} onClick={close}>
+              <Crown size={14} strokeWidth={1.75} aria-hidden />
+              League Home
+            </Link>
+          )}
           <Link href="/sunday" className="nav__dropdown-item" data-on={isOn(path, "/sunday")} onClick={close}>
             <Radio size={14} strokeWidth={1.75} aria-hidden />
             Game Center
           </Link>
-          {LEAGUE_PAGES.map(({ href, label, Icon, badge }) => (
+          {pages.map(({ href, label, Icon, badge }) => (
             <Link key={href} href={href} className="nav__dropdown-item" data-on={isOn(path, href)} onClick={close}>
               <Icon size={14} strokeWidth={1.75} aria-hidden />
               {label}
@@ -270,7 +291,7 @@ function LeagueMenu({ path, counts }: { path: string; counts?: { chat: number; l
 export function TopBar({ status }: { status?: WireStatus }) {
   const path = usePathname();
   const router = useRouter();
-  const { team, league, isCommissioner } = useSession();
+  const { team, league, isCommissioner, spectator } = useSession();
   const crestOf = useCrests();
   const [more, setMore] = useState(false);
   const standalone = useStandalone();
@@ -286,19 +307,20 @@ export function TopBar({ status }: { status?: WireStatus }) {
   // the same weight as My Team told eleven people to read past that whole end
   // of the bar. The room keeps its place and loses its equality: a rule before
   // it, and the crown that says whose it is.
-  const showAdmin = isCommissioner || !league?.commissioner_id;
+  const showAdmin = !spectator && (isCommissioner || !league?.commissioner_id);
   const items: NavItem[] = [
-    ...NAV.map((i) => (gameDay && i.href === "/matchups" ? SUNDAY : i)),
+    ...forSpectator(NAV, spectator).map((i) => (gameDay && i.href === "/matchups" ? SUNDAY : i)),
     { href: "/league", label: "League", Icon: Crown },
     ...(showAdmin ? [{ href: "/admin", label: "Commish", Icon: Crown, commish: true }] : []),
   ];
-  const tabs = phoneTabs(nflLive, path);
+  const tabs = phoneTabs(nflLive, path, spectator);
   const onTab = (href: string) => tabs.some((t) => t.href !== "/" && isOn(href, t.href));
   // Everything the bar does not carry, in desktop order, minus the hub (the
   // sheet's League section is the hub) and anything already a tab.
-  const sheetRest: NavItem[] = NAV.concat(showAdmin ? [{ href: "/admin", label: "Commish", Icon: Crown, commish: true }] : [])
+  const sheetRest: NavItem[] = forSpectator(NAV, spectator)
+    .concat(showAdmin ? [{ href: "/admin", label: "Commish", Icon: Crown, commish: true }] : [])
     .filter((i) => i.href !== "/" && !onTab(i.href));
-  const sheetLeague = LEAGUE_PAGES.filter((i) => !onTab(i.href));
+  const sheetLeague = forSpectator(LEAGUE_PAGES, spectator).filter((i) => !onTab(i.href));
   const restActive = sheetRest.some((i) => isOn(path, i.href)) || isOn(path, "/league")
     || (!onTab(GAME_CENTER.href) && isOn(path, GAME_CENTER.href))
     || sheetLeague.some((i) => isOn(path, i.href));
@@ -336,6 +358,11 @@ export function TopBar({ status }: { status?: WireStatus }) {
 
         <div className="topbar__actions">
           <Wire status={status} />
+          {spectator && (
+            <span className="topbar__viewonly" title="You're looking through a view-only link. Nothing can be changed from here.">
+              <Eye size={13} aria-hidden /> View only
+            </span>
+          )}
           {/* Your crest is the door to your team, on every screen. */}
           {team && (
             <Link href="/team" className="topbar__team" aria-label={`My Team — ${team.name}`}
@@ -364,8 +391,8 @@ export function TopBar({ status }: { status?: WireStatus }) {
             className="btn"
             data-v="ghost"
             data-size="icon"
-            title="Sign out"
-            aria-label="Sign out"
+            title={spectator ? "Leave" : "Sign out"}
+            aria-label={spectator ? "Leave" : "Sign out"}
             onClick={async () => {
               await supabaseBrowser().auth.signOut();
               // A full document load, deliberately, and not router.push(). This
@@ -427,10 +454,12 @@ export function TopBar({ status }: { status?: WireStatus }) {
             <div className="sheet__section">
               <span className="sheet__section-label">League</span>
               <div className="sheet__grid">
-                <Link href="/league" className="qa__btn" data-on={isOn(path, "/league")} onClick={close}>
-                  <Crown strokeWidth={1.75} />
-                  League Home
-                </Link>
+                {!spectator && (
+                  <Link href="/league" className="qa__btn" data-on={isOn(path, "/league")} onClick={close}>
+                    <Crown strokeWidth={1.75} />
+                    League Home
+                  </Link>
+                )}
                 {!onTab(GAME_CENTER.href) && (
                   <Link href={GAME_CENTER.href} className="qa__btn" data-on={isOn(path, GAME_CENTER.href)} onClick={close}>
                     <Radio strokeWidth={1.75} />
@@ -527,6 +556,11 @@ export function TopBar({ status }: { status?: WireStatus }) {
         .topbar__menu { display: none; }
         @media (max-width: 1180px) { .topbar__menu { display: inline-grid; } }
         .topbar__team[data-on="true"] .seal { outline: 2px solid var(--gold-lit); outline-offset: 2px; border-radius: 50%; }
+        .topbar__viewonly {
+          display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;
+          padding: 3px 9px; border: 1px solid var(--rule); border-radius: 999px;
+          font-size: var(--t-micro); font-weight: 600; color: var(--gold);
+        }
 
         .nav__live--tab { position: absolute; top: 10px; left: calc(50% + 10px); margin: 0; }
         @keyframes nav-live { 0%, 100% { opacity: 1 } 50% { opacity: .4 } }

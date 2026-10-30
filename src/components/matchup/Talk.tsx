@@ -116,8 +116,11 @@ export function MatchupTalk({ card, now, onPosted }: {
   /** Nudges the board so the closed card's count catches up with the thread. */
   onPosted?: () => void;
 }) {
-  const { ready, user } = useSession();
+  const { ready, user, spectator } = useSession();
   const [open, setOpen] = useState(false);
+
+  // Table talk is chat, and chat is the managers'.
+  if (spectator) return null;
 
   return (
     <div className="sb__talk">
