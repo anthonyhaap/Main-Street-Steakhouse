@@ -97,40 +97,25 @@ const LEAGUE_PAGES: NavItem[] = [
 /**
  * The phone's tab bar is its own list, not the first four of the desktop nav.
  *
- * The labels are the plain ones a manager reaches for — Home and Matchup,
- * the words every fantasy app on his phone already uses — and the fifth slot,
- * which used to be "More", is League: the sheet behind it opens on League
- * Home and holds every other room, so the word says what is there. The same
- * sheet opens from the menu button in the top bar.
+ * Four tabs: Home, the Game Center, My Team and League. The lineup and the
+ * afternoon's games are what a manager reaches for from anywhere, so both
+ * hold a tab every day — the game center no longer borrows My Team's slot
+ * while football is on, which left the lineup a menu away at the one moment
+ * a late scratch made it urgent. Its red dot still says when games are live.
  *
- * The bar is Tonight, Matchups, My Team, Chat and More: the matchup, the
- * lineup and the room are what a manager reaches for from anywhere. While an
- * NFL game is live — the red dot's signal, not the calendar — the game center
- * takes My Team's slot (`phoneTabs`): that is the screen the afternoon is
- * spent on, and the lineup is set by then. My Team stays one tap away as the
- * crest in the top bar, and in More. Otherwise the game center is in More,
- * beside League Home, and on the front page's live card; Standings is the
- * place card on Tonight and in More. The desktop nav, which has the width,
+ * Matchups and Chat left the bar for the League sheet (the button at the
+ * end, and the menu in the top bar), beside League Home, Standings and every
+ * other room. Chat's unread count rides on the League tab, so a new line in
+ * the room still shows from anywhere. The desktop nav, which has the width,
  * keeps every destination where it was.
  */
-const PHONE_TABS: NavItem[] = [
-  { href: "/",         label: "Home",        Icon: Home },
-  { href: "/matchups", label: "Matchup",     Icon: Swords },
-  { href: "/team",     label: "My Team",     Icon: Shield },
-  { href: "/chat",     label: "Chat",        Icon: MessageCircle, badge: "chat" },
-];
-
 const GAME_CENTER: NavItem = { href: "/sunday", label: "Game Center", Icon: Radio, live: true };
 
-/**
- * The bar for this moment. The tab also stays while you are on the game center
- * after the last game ends, so the screen you are looking at never loses its
- * tab under your thumb; it gives My Team its slot back on the next page.
- */
-function phoneTabs(nflLive: boolean, path: string): NavItem[] {
-  const football = nflLive || isOn(path, GAME_CENTER.href);
-  return football ? PHONE_TABS.map((t) => (t.href === "/team" ? GAME_CENTER : t)) : PHONE_TABS;
-}
+const PHONE_TABS: NavItem[] = [
+  { href: "/",     label: "Home",    Icon: Home },
+  GAME_CENTER,
+  { href: "/team", label: "My Team", Icon: Shield },
+];
 
 /**
  * Marks the document while a text field has focus on a touch screen, so the
@@ -292,7 +277,7 @@ export function TopBar({ status }: { status?: WireStatus }) {
     { href: "/league", label: "League", Icon: Crown },
     ...(showAdmin ? [{ href: "/admin", label: "Commish", Icon: Crown, commish: true }] : []),
   ];
-  const tabs = phoneTabs(nflLive, path);
+  const tabs = PHONE_TABS;
   const onTab = (href: string) => tabs.some((t) => t.href !== "/" && isOn(href, t.href));
   // Everything the bar does not carry, in desktop order, minus the hub (the
   // sheet's League section is the hub) and anything already a tab.
@@ -412,6 +397,10 @@ export function TopBar({ status }: { status?: WireStatus }) {
         >
           <Crown strokeWidth={1.75} />
           <span>League</span>
+          {/* Chat lives in the League sheet now; its unread count shows here. */}
+          {(counts?.chat ?? 0) > 0 && (
+            <span className="tabbar__badge" aria-label={`${counts!.chat} unread in Chat`}>{counts!.chat > 99 ? "99+" : counts!.chat}</span>
+          )}
         </button>
       </nav>
 
