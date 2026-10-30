@@ -95,10 +95,13 @@ test("the room opens on the newest line, over the composer", async ({ page }) =>
   await expect(rows.last()).toBeInViewport();
   await expect(box).toHaveValue("");
 
-  // The composer never covers the line it just sent.
-  const last = (await rows.last().boundingBox())!;
-  const composer = (await page.locator(".chat-compose").boundingBox())!;
-  expect(last.y + last.height).toBeLessThanOrEqual(composer.y + 1);
+  // The composer never covers the line it just sent — once the smooth
+  // scroll that brings it into view has finished.
+  await expect.poll(async () => {
+    const last = (await rows.last().boundingBox())!;
+    const composer = (await page.locator(".chat-compose").boundingBox())!;
+    return last.y + last.height - composer.y;
+  }).toBeLessThanOrEqual(1);
 });
 
 test("asking the room opens a sheet, not a form at the top of the page", async ({ page }) => {
