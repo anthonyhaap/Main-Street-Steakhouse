@@ -56,9 +56,11 @@ test("the red zone names our players and the close game is lifted", async ({ pag
   await expect(close.locator(".sun-close__card")).toHaveCount(1);
   await expect(close).toContainText("Difference 3.30");
 
-  // The close game is lifted; the featured slot, though, belongs for a few
-  // minutes to the Steakhouse moment — Lou retaking the lead late.
-  await expect(page.locator(".sun-feat__label b")).toContainText("Steakhouse moment");
+  // The close game is lifted, and the featured slot is the ranked game. Lou
+  // retaking the lead late no longer takes the slot over as a "Steakhouse
+  // moment" — that swing is the loudest card in the feed instead.
+  await expect(page.locator(".sun-feat__label b")).toContainText("Game to watch");
+  await expect(page.locator(".sun-feat__label")).not.toContainText("Steakhouse moment");
   await expect(page.locator(".sun-feat .sun-score")).toContainText(/Lou/i);
   await expect(page.locator(".sun-feat .sun-score")).toContainText(/Gus/i);
 });

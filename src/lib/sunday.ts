@@ -770,23 +770,6 @@ export function eventContext(events: SundayEvent[]): Record<string, CardContext>
   return out;
 }
 
-/** How long a Steakhouse moment holds the featured slot. */
-export const MOMENT_MS = 10 * 60_000;
-
-/**
- * A level-4 event, recent enough to take over the featured table for a few
- * minutes: a lead change in the final minutes, a game inside a point at the
- * whistle. Newest wins; nothing older than `MOMENT_MS` counts.
- */
-export function liveMoment(events: SundayEvent[], now: number): SundayEvent | null {
-  for (const e of events) {
-    const age = now - new Date(e.created_at).getTime();
-    if (age > MOMENT_MS) break;
-    if (e.level === 4 && e.matchup_id && age >= -60_000) return e;
-  }
-  return null;
-}
-
 /** The label on an event card, in the house's broadcast voice. */
 export function eventTag(e: SundayEvent): string {
   if (e.type === "comeback") return "🚨 Comeback · Steakhouse moment";
