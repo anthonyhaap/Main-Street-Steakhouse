@@ -10,7 +10,7 @@ import type { GameWeather } from "@/lib/nfl/venues";
 import type { HubPlayer, TeamHub, Wire } from "@/lib/nfl/types";
 import { Seal, TeamLink, useCountUp } from "@/components/ui";
 import { PlayerRow, SwapOptions, SwapSheet, useNarrow, type SwapOption } from "@/components/team/Lineup";
-import { DeskHeader, DeskScore, DeskTabs } from "@/components/team/MobileDesk";
+import { DeskHeader, DeskScore, DeskTabs, projectedFinal } from "@/components/team/MobileDesk";
 import { Coach } from "@/components/team/Coach";
 import { InsightBoard, NewsWire, TeamStats } from "@/components/team/Rail";
 import { Notifications } from "@/components/team/Notifications";
@@ -184,7 +184,9 @@ export function TeamDesk({
   const shownTheirs = useCountUp(theirs);
 
   const rec = hub.record;
-  const projected = Number(hub.splits.projected_starters ?? 0);
+  // The same projection the matchup page prints: the pre-game total until
+  // somebody kicks off, then points so far plus what is still to come.
+  const projected = projectedFinal(mine, starters.map((s) => s.player), Number(hub.splits.projected_starters ?? 0));
 
   // Which half of the roster is in view, for the phone's Starters / Bench
   // switch. Read off the page rather than kept in state the taps set, so a
