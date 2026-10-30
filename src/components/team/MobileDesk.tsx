@@ -35,6 +35,29 @@ export function finished(p: HubPlayer): boolean {
   return !!s && /final|post/i.test(s);
 }
 
+/**
+ * What this side will finish on if every projection is right from here — the
+ * same number the matchup page prints as "proj." (`projectedFinal` in
+ * `@/lib/scoreboard`), worked from the desk's own roster so the two screens
+ * never disagree.
+ *
+ * Before anybody kicks off it is the plain pre-game total, as the matchup
+ * page shows it. After that it is the points on the board plus what is still
+ * to come: a starter whose game is over (or who has none) adds nothing more,
+ * one mid-game adds whatever is left of his projection, and one yet to play
+ * adds all of it.
+ */
+export function projectedFinal(points: number, starters: (HubPlayer | null)[], pregame: number): number {
+  const on = starters.filter((p): p is HubPlayer => !!p);
+  if (!on.some((p) => inProgress(p) || finished(p))) return pregame;
+  const toCome = on.reduce((acc, p) => {
+    if (!p.game || p.on_bye || finished(p)) return acc;
+    const proj = Number(p.projection ?? 0);
+    return acc + (inProgress(p) ? Math.max(0, proj - Number(p.points)) : proj);
+  }, 0);
+  return Math.round((points + toCome) * 10) / 10;
+}
+
 /** Starters still to score: not finished, not on bye, and not an empty slot. */
 export function yetToPlay(starters: (HubPlayer | null)[]): number {
   return starters.filter((p) => p && p.game && !p.on_bye && !finished(p)).length;

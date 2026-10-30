@@ -467,3 +467,21 @@ test("the phone header switches teams from a thumb-sized target", async ({ page 
   expect(box.height).toBeGreaterThanOrEqual(44);
   await expect(pick.locator("option")).toHaveCount(3);
 });
+
+/**
+ * My Team's "Projected" is the matchup page's "proj.": the pre-game total
+ * until somebody kicks off, then the points on the board plus what is still
+ * to come. It used to stay the pre-game sum all afternoon, so the two screens
+ * disagreed about the same team in the same minute.
+ *
+ * Mid-Sunday in the fixture: 160.8 on the board. Mahomes is mid-game and
+ * already past his 24.5, so he adds nothing more; Taylor is final and adds
+ * nothing; the seven yet to play add their projections, 129.6 between them.
+ */
+test("the projection on My Team is the matchup page's projection", async ({ page }, info) => {
+  test.skip(info.project.name !== "mobile", "read off the phone's score card");
+  await page.goto("/preview/team");
+  await expect(page.locator(".mt-score__proj")).toContainText("181.2");
+  await page.goto("/preview/team?state=live");
+  await expect(page.locator(".mt-score__proj")).toContainText("290.4");
+});
