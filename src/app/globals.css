@@ -5462,15 +5462,17 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
   .modal__panel { animation: none !important; }
 }
 
-/* --- the phone's top bar -------------------------------------------------- */
-/* Fifty-two pixels instead of sixty-eight: it carries a crest, the live dot,
-   your team and the menu, and none of those need the extra height. Everything
-   sticky under it measures from --topbar, so it all moves up with it. */
-@media (max-width: 759px) {
-  :root { --topbar: calc(52px + env(safe-area-inset-top)); }
-  .topbar { gap: var(--s3); }
-  .topbar .mark__seal { width: 32px !important; height: 32px !important; }
-  .topbar__actions { gap: var(--s2); }
+/* --- no top bar where the tab bar is ------------------------------------- */
+/* Everything the top bar carried on a phone is already in the tab bar: the
+   crest is the Home tab, your team is My Team, the menu is the League tab,
+   and sign-out sits at the foot of the League sheet. So wherever the tab bar
+   shows, the top bar goes and the page starts at the top of the glass.
+   --topbar shrinks to the notch, and everything sticky that measured from the
+   bar's bottom now measures from there; the shell keeps content clear of it. */
+@media (max-width: 1180px) {
+  :root { --topbar: env(safe-area-inset-top); }
+  .topbar { display: none; }
+  .shell { padding-top: env(safe-area-inset-top); }
 }
 
 /* --- My Team on a phone -------------------------------------------------- */
