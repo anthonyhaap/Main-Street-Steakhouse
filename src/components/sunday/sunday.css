@@ -895,17 +895,6 @@ body:has(.sun) { background: #0d0b0a; }
 .gd-mine__act { display: flex; flex-wrap: wrap; gap: var(--s2); }
 .gd-mine__act .sun-btn { min-height: 40px; }
 
-.gd-moment {
-  display: grid; gap: 2px; padding: 9px 12px; border-radius: var(--r-sm);
-  background: var(--sun-gold-wash); border: 1px solid #d9b35f55; border-left: 3px solid var(--sun-gold);
-  animation: sun-in .5s var(--ease);
-}
-.gd-moment[data-tone="hot"] { background: var(--sun-red-wash); border-color: #e5383b66; border-left-color: var(--sun-red); }
-.gd-moment__tag { font: 800 var(--t-nano)/1.3 var(--sans); letter-spacing: 0.18em; text-transform: uppercase; color: var(--sun-gold); }
-.gd-moment[data-tone="hot"] .gd-moment__tag { color: #ff8a80; }
-.gd-moment__title { font: 700 var(--t-body)/1.3 var(--sans); }
-.gd-moment__line { font-size: var(--t-small); color: var(--sun-muted); }
-
 .gd-noseat { margin: var(--s3) 0 0; font: italic 400 var(--t-body)/1.4 var(--serif); color: var(--sun-muted); }
 
 .gd-next {

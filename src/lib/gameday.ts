@@ -28,7 +28,7 @@ import {
   type ScoreCard, type ScoreSide, type ScoreStarter, type Scoreboard as Board, type WinOdds,
 } from "@/lib/scoreboard";
 import {
-  gameFor, lastName, margin, other, sideOf, signed, upsetBrewing, weekHigh,
+  lastName, margin, other, sideOf, signed, upsetBrewing, weekHigh,
   type NflGame, type Side, type SundayBoard, type SundayEvent, type TickerItem,
 } from "@/lib/sunday";
 
@@ -250,91 +250,6 @@ export function latestFor(events: SundayEvent[], matchupId: string, now = 0, wit
 }
 
 /* ---------------------------------------------------------------- moment -- */
-
-/**
- * The matchup moment: the one thing worth saying about a table *right now*,
- * in a small box under its score. In order of how much it changes what a
- * manager watches next:
- *
- *   a lead that changed hands in the last quarter hour (from the event, and
- *     only while that side is still the one in front)
- *   down to the wire: one side done, the other needing it from one or two men
- *   one man each: the head-to-head that decides it
- *   getting interesting: a deficit cut close (from the event)
- *   within two, live
- *
- * Null otherwise — a box that always says something is a box nobody reads.
- */
-export type Moment = { tag: string; title: string; lines: string[]; tone: "hot" | "gold" };
-
-export function matchupMoment(c: ScoreCard, events: SundayEvent[], nfl: NflGame[], now: number): Moment | null {
-  const state = cardState(c);
-  if (state === "pre" || state === "settled" || !lineups(c)) return null;
-  const m = margin(c);
-  const gap = Math.abs(m);
-  const leaderKey: Side | null = m > 0 ? "home" : m < 0 ? "away" : null;
-  const recent = events.filter((e) => e.matchup_id === c.id && now - Date.parse(e.created_at) <= 15 * MIN)
-    .sort((x, y) => y.created_at.localeCompare(x.created_at));
-
-  const flip = recent.find((e) => e.type === "lead_change" || e.type === "comeback" || (e.lead_change && e.type !== "close_game"));
-  if (flip && leaderKey && sideOf(c, leaderKey).team_id === flip.team_id) {
-    const s = sideOf(c, leaderKey);
-    const g = flip.nfl_game_id ? nfl.find((x) => x.id === flip.nfl_game_id) : flip.detail.nfl_team ? gameFor(nfl, String(flip.detail.nfl_team)) : null;
-    const clock = g && g.status === "in" && g.detail ? `${g.detail} · ${g.away} @ ${g.home}` : (flip.detail.game_detail as string | null) ?? null;
-    return {
-      tag: flip.type === "comeback" ? "Comeback" : "Lead change",
-      title: `${who(s)} takes the lead by ${fmt1(gap)}`,
-      lines: [flip.player_name ? `${flip.player_name}${flip.points_added != null ? `, ${signed(flip.points_added)}` : ""}` : null, clock]
-        .filter((x): x is string => !!x),
-      tone: "hot",
-    };
-  }
-
-  const leftH = c.home.starters.filter((p) => !p.final);
-  const leftA = c.away.starters.filter((p) => !p.final);
-  const where = (p: ScoreStarter) => {
-    const g = gameFor(nfl, p.nfl_team);
-    const when = p.game_status === "in" ? (p.game_detail ?? g?.detail ?? "Live")
-      : p.kickoff_at ? clockLabel(p.kickoff_at, true) : "";
-    return `${p.full_name} — ${p.nfl_team ?? "FA"}${when ? ` · ${when}` : ""}`;
-  };
-
-  if (leaderKey) {
-    const trail = other(leaderKey);
-    const mine = trail === "home" ? leftH : leftA;
-    const theirs = trail === "home" ? leftA : leftH;
-    if (mine.length > 0 && mine.length <= 2 && theirs.length === 0) {
-      const s = sideOf(c, trail);
-      return {
-        tag: `Needs ${fmt1(gap + 0.1)}`,
-        title: `${who(s)} has ${mine.length === 1 ? "one player" : "two players"} left`,
-        lines: mine.map(where),
-        tone: "gold",
-      };
-    }
-  }
-  if (leftH.length === 1 && leftA.length === 1) {
-    return {
-      tag: "Head to head",
-      title: `${lastName(leftH[0].full_name)} against ${lastName(leftA[0].full_name)} decides it`,
-      lines: [where(leftA[0]), where(leftH[0])],
-      tone: "gold",
-    };
-  }
-
-  const tight = recent.find((e) => e.type === "tightening");
-  if (tight && leaderKey && gap <= 8) return { tag: "Getting interesting", title: tight.headline, lines: tight.description ? [tight.description] : [], tone: "gold" };
-
-  if (state === "live" && gap <= 2) {
-    return {
-      tag: gap < 0.05 ? "Dead level" : `Within ${fmt1(gap)}`,
-      title: gap < 0.05 ? "Nothing between them" : `${who(sideOf(c, leaderKey!))} is clinging on`,
-      lines: [`Left: ${who(c.away)} ${leftA.length} · ${who(c.home)} ${leftH.length}`],
-      tone: "hot",
-    };
-  }
-  return null;
-}
 
 /* ----------------------------------------------------------- league pulse -- */
 

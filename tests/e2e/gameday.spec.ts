@@ -57,22 +57,26 @@ test("C and D: cruising and getting crushed read differently", async ({ page }) 
   await expect(page.locator("#sun-mine .gd-side").first()).toContainText("Losing");
 });
 
-test("F: a lead that just changed hands is the matchup moment", async ({ page }) => {
+/**
+ * My matchup is the score, the odds and the door to the full matchup. The
+ * boxed "moment" under the odds (a lead change, "needs 13.9", "clinging on")
+ * repeated what the scores already said, so neither the game center nor the
+ * front page draws one — even in the seats that used to produce one.
+ */
+test("my matchup carries no moment box, on the game center or the front page", async ({ page }) => {
   await go(page, "Late window", "Seat: Lou (just took the lead)");
-  const m = page.locator("#sun-mine .gd-moment");
-  await expect(m).toContainText("Lead change");
-  await expect(m).toContainText("Lou takes the lead by 6.5");
-});
-
-test("E and I: Monday night — a one-man race, and the man who has to do it", async ({ page }) => {
-  await go(page, "Monday night", "Seat: Lou (just took the lead)");
-  await expect(page.locator("#sun-mine .gd-moment")).toContainText("Gus takes the lead by 0.3");
+  await expect(page.locator("#sun-mine")).toContainText("Lou");
+  await expect(page.locator(".gd-moment")).toHaveCount(0);
+  await click(page, "Monday night");
   await click(page, "Seat: Ray");
-  const m = page.locator("#sun-mine .gd-moment");
-  await expect(m).toContainText("Needs 13.9");
-  await expect(m).toContainText("Justin Jefferson — MIN");
+  await expect(page.locator(".gd-moment")).toHaveCount(0);
   // H: every Sunday game is final and the page knows what day it is.
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Monday Game Center");
+
+  await page.goto("/preview/tonight");
+  await click(page, "Sunday live");
+  await expect(page.locator(".home-gd")).toContainText("League pulse");
+  await expect(page.locator(".gd-moment")).toHaveCount(0);
 });
 
 test("A: before kickoff the page says when it starts, from the real slate", async ({ page }) => {
