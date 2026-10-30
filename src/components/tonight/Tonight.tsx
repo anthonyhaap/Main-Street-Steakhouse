@@ -140,12 +140,15 @@ export function Tonight({ initial, serverNow }: { initial: Briefing | null; serv
           {/* Alerts, offered once, to a manager with a team on a device that can take them. */}
           {b?.me && <PushInvite />}
 
-          <Statement />
-
+          {/* The league in the order a manager asks about it: every game,
+              then the table, then what people are saying, and the office's
+              announcements after the football. */}
           {b && <Carousel b={b} live={phase === "live"} />}
+          {b && <Table b={b} />}
           {/* A second call, on purpose: the room arrives after the card. */}
           {b && <Room now={clock} enabled={ready} />}
-          {b && <Table b={b} />}
+
+          <Statement />
 
           <InstallNudge />
 

@@ -312,9 +312,9 @@ export default function TonightPreview() {
         {race && <RaceLine race={RACE} outlook={RACE_OUTLOOK} myTeamId="t8" />}
         <PushInviteView state={alerts} busy={false} error={null}
           onEnable={() => setAlerts("on")} onDismiss={() => setAlerts(null)} />
-        <Statement />
         <Carousel b={b} live={phase === "live"} />
         <RoomBoard feed={room(now)} now={now} />
+        <Statement />
         <p className="eyebrow tonight__foot">Main Street Steakhouse · Est. 2016 · Members Only</p>
       </main>
     </>

@@ -12,7 +12,7 @@ import { useMatchups } from "@/lib/nfl/matchup";
 import type { HubPlayer, PositionRanks, TeamHub } from "@/lib/nfl/types";
 import type { Team } from "@/lib/types";
 import { TopBar } from "@/components/Shell";
-import { SkeletonRows, useToast } from "@/components/ui";
+import { Skeleton, SkeletonRows, useToast } from "@/components/ui";
 import { TeamDesk, slotOk, type MoveTarget } from "@/components/team/TeamDesk";
 import { EditTeam } from "@/components/team/EditTeam";
 
@@ -207,7 +207,7 @@ function Desk() {
     return (
       <>
         <TopBar status={status} />
-        <main className="page"><div className="card"><SkeletonRows n={10} /></div></main>
+        <main className="page"><DeskSkeleton /></main>
       </>
     );
   }
@@ -247,7 +247,11 @@ function Desk() {
           matchups={matchups}
           settlesAt={settlesAt}
           currentWeek={currentWeek}
-          picker={<TeamPicker teams={teams} value={subject.id} mine={team?.id ?? null} onPick={look} />}
+          // Only when there is somebody else to look at: the phone header draws
+          // a chevron for the picker, and a chevron that opens nothing is a lie.
+          picker={teams.length > 1
+            ? <TeamPicker teams={teams} value={subject.id} mine={team?.id ?? null} onPick={look} />
+            : null}
           onPickUp={setMoving}
           onCancelMove={() => setMoving(null)}
           onDrop={drop}
@@ -297,6 +301,24 @@ function TeamPicker({ teams, value, mine, onPick }: {
   );
 }
 
+/**
+ * The desk before its data: on a phone, blocks the size of the header and the
+ * score card it is about to draw, so the lineup lands where the skeleton's
+ * rows were rather than shoving the page down when it arrives.
+ */
+function DeskSkeleton() {
+  return (
+    <>
+      <div className="m-only" style={{ display: "grid", gap: "var(--s3)" }}>
+        <Skeleton h={92} />
+        <Skeleton h={128} />
+        <Skeleton h={44} />
+      </div>
+      <div className="card"><SkeletonRows n={10} /></div>
+    </>
+  );
+}
+
 export default function TeamPage() {
   // `useSearchParams` client-renders the tree it sits in, so the skeleton is
   // the fallback as well as the loading state: the chrome is in the
@@ -306,7 +328,7 @@ export default function TeamPage() {
       fallback={
         <>
           <TopBar />
-          <main className="page"><div className="card"><SkeletonRows n={10} /></div></main>
+          <main className="page"><DeskSkeleton /></main>
         </>
       }
     >

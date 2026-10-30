@@ -1,11 +1,22 @@
+"use client";
+
+import { useState } from "react";
+import { ChevronDown } from "lucide-react";
+
 /**
  * The Commissioner's statement on the free-agency debacle of September 29,
- * 2026, posted to the first screen as it was issued. Set as text rather than
+ * 2026, posted to the front page as it was issued. Set as text rather than
  * a screenshot so it reads on a phone and a screen reader can read it aloud.
+ *
+ * On a phone it is the length of four screens, and it sat above the league's
+ * scores and the table. It now comes after them, and a phone shows its
+ * opening paragraph with the rest one tap away; the words are unchanged, and
+ * a wide screen still prints the whole thing.
  */
 export function Statement() {
+  const [open, setOpen] = useState(false);
   return (
-    <article className="memo" aria-labelledby="memo-title">
+    <article className="memo" data-open={open} aria-labelledby="memo-title">
       <p className="eyebrow" data-tone="wine">From the League Office</p>
       <h2 id="memo-title" className="memo__title display">Official statement from the Commissioner&apos;s Office</h2>
       <i className="memo__rule" />
@@ -14,6 +25,11 @@ export function Statement() {
         The Main Street Steakhouse League is aware of the free-agency debacle that transpired on September 29, 2026.
         As a result of these events, the Commissioner has also been made aware of a potential resignation from the league.
       </p>
+      <button type="button" className="memo__toggle m-only" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+        {open ? "Show less" : "Read the full statement"}
+        <ChevronDown size={14} aria-hidden />
+      </button>
+      <div className="memo__more">
       <p>
         The situation involved two players in the free-agent pool who could not be found when one manager attempted
         to search for and acquire them. After the issue was corrected, another manager was later able to locate those
@@ -71,6 +87,7 @@ export function Statement() {
         <p>Commissioner<br />Main Street Steakhouse League</p>
       </footer>
       <p className="memo__note">AI was not used in the publishing of this statement.</p>
+      </div>
     </article>
   );
 }

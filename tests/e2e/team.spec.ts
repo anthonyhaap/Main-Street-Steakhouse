@@ -448,3 +448,18 @@ test("a locked player says why he cannot move", async ({ page }) => {
   await expect(rb.getByRole("button", { name: /Jonathan Taylor/ })).toBeDisabled();
   await expect(rb.getByRole("button", { name: /Christian McCaffrey/ })).toBeEnabled();
 });
+
+/**
+ * The phone header's chevron is the league's other desks: the page's own
+ * select, laid over a thumb-sized target so the phone's native picker opens.
+ */
+test("the phone header switches teams from a thumb-sized target", async ({ page }, info) => {
+  test.skip(info.project.name !== "mobile", "the phone layout");
+  await page.goto("/preview/team");
+  const pick = page.locator(".mt-head").getByRole("combobox", { name: "Look at a team" });
+  await expect(pick).toBeVisible();
+  const box = (await pick.boundingBox())!;
+  expect(box.width).toBeGreaterThanOrEqual(44);
+  expect(box.height).toBeGreaterThanOrEqual(44);
+  await expect(pick.locator("option")).toHaveCount(3);
+});

@@ -355,6 +355,16 @@ function TeamPreview() {
         // desk tells a lineup set ahead of time from this week's.
         onWeek={(week) => setHub((h) => ({ ...h, week }))}
         onEdit={visitor ? undefined : () => {}}
+        // The live page's picker walks the league; the fixture's names three
+        // teams and goes nowhere, which is enough to see where it sits.
+        picker={
+          <select className="field" aria-label="Look at a team" defaultValue="t1"
+            style={{ width: "auto", minHeight: 30, padding: "4px 8px", fontSize: "var(--t-small)" }}>
+            <option value="t1">Gridiron Butchers (my team)</option>
+            <option value="t7">Dry Aged Dynasty — Dev</option>
+            <option value="t2">The Porterhouse — Ray</option>
+          </select>
+        }
         onSetLineup={visitor ? undefined : (assignments) => setHub((h) => ({
           ...h,
           roster: h.roster.map((p) => (assignments[p.player_id] ? { ...p, slot: assignments[p.player_id] } : p)),

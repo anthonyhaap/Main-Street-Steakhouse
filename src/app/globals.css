@@ -5769,3 +5769,119 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
   .page[data-desk="team"] .lineup > .card__head h2 { font-size: 1.1rem; white-space: nowrap; }
   .page[data-desk="team"] .lineup > .card__head .eyebrow { display: none; }
 }
+
+/* --- the league office's statement, folded on a phone -------------------- */
+.memo__more { display: contents; }
+.memo__toggle {
+  justify-self: start;
+  display: inline-flex; align-items: center; gap: 6px;
+  min-height: 40px; padding: 0 14px;
+  border: 1px solid var(--wine-hair); border-radius: 999px;
+  background: var(--wine-wash); color: var(--wine);
+  font: 600 var(--t-small)/1 var(--sans); cursor: pointer;
+}
+.memo__toggle svg { transition: transform .18s var(--ease); }
+.memo[data-open="true"] .memo__toggle svg { transform: rotate(180deg); }
+@media (max-width: 759px) {
+  .memo[data-open="false"] .memo__more { display: none; }
+  .memo[data-open="true"] .memo__toggle { order: 1; }
+}
+
+/* --- Chat: the room reads down, the composer at its foot ------------------ */
+.chat-page { gap: var(--s3); }
+.chat-page__head { display: grid; gap: var(--s2); }
+.chat-page__head h1 { font-size: var(--t-title); margin: var(--s1) 0 0; }
+.chat-page__head .prose { margin: 0; }
+@media (max-width: 759px) {
+  .chat-page { padding-bottom: 0; }
+  .chat-page__head { grid-template-columns: minmax(0, 1fr) auto; align-items: end; }
+  .chat-page__head .prose { display: none; }
+  .chat-page__head h1 { font-size: 1.5rem; }
+  .chat-log > .card__head { display: none; }
+  .chat-log .chat__body { font-size: var(--t-body); line-height: 1.45; }
+}
+.chat-compose {
+  position: sticky;
+  bottom: calc(var(--bottom-nav) + env(safe-area-inset-bottom));
+  z-index: 30;
+  display: grid; gap: var(--s2);
+  margin: 0 calc(var(--gutter) * -1);
+  padding: var(--s2) var(--gutter);
+  background: color-mix(in srgb, var(--ink-0) 94%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-top: 1px solid var(--rule);
+}
+/* While the keyboard is up the tab bar is gone, so the composer sits on the
+   keyboard itself. */
+html[data-kb="open"] .chat-compose { bottom: 0; padding-bottom: var(--s2); }
+.chat-compose__row { display: flex; align-items: center; gap: 4px; }
+.chat-compose__row .field {
+  flex: 1; min-width: 0;
+  min-height: 42px;
+  border-radius: 999px;
+  padding-inline: 16px;
+  /* Sixteen pixels or iOS zooms the whole page in on focus. */
+  font-size: 16px;
+}
+.chat-compose__reply {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s2);
+  padding: 6px 4px 6px 12px;
+  border-left: 2px solid var(--gold-lit);
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+  background: var(--gold-haze);
+  font-size: var(--t-small); color: var(--muted);
+}
+.chat-compose__reply span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-compose__mentions { display: flex; flex-wrap: wrap; gap: 6px; }
+.chat-compose__tagged { color: var(--faint); }
+
+/* --- the keyboard and the tab bar ------------------------------------------ */
+/* On a phone, typing hides the tab bar: it would otherwise ride the keyboard
+   (Android) or sit behind it holding 64px of the screen (iOS), and either way
+   it is the one thing nobody needs while typing. The shell sets the flag. */
+@media (max-width: 1180px) {
+  html[data-kb="open"] { --bottom-nav: 0px; }
+  html[data-kb="open"] .tabbar { display: none; }
+}
+
+/* --- Challenges, grouped by what they ask of you -------------------------- */
+.bets { display: grid; gap: var(--s5); }
+.bets__group { display: grid; gap: var(--s3); }
+.bets__label {
+  display: flex; align-items: center; gap: var(--s2);
+  margin: 0;
+  font: 700 var(--t-micro)/1 var(--sans); letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--dim);
+}
+.bets__label .num { padding: 2px 7px; border-radius: 999px; background: var(--ink-2); color: var(--muted); letter-spacing: 0; }
+.bets__label[data-tone="wine"] { color: var(--wine); }
+.bets__label[data-tone="wine"] .num { background: var(--wine); color: #fff; }
+.bets__label .btn { margin-left: auto; text-transform: none; letter-spacing: 0; }
+@media (max-width: 759px) {
+  .bets { gap: var(--s4); }
+  .bets__group[data-open="false"] .bets__done { display: none; }
+  .bets__note { font-size: var(--t-small); }
+  /* A bet's card on a phone: the same parts, closer together. */
+  .bet .card__head { padding: var(--s2) var(--s3); }
+  .bet .bet__body { padding: var(--s3); gap: var(--s2); }
+}
+
+/* --- Pick'em on a phone ----------------------------------------------------- */
+/* Each side is a row — crest, name, score — rather than a stacked tile, which
+   takes a game from about 180px to about 120 and puts twice the slate on a
+   screen. The tap target stays the whole side, and well over 44px tall. */
+@media (max-width: 759px) {
+  .pickem-card__head { padding: var(--s2) var(--s3); }
+  .pickem-card__body { gap: var(--s3); padding: var(--s3); }
+  .pickem-matchup { gap: var(--s2); }
+  .pickem-team {
+    flex-direction: row; justify-content: flex-start;
+    min-height: 56px; padding: var(--s2) var(--s3); gap: var(--s2);
+  }
+  .pickem-team > :first-child { width: 30px !important; height: 30px !important; flex-shrink: 0; }
+  .pickem-team > :first-child img { width: 30px !important; height: 30px !important; }
+  .pickem-team__score { margin-left: auto; font-size: var(--t-body); }
+  .pickem-team__check { position: static; margin-left: auto; }
+  .pickem-team__score + .pickem-team__check { margin-left: 0; }
+}

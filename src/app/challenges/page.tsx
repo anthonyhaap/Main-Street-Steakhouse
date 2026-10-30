@@ -6,6 +6,7 @@ import { TeamLogo } from "@/components/nfl";
 import { TopBar } from "@/components/Shell";
 import { SkeletonRows } from "@/components/ui";
 import { ChallengeCard, useTargetChallenge, type ChallengeActions } from "@/components/challenges/ChallengeCard";
+import { ChallengeBoard } from "@/components/challenges/Board";
 import { LEAGUE_ID } from "@/lib/config";
 import { useLive } from "@/lib/live";
 import { useSession } from "@/lib/session";
@@ -129,7 +130,7 @@ export default function ChallengesPage() {
           </div>
         </header>
 
-        <div className="note" data-kind="info" style={{ marginBottom: "var(--s4)" }}>
+        <div className="note bets__note" data-kind="info">
           <strong>The house never touches the money.</strong> It records who agreed to what, who won, and who
           said they paid. The Venmo button opens a payment already written out; you still press send.
         </div>
@@ -139,17 +140,21 @@ export default function ChallengesPage() {
         {!data ? (
           <div className="card"><SkeletonRows n={5} /></div>
         ) : (
-          <div className="grid-auto">
-            {data.challenges.length === 0 && (
-              <div className="card"><div className="empty">No challenges yet.<br />Be the first to call your shot.</div></div>
-            )}
-            {data.challenges.map((item) => (
-              <ChallengeCard
-                key={item.id} item={item} userId={user?.id ?? null} busy={busy} isCommissioner={isCommissioner}
-                profiles={data.profiles} nameOf={nameOf} weekOf={weekOf} gameOf={gameOf} target={target === item.id} actions={actions}
-              />
-            ))}
-          </div>
+          data.challenges.length === 0 ? (
+            <div className="card"><div className="empty">No challenges yet.<br />Be the first to call your shot.</div></div>
+          ) : (
+            <ChallengeBoard
+              items={data.challenges}
+              userId={user?.id ?? null}
+              isCommissioner={isCommissioner}
+              card={(item) => (
+                <ChallengeCard
+                  key={item.id} item={item} userId={user?.id ?? null} busy={busy} isCommissioner={isCommissioner}
+                  profiles={data.profiles} nameOf={nameOf} weekOf={weekOf} gameOf={gameOf} target={target === item.id} actions={actions}
+                />
+              )}
+            />
+          )
         )}
 
         {dialog?.kind === "challenge" && data && (

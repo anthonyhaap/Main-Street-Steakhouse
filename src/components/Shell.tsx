@@ -132,6 +132,35 @@ function phoneTabs(nflLive: boolean, path: string): NavItem[] {
   return football ? PHONE_TABS.map((t) => (t.href === "/team" ? GAME_CENTER : t)) : PHONE_TABS;
 }
 
+/**
+ * Marks the document while a text field has focus on a touch screen, so the
+ * tab bar can step aside for the keyboard (`html[data-kb="open"]` in the
+ * sheet). Focus is the only signal both phones agree on: iOS does not resize
+ * the layout for its keyboard, and Android does.
+ */
+function useKeyboardOpen() {
+  useEffect(() => {
+    if (!window.matchMedia("(pointer: coarse)").matches) return;
+    const typing = (el: EventTarget | null) =>
+      el instanceof HTMLTextAreaElement
+      || (el instanceof HTMLInputElement && /^(text|search|email|url|tel|password|number)$/.test(el.type))
+      || (el instanceof HTMLElement && el.isContentEditable);
+    const root = document.documentElement;
+    const onIn = (e: FocusEvent) => { if (typing(e.target)) root.dataset.kb = "open"; };
+    const onOut = () => {
+      // The next field may be taking focus; decide once it has.
+      requestAnimationFrame(() => { if (!typing(document.activeElement)) delete root.dataset.kb; });
+    };
+    document.addEventListener("focusin", onIn);
+    document.addEventListener("focusout", onOut);
+    return () => {
+      document.removeEventListener("focusin", onIn);
+      document.removeEventListener("focusout", onOut);
+      delete root.dataset.kb;
+    };
+  }, []);
+}
+
 const isOn = (path: string, href: string) =>
   href === "/" ? path === "/" : path.startsWith(href);
 
@@ -247,6 +276,7 @@ export function TopBar({ status }: { status?: WireStatus }) {
   const standalone = useStandalone();
   const close = () => setMore(false);
   const counts = useUnreadCounts();
+  useKeyboardOpen();
   const calendarDay = useGameDay();
   // The red dot means football is on, not that it is Sunday.
   const nflLive = useNflLive();

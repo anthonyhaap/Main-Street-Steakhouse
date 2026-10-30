@@ -202,9 +202,14 @@ export function TeamDesk({
     io.observe(el);
     return () => io.disconnect();
   }, []);
+  const jumpBar = useRef<HTMLDivElement>(null);
   const jump = (el: HTMLElement | null) => {
     if (!el) return;
-    const top = el.getBoundingClientRect().top + window.scrollY - 118;
+    // Land the section just under the bar where it will be pinned — its
+    // sticky top plus its own height — not where it happens to be now.
+    const bar = jumpBar.current;
+    const under = bar ? (parseFloat(getComputedStyle(bar).top) || 0) + bar.offsetHeight + 8 : 0;
+    const top = el.getBoundingClientRect().top + window.scrollY - under;
     window.scrollTo({ top, behavior: "smooth" });
   };
 
@@ -359,7 +364,7 @@ export function TeamDesk({
           <div className="th-col">
             {/* Starters / Bench, pinned under the top bar on a phone so either
                 half of the roster is one tap away from anywhere in the other. */}
-            <div className="mt-jump m-only" role="group" aria-label="Jump to">
+            <div className="mt-jump m-only" role="group" aria-label="Jump to" ref={jumpBar}>
               <button type="button" data-on={!onBench} onClick={() => jump(startersRef.current)}>
                 Starters <span className="num">{starters.length - empties}/{starters.length}</span>
               </button>
@@ -373,7 +378,8 @@ export function TeamDesk({
                 {plan.gain > 0.05 && <span className="num">+{plan.gain.toFixed(1)}</span>}
               </button>
             </div>
-            <section className="card lineup" data-accent="gold" ref={startersRef}>
+            {/* Named for a screen reader: on a phone its visible head is the bar above. */}
+            <section className="card lineup" data-accent="gold" ref={startersRef} aria-label="Starting lineup">
               <div className="card__head d-only">
                 <h2>Starting lineup</h2>
                 <div style={{ display: "flex", alignItems: "center", gap: "var(--s3)", flexWrap: "wrap" }}>
