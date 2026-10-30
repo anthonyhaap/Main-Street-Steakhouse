@@ -63,6 +63,10 @@ test("only the manager challenged can answer", async ({ page }) => {
 
 test("a settled bet and a tie offer nothing more", async ({ page }) => {
   await page.goto("/preview/challenges");
+  // A phone folds the settled pile behind its count.
+  const settled = page.getByRole("region", { name: "Settled" });
+  const show = settled.getByRole("button", { name: /Show/ });
+  if (await show.isVisible()) await show.click();
   for (const id of ["c5", "c6"]) {
     const card = page.locator(`#challenge-${id}`);
     await expect(card.getByRole("button")).toHaveCount(0);
@@ -143,4 +147,36 @@ test("the preview hydrates the same the day after it was built", async ({ page }
   await expect(page.locator("#challenge-c1")).toBeVisible();
   await page.waitForLoadState("networkidle");
   expect(errors).toEqual([]);
+});
+
+/**
+ * The bets that need you come first. Accepting a shot, paying a slip and
+ * confirming a payment are the three things a manager has to do on this page,
+ * and they used to be scattered through a grid sorted by when the bet was
+ * made. Settled bets go last, and on a phone they fold away.
+ */
+test("the bets waiting on you come first", async ({ page }, info) => {
+  await page.goto("/preview/challenges");
+  const yours = page.getByRole("region", { name: "Waiting on you" });
+  // c1: you lost and owe. c3: you won and are asked to confirm. c4 and c9:
+  // you were challenged. c8: you lost and the slip is overdue.
+  for (const id of ["c1", "c3", "c4", "c8", "c9"]) {
+    await expect(yours.locator(`#challenge-${id}`)).toHaveCount(1);
+  }
+  // You won c2: the request is yours to send but nobody is waiting on you.
+  await expect(page.getByRole("region", { name: "In play" }).locator("#challenge-c2")).toHaveCount(1);
+  const settled = page.getByRole("region", { name: "Settled" });
+  await expect(settled.locator("#challenge-c5")).toHaveCount(1);
+  if (info.project.name === "mobile") {
+    await expect(settled.locator("#challenge-c5")).toBeHidden();
+    await settled.getByRole("button", { name: /Show/ }).click();
+    await expect(settled.locator("#challenge-c5")).toBeVisible();
+  }
+});
+
+/** A push for a settled bet still lands on its card, folded pile or not. */
+test("a link to a settled bet opens the settled pile", async ({ page }) => {
+  await page.goto("/preview/challenges#c5");
+  await expect(page.locator("#challenge-c5")).toBeVisible();
+  await expect(page.locator("#challenge-c5")).toBeInViewport();
 });

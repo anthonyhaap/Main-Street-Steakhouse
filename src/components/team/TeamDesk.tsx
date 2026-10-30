@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useMemo, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Eye, Pencil, Wand2 } from "lucide-react";
 import { buildInsights, myNews } from "@/lib/nfl/insights";
 import { injuriesByPlayer } from "@/lib/nfl/wire";
@@ -9,7 +9,8 @@ import type { MatchupCurve } from "@/lib/nfl/matchup";
 import type { GameWeather } from "@/lib/nfl/venues";
 import type { HubPlayer, TeamHub, Wire } from "@/lib/nfl/types";
 import { Seal, TeamLink, useCountUp } from "@/components/ui";
-import { PlayerRow, SwapOptions, type SwapOption } from "@/components/team/Lineup";
+import { PlayerRow, SwapOptions, SwapSheet, useNarrow, type SwapOption } from "@/components/team/Lineup";
+import { DeskHeader, DeskScore, DeskTabs } from "@/components/team/MobileDesk";
 import { Coach } from "@/components/team/Coach";
 import { InsightBoard, NewsWire, TeamStats } from "@/components/team/Rail";
 import { Notifications } from "@/components/team/Notifications";
@@ -160,8 +161,11 @@ export function TeamDesk({
     ];
   }, [moving, starters, roster]);
 
+  // On a phone the options rise as a sheet (drawn once, below); on a wide
+  // screen they open under the row, where both are in view.
+  const narrow = useNarrow();
   const swapPanel = (p: HubPlayer | null) =>
-    moving && p && moving.player_id === p.player_id ? (
+    !narrow && moving && p && moving.player_id === p.player_id ? (
       <SwapOptions
         player={moving}
         options={swapOptions}
@@ -182,11 +186,52 @@ export function TeamDesk({
   const rec = hub.record;
   const projected = Number(hub.splits.projected_starters ?? 0);
 
+  // Which half of the roster is in view, for the phone's Starters / Bench
+  // switch. Read off the page rather than kept in state the taps set, so a
+  // thumb scroll moves the marker as surely as a tap does.
+  const startersRef = useRef<HTMLElement>(null);
+  const benchRef = useRef<HTMLElement>(null);
+  const [onBench, setOnBench] = useState(false);
+  useEffect(() => {
+    const el = benchRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver(
+      ([e]) => setOnBench(e.boundingClientRect.top < window.innerHeight * 0.5),
+      { threshold: [0, 0.25, 0.5, 0.75, 1], rootMargin: "0px 0px -40% 0px" },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+  const jumpBar = useRef<HTMLDivElement>(null);
+  const jump = (el: HTMLElement | null) => {
+    if (!el) return;
+    // Land the section just under the bar where it will be pinned — its
+    // sticky top plus its own height — not where it happens to be now.
+    const bar = jumpBar.current;
+    const under = bar ? (parseFloat(getComputedStyle(bar).top) || 0) + bar.offsetHeight + 8 : 0;
+    const top = el.getBoundingClientRect().top + window.scrollY - under;
+    window.scrollTo({ top, behavior: "smooth" });
+  };
+
   return (
     <>
-      <main className="page">
+      <main className="page" data-desk="team">
+        {/* ------------------------------------------------- phone header -- */}
+        <DeskHeader hub={hub} crest={crest} readOnly={readOnly} picker={picker} onEdit={onEdit} />
+        <DeskScore
+          hub={hub}
+          mine={shownMine}
+          theirs={shownTheirs}
+          projected={projected}
+          starters={starters.map((s) => s.player)}
+          currentWeek={currentWeek}
+          onWeek={onWeek}
+          oppCrest={oppCrest}
+        />
+        <DeskTabs matchupId={hub.matchup?.id ?? null} />
+
         {/* --------------------------------------------------------- hero -- */}
-        <section className="th-hero">
+        <section className="th-hero d-only">
           <div className="th-hero__top">
             <div className="th-side">
               <Seal name={hub.team.name} src={crest} mine size={46} />
@@ -281,10 +326,11 @@ export function TeamDesk({
         {/* The reader's own desk only. The doors lead to *his* signings and
             claims, and the deadline matters to the man with a claim to file —
             not to somebody looking over another manager's roster. */}
-        {!readOnly && <RosterMoves settlesAt={settlesAt} />}
+        {!readOnly && <div className="d-only"><RosterMoves settlesAt={settlesAt} /></div>}
 
         {/* -------------------------------------------------- week picker -- */}
-        <div className="scroll" style={{ overflowX: "auto", overflowY: "hidden", paddingBottom: 2 }}>
+        {/* The phone picks its week from the score card's select. */}
+        <div className="scroll d-only" style={{ overflowX: "auto", overflowY: "hidden", paddingBottom: 2 }}>
           <div className="segmented" style={{ width: "max-content" }}>
             {Array.from({ length: 18 }, (_, i) => i + 1).map((w) => (
               <button key={w} className="segmented__opt num" data-on={w === hub.week}
@@ -316,8 +362,25 @@ export function TeamDesk({
         {/* --------------------------------------------------------- grid -- */}
         <div className="th-grid">
           <div className="th-col">
-            <section className="card lineup" data-accent="gold">
-              <div className="card__head">
+            {/* Starters / Bench, pinned under the top bar on a phone so either
+                half of the roster is one tap away from anywhere in the other. */}
+            <div className="mt-jump m-only" role="group" aria-label="Jump to" ref={jumpBar}>
+              <button type="button" data-on={!onBench} onClick={() => jump(startersRef.current)}>
+                Starters <span className="num">{starters.length - empties}/{starters.length}</span>
+              </button>
+              <button type="button" data-on={onBench} onClick={() => jump(benchRef.current)}>
+                Bench <span className="num">{bench.length}</span>
+              </button>
+              <button type="button" className="mt-jump__coach" data-gain={plan.gain > 0.05 || undefined}
+                onClick={() => setCoaching(true)} disabled={busy}>
+                <Wand2 size={13} aria-hidden />
+                Best lineup
+                {plan.gain > 0.05 && <span className="num">+{plan.gain.toFixed(1)}</span>}
+              </button>
+            </div>
+            {/* Named for a screen reader: on a phone its visible head is the bar above. */}
+            <section className="card lineup" data-accent="gold" ref={startersRef} aria-label="Starting lineup">
+              <div className="card__head d-only">
                 <h2>Starting lineup</h2>
                 <div style={{ display: "flex", alignItems: "center", gap: "var(--s3)", flexWrap: "wrap" }}>
                   <span className="eyebrow">
@@ -360,7 +423,7 @@ export function TeamDesk({
               </div>
             </section>
 
-            <section className="card lineup">
+            <section className="card lineup" ref={benchRef}>
               <div className="card__head">
                 <h2>Bench</h2>
                 <span className="eyebrow">
@@ -388,6 +451,9 @@ export function TeamDesk({
                 ))}
               </div>
             </section>
+
+            {/* The phone's roster tools sit under the roster they change. */}
+            {!readOnly && <div className="m-only"><RosterMoves settlesAt={settlesAt} /></div>}
           </div>
 
           <div className="th-col">
@@ -401,6 +467,16 @@ export function TeamDesk({
           </div>
         </div>
       </main>
+
+      {narrow && moving && (
+        <SwapSheet
+          player={moving}
+          options={swapOptions}
+          busy={busy}
+          onPick={(o) => onDrop({ slot: o.slot, player: o.player })}
+          onCancel={onCancelMove}
+        />
+      )}
 
       {coaching && (
         <Coach

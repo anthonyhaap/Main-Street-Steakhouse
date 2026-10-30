@@ -76,3 +76,54 @@ test("a poll already answered shows the split straight away", async ({ page }) =
   await expect(page.getByRole("button", { name: /^Yes, 6 of 9, your answer$/ })).toBeVisible();
   await expect(page.getByRole("button", { name: /^No, Sunday or nothing, 3 of 9$/ })).toBeVisible();
 });
+
+/**
+ * The room reads down, like every chat on a phone: the newest line at the
+ * bottom, right over the composer, and the page opens there. A line you send
+ * lands at the bottom and stays in view.
+ */
+test("the room opens on the newest line, over the composer", async ({ page }) => {
+  await page.goto("/preview/chat");
+  const rows = page.locator(".chat-log .row");
+  await expect(rows.last()).toContainText("that trade is a robbery and you all know it");
+  await expect(rows.last()).toBeInViewport();
+
+  const box = page.getByRole("textbox", { name: "Say something to the league" });
+  await box.fill("pay up, Bo");
+  await page.getByRole("button", { name: "Send message" }).click();
+  await expect(rows.last()).toContainText("pay up, Bo");
+  await expect(rows.last()).toBeInViewport();
+  await expect(box).toHaveValue("");
+
+  // The composer never covers the line it just sent — once the smooth
+  // scroll that brings it into view has finished.
+  await expect.poll(async () => {
+    const last = (await rows.last().boundingBox())!;
+    const composer = (await page.locator(".chat-compose").boundingBox())!;
+    return last.y + last.height - composer.y;
+  }).toBeLessThanOrEqual(1);
+});
+
+test("asking the room opens a sheet, not a form at the top of the page", async ({ page }) => {
+  await page.goto("/preview/chat");
+  await page.getByRole("button", { name: "Ask the room a question" }).click();
+  const sheet = page.getByRole("dialog", { name: "Ask the room" });
+  await expect(sheet.getByRole("textbox", { name: "Your question" })).toBeFocused();
+  await sheet.getByRole("button", { name: "Cancel" }).click();
+  await expect(sheet).toHaveCount(0);
+});
+
+/**
+ * On a phone, typing puts the tab bar away: it would otherwise ride the
+ * keyboard or hide behind it, and the composer sits on the keyboard instead.
+ */
+test("the tab bar steps aside for the keyboard", async ({ page }, info) => {
+  test.skip(info.project.name !== "mobile", "a phone's keyboard");
+  await page.goto("/preview/chat");
+  const bar = page.locator(".tabbar");
+  await expect(bar).toBeVisible();
+  await page.getByRole("textbox", { name: "Say something to the league" }).tap();
+  await expect(bar).toBeHidden();
+  await page.locator(".chat-log .row").first().tap();
+  await expect(bar).toBeVisible();
+});

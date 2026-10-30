@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useState } from "react";
-import { AtSign, BarChart3, Plus, Send, X } from "lucide-react";
 import { TopBar } from "@/components/Shell";
 import { SkeletonRows } from "@/components/ui";
 import { LEAGUE_ID } from "@/lib/config";
@@ -12,6 +11,7 @@ import { markSeen } from "@/lib/unread";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import type { ChatFeed, ChatItem } from "@/lib/types";
 import { Chat } from "@/components/chat/Chat";
+import { AskSheet, Composer } from "@/components/chat/Composer";
 
 /**
  * Chat.
@@ -170,128 +170,21 @@ export default function ChatPage() {
   return (
     <>
       <TopBar status={status} />
-      <main className="page">
-        <header style={{ marginBottom: "var(--s5)" }}>
-          <div className="eyebrow" data-tone="gold">Chat</div>
-          <h1 className="display" style={{ fontSize: "var(--t-title)", margin: "var(--s2) 0" }}>
-            The room.
-          </h1>
+      <main className="page chat-page">
+        <header className="chat-page__head">
+          <div>
+            <div className="eyebrow" data-tone="gold">Chat</div>
+            <h1 className="display">The room.</h1>
+          </div>
           <p className="prose">
             Say something, reply, @mention a manager, or ask the room a
             question. League news — trades, waivers, announcements — lives on
             the <Link href="/league-feed">League Feed</Link> instead.
           </p>
+          <Link href="/league-feed" className="btn m-only" data-size="sm" data-v="ghost">League Feed</Link>
         </header>
 
-        {replyTo && (
-          <div className="note" style={{ marginBottom: "var(--s2)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-            <span>Replying to {replyTo.author ?? "League manager"}: {replyTo.body.slice(0, 80)}</span>
-            <button type="button" className="btn" data-size="icon" aria-label="Cancel reply" onClick={() => setReplyTo(null)}>
-              <X size={14} />
-            </button>
-          </div>
-        )}
-
-        <form onSubmit={send} style={{ marginBottom: "var(--s2)" }}>
-          <div style={{ display: "flex", gap: "var(--s2)" }}>
-            <input
-              className="field"
-              maxLength={1000}
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              placeholder={replyTo ? "Write your reply…" : "Say something to the league…"}
-              aria-label="Say something to the league"
-            />
-            <button
-              type="button"
-              className="btn"
-              data-size="icon"
-              data-v={mentionPicker ? "primary" : undefined}
-              aria-label="Mention a manager"
-              title="Mention a manager"
-              onClick={() => setMentionPicker((v) => !v)}
-            >
-              <AtSign size={16} />
-            </button>
-            <button
-              className="btn"
-              data-v="primary"
-              data-size="icon"
-              disabled={busy || !body.trim()}
-              aria-label="Send message"
-            >
-              <Send size={16} />
-            </button>
-          </div>
-
-          {mentionPicker && (
-            <div className="card" style={{ marginTop: 8, padding: "var(--s3)" }}>
-              {teammates.length === 0 ? (
-                <span className="eyebrow" style={{ color: "var(--faint)" }}>No other managers yet.</span>
-              ) : teammates.map((t) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  className="segmented__opt"
-                  data-on={mentioned.some((m) => m.user_id === t.owner_id)}
-                  style={{ marginRight: 6, marginBottom: 6 }}
-                  onClick={() => toggleMention(t.owner_id as string, t.manager_name ?? t.name)}
-                >
-                  {t.manager_name ?? t.name}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {mentioned.length > 0 && (
-            <div className="eyebrow" style={{ marginTop: 6, color: "var(--faint)" }}>
-              Mentioning: {mentioned.map((m) => `@${m.name}`).join(" ")}
-            </div>
-          )}
-        </form>
-
-        {asking ? (
-          <form onSubmit={ask} className="card" style={{ marginBottom: "var(--s4)" }}>
-            <div className="card__head">
-              <h2>Ask the room</h2>
-              <button type="button" className="btn" data-size="icon" aria-label="Cancel"
-                onClick={() => setAsking(false)}>
-                <X size={15} />
-              </button>
-            </div>
-            <div className="card__body" style={{ display: "grid", gap: 8 }}>
-              <input className="field" maxLength={140} value={question} autoFocus
-                placeholder="Who wins the Chase trade?" aria-label="Your question"
-                onChange={(e) => setQuestion(e.target.value)} />
-              {options.map((o, i) => (
-                <input key={i} className="field" maxLength={80} value={o}
-                  placeholder={`Answer ${i + 1}`} aria-label={`Answer ${i + 1}`}
-                  onChange={(e) => setOptions(options.map((x, j) => (j === i ? e.target.value : x)))} />
-              ))}
-              <div style={{ display: "flex", gap: 8 }}>
-                {options.length < 6 && (
-                  <button type="button" className="btn" onClick={() => setOptions([...options, ""])}>
-                    <Plus size={14} /> Another answer
-                  </button>
-                )}
-                <button className="btn" data-v="primary" style={{ marginLeft: "auto" }}
-                  disabled={busy || !question.trim() || options.filter((o) => o.trim()).length < 2}>
-                  {busy ? "…" : "Ask"}
-                </button>
-              </div>
-              <span className="eyebrow" style={{ color: "var(--faint)" }}>
-                Nobody sees the split until they have answered, and no answer is
-                ever shown with a name on it.
-              </span>
-            </div>
-          </form>
-        ) : (
-          <button className="btn" style={{ marginBottom: "var(--s4)" }} onClick={() => setAsking(true)}>
-            <BarChart3 size={14} /> Ask the room a question
-          </button>
-        )}
-
-        {error && <div className="note" data-kind="error" style={{ marginBottom: "var(--s4)" }}>{error}</div>}
+        {error && <div className="note" data-kind="error">{error}</div>}
 
         {feedError ? (
           <div className="card">
@@ -302,6 +195,7 @@ export default function ChatPage() {
         ) : (
           <Chat
             items={items}
+            order="oldest-first"
             hasMore={hasMore}
             loadingMore={loadingMore}
             onMore={() => void loadMore()}
@@ -312,7 +206,34 @@ export default function ChatPage() {
             onReply={(item) => setReplyTo(item)}
           />
         )}
+
+        <Composer
+          body={body}
+          onBody={setBody}
+          busy={busy}
+          replyTo={replyTo}
+          onCancelReply={() => setReplyTo(null)}
+          mentionPicker={mentionPicker}
+          onMentionPicker={setMentionPicker}
+          teammates={teammates.map((t) => ({ id: t.id, user_id: t.owner_id as string, name: t.manager_name ?? t.name }))}
+          mentioned={mentioned}
+          onToggleMention={toggleMention}
+          onSubmit={send}
+          onAsk={() => setAsking(true)}
+        />
       </main>
+
+      {asking && (
+        <AskSheet
+          question={question}
+          onQuestion={setQuestion}
+          options={options}
+          onOptions={setOptions}
+          busy={busy}
+          onSubmit={ask}
+          onClose={() => setAsking(false)}
+        />
+      )}
     </>
   );
 }

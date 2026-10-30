@@ -14,6 +14,7 @@
 
 import { useState } from "react";
 import { TopBar } from "@/components/Shell";
+import { ChallengeBoard } from "@/components/challenges/Board";
 import { ChallengeCard, useTargetChallenge, type ChallengeActions } from "@/components/challenges/ChallengeCard";
 import type { SpreadGame } from "@/lib/spread";
 import type { Challenge, LeagueProfile } from "@/lib/types";
@@ -119,8 +120,11 @@ export default function PreviewChallenges() {
           {log.length > 0 && <div className="card__body"><span className="eyebrow" data-testid="log">{log[0]}</span></div>}
         </div>
 
-        <div className="grid-auto">
-          {CHALLENGES.map((item) => (
+        <ChallengeBoard
+          items={CHALLENGES}
+          userId={ME}
+          isCommissioner={commish}
+          card={(item) => (
             <ChallengeCard
               key={item.id} item={item} userId={ME} busy={false} isCommissioner={commish} profiles={PROFILES}
               nameOf={(id) => (id ? NAMES[id] ?? "Somebody" : "Somebody")}
@@ -128,8 +132,8 @@ export default function PreviewChallenges() {
               gameOf={(id) => GAMES.find((g) => g.id === id) ?? null}
               target={target === item.id} actions={actions}
             />
-          ))}
-        </div>
+          )}
+        />
       </main>
     </>
   );

@@ -178,10 +178,16 @@ test("the phone gets a manifest and a launch screen", async ({ request }) => {
   expect(bad.status()).toBe(404);
 });
 
-test("the Commissioner's statement is posted under the card", async ({ page }) => {
+test("the Commissioner's statement is posted on the front page", async ({ page }) => {
   await page.goto("/preview/tonight");
   const memo = page.getByRole("article", { name: /Official statement from the Commissioner/ });
   await expect(memo).toBeVisible();
+  // A phone shows the opening and folds the rest behind one tap.
+  const more = memo.getByRole("button", { name: "Read the full statement" });
+  if (await more.isVisible()) {
+    await expect(memo.getByText("We do not negotiate with terrorists.")).toBeHidden();
+    await more.click();
+  }
   await expect(memo.getByText("We do not negotiate with terrorists.")).toBeVisible();
   await expect(memo.getByText("Unless additional screenshots emerge.")).toBeVisible();
   // It reads on a phone without pushing the page sideways.

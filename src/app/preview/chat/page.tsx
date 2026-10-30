@@ -2,11 +2,16 @@
 
 /**
  * Fixture harness for Chat. Reads no database.
+ *
+ * Laid out the way /chat is — the room reading down, the composer at its foot —
+ * and the composer works: a line sent here is appended locally as yours, so
+ * the scroll-to-latest and the keyboard can be tried without a session.
  */
 
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { TopBar } from "@/components/Shell";
 import { Chat } from "@/components/chat/Chat";
+import { AskSheet, Composer } from "@/components/chat/Composer";
 import type { ChatItem, Poll, Reaction } from "@/lib/types";
 
 const NOW = new Date();
@@ -56,6 +61,30 @@ const ITEMS: ChatItem[] = [
 export default function PreviewChat() {
   const [empty, setEmpty] = useState(false);
   const [items, setItems] = useState<ChatItem[]>(ITEMS);
+  const [body, setBody] = useState("");
+  const [replyTo, setReplyTo] = useState<ChatItem | null>(null);
+  const [picker, setPicker] = useState(false);
+  const [mentioned, setMentioned] = useState<{ user_id: string; name: string }[]>([]);
+  const [asking, setAsking] = useState(false);
+  const [question, setQuestion] = useState("");
+  const [options, setOptions] = useState(["", ""]);
+
+  function send(e: FormEvent) {
+    e.preventDefault();
+    const value = body.trim();
+    if (!value) return;
+    const item: ChatItem = {
+      id: `local-${Date.now()}`, at: new Date().toISOString(), source: "message", kind: "manager", body: value,
+      detail: null, author: "You", author_team_id: "t1", mine: true, source_type: null, source_id: null,
+      matchup: null, reactions: [], poll: null, mentions: mentioned.map((m) => ({ user_id: m.user_id, author: m.name })),
+      parent: replyTo ? { id: replyTo.id, author: replyTo.author ?? "", body: replyTo.body } : null,
+    };
+    setItems((list) => [item, ...list]);
+    setBody("");
+    setReplyTo(null);
+    setMentioned([]);
+    setPicker(false);
+  }
 
   function vote(target: ChatItem, optionId: string) {
     setItems((list) => list.map((f) => {
@@ -91,7 +120,7 @@ export default function PreviewChat() {
   return (
     <>
       <TopBar />
-      <main className="page">
+      <main className="page chat-page">
         <div className="card">
           <div className="card__head">
             <h2>Preview: Chat</h2>
@@ -111,9 +140,30 @@ export default function PreviewChat() {
           onReact={react}
           voting={null}
           onVote={vote}
-          onReply={() => {}}
+          onReply={(item) => setReplyTo(item)}
+          order="oldest-first"
+        />
+
+        <Composer
+          body={body}
+          onBody={setBody}
+          busy={false}
+          replyTo={replyTo}
+          onCancelReply={() => setReplyTo(null)}
+          mentionPicker={picker}
+          onMentionPicker={setPicker}
+          teammates={[{ id: "t2", user_id: "u2", name: "Bo" }, { id: "t3", user_id: "u3", name: "Dave" }]}
+          mentioned={mentioned}
+          onToggleMention={(user_id, name) => setMentioned((cur) => cur.some((m) => m.user_id === user_id)
+            ? cur.filter((m) => m.user_id !== user_id) : [...cur, { user_id, name }])}
+          onSubmit={send}
+          onAsk={() => setAsking(true)}
         />
       </main>
+      {asking && (
+        <AskSheet question={question} onQuestion={setQuestion} options={options} onOptions={setOptions}
+          busy={false} onSubmit={(e) => { e.preventDefault(); setAsking(false); }} onClose={() => setAsking(false)} />
+      )}
     </>
   );
 }

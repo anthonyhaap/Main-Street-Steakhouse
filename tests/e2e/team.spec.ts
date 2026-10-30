@@ -96,7 +96,7 @@ test("another manager's desk can be read and not touched", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "What changed for you" })).toBeVisible();
 
   await page.goto("/preview/team?as=visitor");
-  await expect(page.getByText("Viewing")).toBeVisible();
+  await expect(page.getByText("Viewing").filter({ visible: true })).toBeVisible();
 
   // The roster is all there to read, and none of it can be picked up.
   await expect(page.locator(".lineup").first()).toContainText("Patrick Mahomes");
@@ -148,7 +148,7 @@ test("the desk says when waivers settle and opens onto the pool", async ({ page 
     .toHaveAttribute("href", "/transactions?tab=trades");
 
   await page.goto("/preview/team?as=visitor");
-  await expect(page.getByText("Viewing")).toBeVisible();
+  await expect(page.getByText("Viewing").filter({ visible: true })).toBeVisible();
   await expect(page.getByRole("region", { name: "Roster moves" })).toHaveCount(0);
 });
 
@@ -311,10 +311,11 @@ test("the waiver order opens the teams ahead of you", async ({ page }) => {
 
 /**
  * Swapping is one button and one pick. Pressing Swap on a row opens the men
- * who could take his place right underneath it — only the legal ones — and
- * pressing one makes the swap.
+ * who could take his place — under the row on a wide screen, in a bottom sheet
+ * on a phone — only the legal ones, and pressing one makes the swap.
  */
-test("swap opens the eligible replacements under the row", async ({ page }) => {
+test("swap opens the eligible replacements", async ({ page }, info) => {
+  const phone = info.project.name === "mobile";
   await page.goto("/preview/team");
 
   await page.getByRole("button", { name: "Swap Patrick Mahomes" }).click();
@@ -325,8 +326,15 @@ test("swap opens the eligible replacements under the row", async ({ page }) => {
   await expect(options.getByRole("button", { name: /Move to bench/ })).toBeVisible();
   await expect(options).not.toContainText("Jahmyr Gibbs");
 
-  // Pressing Swap again closes it.
-  await page.getByRole("button", { name: "Swap Patrick Mahomes" }).click();
+  if (phone) {
+    // The sheet is a dialog over the page, and closes the way one does.
+    const sheet = page.getByRole("dialog", { name: "Swap Patrick Mahomes" });
+    await expect(sheet).toBeVisible();
+    await sheet.getByRole("button", { name: "Close" }).click();
+  } else {
+    // Pressing Swap again closes it.
+    await page.getByRole("button", { name: "Swap Patrick Mahomes" }).click();
+  }
   await expect(options).toHaveCount(0);
 
   await page.getByRole("button", { name: "Swap Patrick Mahomes" }).click();
@@ -342,12 +350,17 @@ test("swap opens the eligible replacements under the row", async ({ page }) => {
  * says so — on the reader's own desk, where it can be set, and not on a desk
  * he is only visiting.
  */
-test("a week ahead says it is a plan", async ({ page }) => {
+test("a week ahead says it is a plan", async ({ page }, info) => {
+  // A wide desk has a strip of week buttons; a phone picks the week from the
+  // select on its score card.
+  const pick = async (w: number) => info.project.name === "mobile"
+    ? page.getByRole("combobox", { name: "Week" }).selectOption(String(w))
+    : page.getByRole("button", { name: String(w), exact: true }).click();
   await page.goto("/preview/team");
   const note = page.getByRole("status").filter({ hasText: /Planning week/ });
   await expect(note).toHaveCount(0);
 
-  await page.getByRole("button", { name: "3", exact: true }).click();
+  await pick(3);
   await expect(note).toContainText("Planning week 3");
   await expect(note).toContainText("this week's lineup is untouched");
   await expect(page.getByRole("button", { name: /^Swap / }).first()).toBeEnabled();
@@ -356,6 +369,101 @@ test("a week ahead says it is a plan", async ({ page }) => {
   await expect(note).toHaveCount(0);
 
   await page.goto("/preview/team?as=visitor");
-  await page.getByRole("button", { name: "3", exact: true }).click();
+  await pick(3);
   await expect(page.getByText(/Planning week/)).toHaveCount(0);
+});
+
+/**
+ * On a phone the lineup is the first screen, not the fifth.
+ *
+ * The wide hero laid both teams and six stats out before the first player, and
+ * on a phone that pushed the lineup under the tab bar. The phone's header is
+ * the team, one score card and the section strip — and then the starters, with
+ * several of them in view before the thumb moves at all, at every width the
+ * app supports.
+ */
+test("the starting lineup is on a phone's first screen", async ({ page }, info) => {
+  test.skip(info.project.name !== "mobile", "the phone layout");
+  for (const width of [320, 375, 390, 430]) {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto("/preview/team");
+    const head = page.locator(".mt-head");
+    await expect(head).toContainText("Gridiron Butchers");
+    await expect(head).toContainText("4–2 · 3rd of 12");
+    // The wide hero is not drawn at all on a phone.
+    await expect(page.locator(".th-hero")).toBeHidden();
+
+    // The fixture's banner is not part of the real page; measure without it.
+    await page.getByText("Fixture.", { exact: true }).locator("..").evaluate((e) => e.remove());
+    const tabbar = (await page.locator(".tabbar").boundingBox())!;
+    const rows = await page.locator(".lineup").first().locator(".plr").evaluateAll((els) =>
+      els.map((e) => e.getBoundingClientRect().bottom));
+    const whole = rows.filter((b) => b <= tabbar.y).length;
+    expect(whole, `${width}px: rows above the tab bar`).toBeGreaterThanOrEqual(5);
+
+    // Nothing runs off the side of the glass — including with type set a
+    // little wider than this machine's, which is how a CI runner's fonts
+    // once pushed the Starters / Bench bar five pixels past 375.
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    await page.addStyleTag({ content: "* { letter-spacing: 0.03em !important; }" });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+  }
+});
+
+test("the score card opens the matchup and the bench is one tap away", async ({ page }, info) => {
+  test.skip(info.project.name !== "mobile", "the phone layout");
+  await page.goto("/preview/team");
+
+  await expect(page.getByRole("link", { name: /Open the matchup against Dry Aged Dynasty/ }))
+    .toHaveAttribute("href", /^\/matchups\//);
+  const tabs = page.getByRole("navigation", { name: "Team sections" });
+  await expect(tabs.getByText("My Team")).toHaveAttribute("aria-current", "page");
+  await expect(tabs.getByRole("link", { name: "Players" })).toHaveAttribute("href", "/transactions?tab=players");
+
+  const jump = page.getByRole("group", { name: "Jump to" });
+  await jump.getByRole("button", { name: /^Bench/ }).click();
+  const bench = page.locator(".lineup").nth(1);
+  await expect(bench).toBeInViewport();
+  await expect(jump.getByRole("button", { name: /^Bench/ })).toHaveAttribute("data-on", "true");
+  // The bar stays pinned under the top bar on the way down.
+  const bar = (await jump.boundingBox())!;
+  expect(bar.y).toBeLessThan(80);
+});
+
+/**
+ * A locked player still opens, and the answer is the reason. A greyed button
+ * on a man whose game has started reads as a broken screen; the swap says his
+ * game has started and that everybody else can still move. And a locked man
+ * is never offered as somebody else's replacement.
+ */
+test("a locked player says why he cannot move", async ({ page }) => {
+  await page.goto("/preview/team?state=live");
+
+  await page.getByRole("button", { name: "Swap Patrick Mahomes" }).click();
+  const options = page.getByRole("region", { name: "Swap options for Patrick Mahomes" });
+  await expect(options).toContainText("game has started");
+  await expect(options.locator(".swap__opt")).toHaveCount(0);
+
+  // Jonathan Taylor's game is over, so he is listed for a running back and
+  // cannot be picked.
+  await page.goto("/preview/team?state=live");
+  await page.getByRole("button", { name: "Swap Jahmyr Gibbs" }).click();
+  const rb = page.getByRole("region", { name: "Swap options for Jahmyr Gibbs" });
+  await expect(rb.getByRole("button", { name: /Jonathan Taylor/ })).toBeDisabled();
+  await expect(rb.getByRole("button", { name: /Christian McCaffrey/ })).toBeEnabled();
+});
+
+/**
+ * The phone header's chevron is the league's other desks: the page's own
+ * select, laid over a thumb-sized target so the phone's native picker opens.
+ */
+test("the phone header switches teams from a thumb-sized target", async ({ page }, info) => {
+  test.skip(info.project.name !== "mobile", "the phone layout");
+  await page.goto("/preview/team");
+  const pick = page.locator(".mt-head").getByRole("combobox", { name: "Look at a team" });
+  await expect(pick).toBeVisible();
+  const box = (await pick.boundingBox())!;
+  expect(box.width).toBeGreaterThanOrEqual(44);
+  expect(box.height).toBeGreaterThanOrEqual(44);
+  await expect(pick.locator("option")).toHaveCount(3);
 });
