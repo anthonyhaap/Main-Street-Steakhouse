@@ -172,9 +172,11 @@ test("Watch NFL RedZone links out and embeds nothing", async ({ page }) => {
 test("the game center is reachable from any screen", async ({ page }, info) => {
   await page.goto("/preview/tonight");
   if (info.project.name === "mobile") {
-    // A phone: Home, the game center, My Team and League — every day.
+    // A phone: Home (the crest), the game center, My Team and League — every day.
     const bar = page.locator(".tabbar");
-    await expect(bar.locator(".tabbar__item")).toHaveText(["Home", "Game Center", "My Team", "League"]);
+    await expect(bar.locator(".tabbar__item")).toHaveText(["", "Game Center", "My Team", "League"]);
+    await expect(bar.getByRole("link", { name: "Home" })).toHaveAttribute("href", "/");
+    await expect(bar.getByRole("link", { name: "Home" }).locator(".mark__seal")).toBeVisible();
     const mine = bar.getByRole("link", { name: /My Team/ });
     await expect(mine).toHaveAttribute("href", "/team");
     await expect(bar.getByRole("link", { name: /Game Center/ })).toHaveAttribute("href", "/sunday");
@@ -192,10 +194,11 @@ test("the game center is reachable from any screen", async ({ page }, info) => {
     // A tab is never repeated in the sheet.
     await expect(sheet.getByRole("link", { name: "Game Center" })).toHaveCount(0);
     await expect(sheet.getByRole("link", { name: "My Team" })).toHaveCount(0);
+    // Sign-out lives here now: the phone has no top bar to carry it.
+    await expect(sheet.getByRole("button", { name: "Sign out" })).toBeVisible();
+    await expect(page.locator(".topbar")).toBeHidden();
     await bar.getByRole("button", { name: "League" }).click();
     await expect(page.getByRole("dialog")).toHaveCount(0);
-    await page.getByRole("button", { name: "Menu" }).click();
-    await expect(page.getByRole("dialog").getByRole("link", { name: "Standings" })).toBeVisible();
   } else {
     // A laptop: the nav has no room for it, so it is in the League menu.
     await page.getByRole("button", { name: "League" }).click();
@@ -215,7 +218,7 @@ test("while football is on, the game center wears the red dot and My Team keeps 
   await expect(gc.getByLabel("NFL games live now")).toBeVisible();
   // The lineup is not traded away for the game center any more.
   await expect(bar.getByRole("link", { name: /My Team/ })).toHaveAttribute("href", "/team");
-  await expect(bar.locator(".tabbar__item")).toHaveText(["Home", "Game Center", "My Team", "League"]);
+  await expect(bar.locator(".tabbar__item")).toHaveText(["", "Game Center", "My Team", "League"]);
   // Every label fits on the narrowest phone the app supports.
   await page.setViewportSize({ width: 320, height: 640 });
   const clipped = await bar.locator(".tabbar__item > span").evaluateAll((els) =>

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useRouter } from "next/navigation";
-import { ArrowLeftRight, BarChart3, ChevronDown, CircleDollarSign, Crown, Home, Landmark, LogOut, Megaphone, Menu, MessageCircle, Newspaper, Radio, Shield, Smartphone, Swords, Target, UtensilsCrossed, X } from "lucide-react";
+import { ArrowLeftRight, BarChart3, ChevronDown, CircleDollarSign, Crown, Home, Landmark, LogOut, Megaphone, MessageCircle, Newspaper, Radio, Shield, Smartphone, Swords, Target, UtensilsCrossed, X } from "lucide-react";
 import { useStandalone } from "@/lib/install";
 import { useCrests, useSession } from "@/lib/session";
 import { supabaseBrowser } from "@/lib/supabase/client";
@@ -104,9 +104,13 @@ const LEAGUE_PAGES: NavItem[] = [
  * a late scratch made it urgent. Its red dot still says when games are live.
  *
  * Matchups and Chat left the bar for the League sheet (the button at the
- * end, and the menu in the top bar), beside League Home, Standings and every
- * other room. Chat's unread count rides on the League tab, so a new line in
- * the room still shows from anywhere. The desktop nav, which has the width,
+ * end), beside League Home, Standings and every other room. Chat's unread
+ * count rides on the League tab, so a new line in the room still shows from
+ * anywhere. Home is drawn as the club's crest rather than a house.
+ *
+ * Wherever this bar shows, the top bar does not (see globals.css): the crest,
+ * your team and the menu it carried are all down here already, and sign-out
+ * is at the foot of the League sheet. The desktop nav, which has the width,
  * keeps every destination where it was.
  */
 const GAME_CENTER: NavItem = { href: "/sunday", label: "Game Center", Icon: Radio, live: true };
@@ -252,6 +256,20 @@ function LeagueMenu({ path, counts }: { path: string; counts?: { chat: number; l
   );
 }
 
+/**
+ * Sign out. A full document load, deliberately, and not router.push(): this
+ * is the one navigation in the app whose job is to destroy state — the
+ * session context, every cached league read, and whatever the last screen
+ * still holds about eleven other managers. A client navigation keeps all of it
+ * alive in memory on a shared laptop, which is the exact thing signing out is
+ * for.
+ */
+async function signOut() {
+  await supabaseBrowser().auth.signOut();
+  // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+  window.location.href = "/login";
+}
+
 export function TopBar({ status }: { status?: WireStatus }) {
   const path = usePathname();
   const router = useRouter();
@@ -331,37 +349,13 @@ export function TopBar({ status }: { status?: WireStatus }) {
               </span>
             </Link>
           )}
-          {/* The phone's door to every room, beside the account controls. The
-              tab bar's League button opens the same sheet; this one is for the
-              reader whose hand is already at the top of the screen. */}
-          <button
-            type="button"
-            className="btn topbar__menu"
-            data-v="ghost"
-            data-size="icon"
-            aria-label="Menu"
-            aria-expanded={more}
-            onClick={() => setMore((v) => !v)}
-          >
-            <Menu size={18} />
-          </button>
           <button
             className="btn"
             data-v="ghost"
             data-size="icon"
             title="Sign out"
             aria-label="Sign out"
-            onClick={async () => {
-              await supabaseBrowser().auth.signOut();
-              // A full document load, deliberately, and not router.push(). This
-              // is the one navigation in the app whose job is to destroy state:
-              // the session context, every cached league read, and whatever the
-              // last screen still holds about eleven other managers. A client
-              // navigation keeps all of it alive in memory on a shared laptop,
-              // which is the exact thing signing out is for.
-              // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-              window.location.href = "/login";
-            }}
+            onClick={() => void signOut()}
           >
             <LogOut size={15} />
           </button>
@@ -375,12 +369,17 @@ export function TopBar({ status }: { status?: WireStatus }) {
             href={href}
             className="tabbar__item"
             data-on={isOn(path, href)}
+            data-home={href === "/" || undefined}
+            aria-label={href === "/" ? "Home" : undefined}
             onClick={close}
             // The next screen starts loading on the touch, not the tap.
             onTouchStart={() => router.prefetch(href)}
           >
-            <Icon strokeWidth={1.75} />
-            <span>{label}</span>
+            {/* Home is the club's own crest, the way the top bar's was. */}
+            {href === "/" ? <Crest size={30} /> : <>
+              <Icon strokeWidth={1.75} />
+              <span>{label}</span>
+            </>}
             {live && nflLive && <i className="nav__live nav__live--tab" aria-label="NFL games live now" />}
             {badge && (counts?.[badge] ?? 0) > 0 && (
               <span className="tabbar__badge" aria-label={`${counts![badge]} unread`}>{counts![badge] > 99 ? "99+" : counts![badge]}</span>
@@ -451,6 +450,12 @@ export function TopBar({ status }: { status?: WireStatus }) {
                 </Link>
               )}
             </div>
+            {/* Where the top bar's sign-out went: the phone has no top bar. */}
+            <div className="sheet__foot">
+              <button type="button" className="btn" data-v="ghost" onClick={() => void signOut()}>
+                <LogOut size={15} /> Sign out
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -513,8 +518,14 @@ export function TopBar({ status }: { status?: WireStatus }) {
           background: var(--wine); color: #fff;
           font: 700 9px/16px var(--sans); text-align: center;
         }
-        .topbar__menu { display: none; }
-        @media (max-width: 1180px) { .topbar__menu { display: inline-grid; } }
+        .sheet__foot {
+          display: flex; justify-content: center;
+          padding: var(--s2) var(--s5) var(--s4);
+          border-top: 1px solid var(--rule-soft);
+        }
+        .sheet__foot .btn { color: var(--muted); }
+        .tabbar__item[data-home] .mark__seal { width: 30px; height: 30px; transition: transform .18s var(--ease); }
+        .tabbar__item[data-home]:not([data-on="true"]) .mark__seal { opacity: .85; }
         .topbar__team[data-on="true"] .seal { outline: 2px solid var(--gold-lit); outline-offset: 2px; border-radius: 50%; }
 
         .nav__live--tab { position: absolute; top: 10px; left: calc(50% + 10px); margin: 0; }
