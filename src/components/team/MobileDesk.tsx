@@ -104,8 +104,11 @@ export function DeskScore({
   const live = starters.some((p) => p && inProgress(p));
   const started = starters.some((p) => p && (inProgress(p) || finished(p)));
   const left = yetToPlay(starters);
+  // Only this side's starters are in hand, so "done" is about them: the
+  // opponent may still have a man in a later game, and the card never calls
+  // the matchup final on half the evidence.
   const done = started && left === 0;
-  const state = live ? "live" : done ? "final" : started ? "between" : "pre";
+  const state = live ? "live" : done ? "done" : started ? "between" : "pre";
   const total = mine + theirs;
   const share = total > 0 ? (mine / total) * 100 : 50;
 
@@ -116,7 +119,7 @@ export function DeskScore({
             picker's job, and it costs one line instead of a scrolling strip. */}
         <label className="mt-score__week" data-state={state}>
           {state === "live" && <i className="mt-score__dot" aria-hidden />}
-          <span>Week {hub.week}{state === "live" ? " · Live" : state === "final" ? " · Final" : ""}</span>
+          <span>Week {hub.week}{state === "live" ? " · Live" : ""}</span>
           <ChevronDown size={12} aria-hidden />
           <select
             aria-label="Week"
@@ -168,7 +171,7 @@ export function DeskScore({
             ? <><b className="num">{left}</b> {left === 1 ? "starter" : "starters"} yet to play</>
             : left > 0
               ? <><b className="num">{left}</b> {left === 1 ? "starter" : "starters"} yet to finish</>
-              : "All starters done"}
+              : "Your starters are done"}
         </span>
         {m && (
           <span>{m.home ? "Home" : "Away"}{m.opponent.record

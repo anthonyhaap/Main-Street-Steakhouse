@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ChevronDown } from "lucide-react";
 import type { Challenge } from "@/lib/types";
 
@@ -43,9 +43,32 @@ export function ChallengeBoard({ items, userId, isCommissioner, card }: {
   card: (item: Challenge) => ReactNode;
 }) {
   const [showDone, setShowDone] = useState(false);
+  const done = items.filter((c) => DONE.has(c.status));
+
+  // A push for a settled, declined or voided bet lands on `/challenges#<id>`.
+  // If that card is in the folded pile, open the pile and bring it into view:
+  // `useTargetChallenge` scrolls on its own clock, and a card that is not
+  // drawn has nowhere to scroll to.
+  const pending = useRef<string | null>(null);
+  useEffect(() => {
+    const id = window.location.hash.replace(/^#/, "");
+    if (!id || !done.some((c) => c.id === id)) return;
+    pending.current = id;
+    // After paint, the same clock `useTargetChallenge` keeps.
+    const t = window.setTimeout(() => setShowDone(true), 0);
+    return () => window.clearTimeout(t);
+  // Once, on arrival: the hash is the question, not the list's later changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  // Scroll once the opened pile has been drawn, not before.
+  useEffect(() => {
+    if (!showDone || !pending.current) return;
+    document.getElementById(`challenge-${pending.current}`)?.scrollIntoView({ block: "center", behavior: "smooth" });
+    pending.current = null;
+  }, [showDone]);
+
   const yours = items.filter((c) => !DONE.has(c.status) && waitingOn(c, userId, isCommissioner));
   const live = items.filter((c) => !DONE.has(c.status) && !waitingOn(c, userId, isCommissioner));
-  const done = items.filter((c) => DONE.has(c.status));
 
   return (
     <div className="bets">

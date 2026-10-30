@@ -173,3 +173,10 @@ test("the bets waiting on you come first", async ({ page }, info) => {
     await expect(settled.locator("#challenge-c5")).toBeVisible();
   }
 });
+
+/** A push for a settled bet still lands on its card, folded pile or not. */
+test("a link to a settled bet opens the settled pile", async ({ page }) => {
+  await page.goto("/preview/challenges#c5");
+  await expect(page.locator("#challenge-c5")).toBeVisible();
+  await expect(page.locator("#challenge-c5")).toBeInViewport();
+});
