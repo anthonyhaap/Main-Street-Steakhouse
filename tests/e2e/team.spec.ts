@@ -401,7 +401,11 @@ test("the starting lineup is on a phone's first screen", async ({ page }, info) 
     const whole = rows.filter((b) => b <= tabbar.y).length;
     expect(whole, `${width}px: rows above the tab bar`).toBeGreaterThanOrEqual(5);
 
-    // Nothing runs off the side of the glass.
+    // Nothing runs off the side of the glass — including with type set a
+    // little wider than this machine's, which is how a CI runner's fonts
+    // once pushed the Starters / Bench bar five pixels past 375.
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    await page.addStyleTag({ content: "* { letter-spacing: 0.03em !important; }" });
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
   }
 });

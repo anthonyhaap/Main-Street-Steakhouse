@@ -5686,7 +5686,12 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
 }
 .mt-jump button span { color: var(--dim); font-size: var(--t-micro); }
 .mt-jump button { white-space: nowrap; flex-shrink: 0; }
-.mt-jump button.mt-jump__coach { flex-shrink: 1; min-width: 0; overflow: hidden; }
+.mt-jump button.mt-jump__coach { flex-shrink: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* The same floor .page gives its children, one level in: a grid item's
+   minimum is its content, so the pinned bar would otherwise size the column
+   to its own nowrap labels — five pixels past a 375px phone on a runner whose
+   fonts set a hair wider — instead of letting the coach button give way. */
+.th-col > * { min-width: 0; }
 /* At 320 the three do not fit with their counts; the counts go first. */
 @media (max-width: 360px) {
   .mt-jump { gap: 6px; }
