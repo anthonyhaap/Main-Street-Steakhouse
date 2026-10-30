@@ -22,7 +22,6 @@ import { MatchupPager, useSwipe } from "@/components/matchup/MatchupPager";
 import { TalkThread } from "@/components/matchup/Talk";
 import { board, NOW, THREAD, STAGES, type Stage } from "@/lib/fixtures/sunday";
 import { cardLine } from "@/lib/scoreboard";
-import { MatchupMoment } from "@/components/matchup/Moment";
 
 export default function MatchupPreviewPage() {
   const [stage, setStage] = useState<Stage>("late");
@@ -68,7 +67,6 @@ export default function MatchupPreviewPage() {
         <p className="prose" style={{ marginBlock: 0, fontSize: "var(--t-small)" }}>{note}</p>
 
         <MatchupHead key={card.id} c={card} now={NOW} />
-        <MatchupMoment card={card} events={[]} now={NOW} />
         <p className="mv__line">{cardLine(card, b.my_team_id)}</p>
 
         <VsLineups away={card.away} home={card.home} now={NOW} bench head={null} />

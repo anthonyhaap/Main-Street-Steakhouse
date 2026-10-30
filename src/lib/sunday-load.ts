@@ -76,28 +76,16 @@ type EventRow = {
 };
 
 /**
- * One week's events straight off `sunday_events`, for a screen that reads
- * `ff_scoreboard` rather than `ff_sunday` — the single matchup. Members may
- * read the table; the player's name is in the headline, so nothing is joined.
- * A database without the table, or any failure, is an empty story rather than
- * a broken page.
+ * Rows straight off `sunday_events`, for a screen that does not read
+ * `ff_sunday`. Members may read the table; the player's name is in the
+ * headline, so nothing is joined. A database without the table, or any
+ * failure, is an empty story rather than a broken page.
  */
 const EVENT_COLUMNS = "id, event_type, level, priority, matchup_id, team_id, opponent_team_id, player_id, nfl_game_id, points_added, old_score, new_score, opp_old_score, opp_new_score, lead_change, headline, description, detail, created_at";
 
 const toEvent = ({ event_type, detail, ...r }: EventRow): SundayEvent => ({
   ...r, type: event_type, detail: detail ?? {}, player_name: null, espn_id: null,
 });
-
-export async function loadWeekEvents(sb: SupabaseClient, season: number, week: number): Promise<SundayEvent[]> {
-  const { data, error } = await sb
-    .from("sunday_events")
-    .select(EVENT_COLUMNS)
-    .eq("league_id", LEAGUE_ID).eq("season", season).eq("week", week)
-    .order("created_at", { ascending: false })
-    .limit(300);
-  if (error || !data) return [];
-  return (data as EventRow[]).map(toEvent);
-}
 
 /**
  * The part of a finished week the recap tells (`weekStory`): its finals, every

@@ -155,12 +155,16 @@ test("the front page reacts to the day", async ({ page }) => {
   await expect(live.getByRole("link", { name: /Open Game Center/ })).toHaveAttribute("href", "/sunday");
 });
 
-test("the matchup page has its moment", async ({ page }) => {
+/**
+ * The matchup page goes from the score straight to the lineups: the boxed
+ * moment and the game's event list repeated what the score and the line under
+ * it already said, and cost a screen on a phone.
+ */
+test("the matchup page has no boxes between the score and the lineups", async ({ page }) => {
   await page.goto("/preview/matchup");
   await click(page, "Monday night");
-  const m = page.locator(".mmoment");
-  await expect(m).toContainText("Needs 5.9");
-  await expect(m).toContainText("Jonathan Taylor — IND");
+  await expect(page.locator(".mmoment, .mstory")).toHaveCount(0);
+  await expect(page.locator(".mv__line")).toBeVisible();
 });
 
 for (const width of [375, 390, 430, 820, 1280]) {
