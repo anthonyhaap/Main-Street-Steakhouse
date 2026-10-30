@@ -172,21 +172,26 @@ test("Watch NFL RedZone links out and embeds nothing", async ({ page }) => {
 test("the game center is reachable from any screen", async ({ page }, info) => {
   await page.goto("/preview/tonight");
   if (info.project.name === "mobile") {
-    // A phone with no game on: My Team holds the tab, beside Matchup and Chat.
+    // A phone: Home, the game center, My Team and League — every day.
     const bar = page.locator(".tabbar");
+    await expect(bar.locator(".tabbar__item")).toHaveText(["Home", "Game Center", "My Team", "League"]);
     const mine = bar.getByRole("link", { name: /My Team/ });
-    await expect(mine).toBeVisible();
     await expect(mine).toHaveAttribute("href", "/team");
-    await expect(bar.getByRole("link", { name: /Matchup/ })).toHaveAttribute("href", "/matchups");
-    await expect(bar.getByRole("link", { name: /Chat/ })).toHaveAttribute("href", "/chat");
-    await expect(bar.getByRole("link", { name: /Game Center/ })).toHaveCount(0);
+    await expect(bar.getByRole("link", { name: /Game Center/ })).toHaveAttribute("href", "/sunday");
     expect((await mine.boundingBox())!.height).toBeGreaterThanOrEqual(44);
-    // Nothing that left the bar is lost: the League sheet has Game Center and
-    // Standings, and the top bar's menu opens the same sheet.
+    // Matchups and Chat left the bar for the League sheet, with Standings;
+    // the top bar's menu opens the same sheet.
+    await expect(bar.getByRole("link", { name: /Matchup/ })).toHaveCount(0);
+    await expect(bar.getByRole("link", { name: /Chat/ })).toHaveCount(0);
     await bar.getByRole("button", { name: "League" }).click();
-    await expect(page.getByRole("dialog").getByRole("link", { name: "Game Center" })).toHaveAttribute("href", "/sunday");
-    await expect(page.getByRole("dialog").getByRole("link", { name: "Standings" })).toHaveAttribute("href", "/standings");
-    await expect(page.getByRole("dialog").getByRole("link", { name: "League Home" })).toHaveAttribute("href", "/league");
+    const sheet = page.getByRole("dialog");
+    await expect(sheet.getByRole("link", { name: "Matchups" })).toHaveAttribute("href", "/matchups");
+    await expect(sheet.getByRole("link", { name: /^Chat/ })).toHaveAttribute("href", "/chat");
+    await expect(sheet.getByRole("link", { name: "Standings" })).toHaveAttribute("href", "/standings");
+    await expect(sheet.getByRole("link", { name: "League Home" })).toHaveAttribute("href", "/league");
+    // A tab is never repeated in the sheet.
+    await expect(sheet.getByRole("link", { name: "Game Center" })).toHaveCount(0);
+    await expect(sheet.getByRole("link", { name: "My Team" })).toHaveCount(0);
     await bar.getByRole("button", { name: "League" }).click();
     await expect(page.getByRole("dialog")).toHaveCount(0);
     await page.getByRole("button", { name: "Menu" }).click();
@@ -198,7 +203,7 @@ test("the game center is reachable from any screen", async ({ page }, info) => {
   }
 });
 
-test("while football is on, the game center takes My Team's tab", async ({ page }, info) => {
+test("while football is on, the game center wears the red dot and My Team keeps its tab", async ({ page }, info) => {
   test.skip(info.project.name !== "mobile", "the tab bar is a phone's");
   // useNflLive's question, answered: three games in progress.
   await page.route("**/rest/v1/nfl_games**", (route) =>
@@ -208,19 +213,14 @@ test("while football is on, the game center takes My Team's tab", async ({ page 
   const gc = bar.getByRole("link", { name: /Game Center/ });
   await expect(gc).toHaveAttribute("href", "/sunday");
   await expect(gc.getByLabel("NFL games live now")).toBeVisible();
-  await expect(bar.getByRole("link", { name: /My Team/ })).toHaveCount(0);
-  // The order holds: the slot is My Team's, between Matchups and Chat.
-  await expect(bar.locator(".tabbar__item")).toHaveText(["Home", "Matchup", "Game Center", "Chat", "League"]);
-  // The label fits on the narrowest phone the app supports.
+  // The lineup is not traded away for the game center any more.
+  await expect(bar.getByRole("link", { name: /My Team/ })).toHaveAttribute("href", "/team");
+  await expect(bar.locator(".tabbar__item")).toHaveText(["Home", "Game Center", "My Team", "League"]);
+  // Every label fits on the narrowest phone the app supports.
   await page.setViewportSize({ width: 320, height: 640 });
-  const label = gc.locator("span").first();
-  expect(await label.evaluate((e) => e.scrollWidth <= e.clientWidth + 1)).toBe(true);
-  // My Team is one tap away (the crest too, signed in), and the League sheet
-  // no longer repeats the game center.
-  await bar.getByRole("button", { name: "League" }).click();
-  const sheet = page.getByRole("dialog");
-  await expect(sheet.getByRole("link", { name: "My Team" })).toHaveAttribute("href", "/team");
-  await expect(sheet.getByRole("link", { name: "Game Center" })).toHaveCount(0);
+  const clipped = await bar.locator(".tabbar__item > span").evaluateAll((els) =>
+    els.filter((e) => e.scrollWidth > e.clientWidth + 1).map((e) => e.textContent));
+  expect(clipped).toEqual([]);
 });
 
 test("on a desktop the chat takes a column and covers nothing", async ({ page }, info) => {
