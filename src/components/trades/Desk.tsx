@@ -45,6 +45,7 @@ function Offer({
   const leaving = offer.items.filter((i) => i.leaving);
   const arriving = offer.items.filter((i) => !i.leaving);
   const live = offer.status === "proposed";
+  const drops = offer.drops ?? [];
 
   return (
     <div className="card" style={{ margin: 0 }}>
@@ -100,6 +101,23 @@ function Offer({
             </div>
           ))}
         </div>
+
+        {/* Releases that ride with the deal: nobody goes unless it lands. */}
+        {drops.length > 0 && (
+          <div style={{ display: "grid", gap: 4 }}>
+            <div className="eyebrow">Dropped to make room</div>
+            {drops.map((d) => (
+              <div key={d.player_id} className="offer__drop"
+                style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                <span className="pos" data-p={d.position}>{d.position}</span>
+                <span>{d.player}</span>
+                <span className="eyebrow">
+                  {d.mine ? "yours" : d.team_id === offer.proposer_team_id ? offer.from_team : offer.to_team}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
 
         {offer.message && <p className="eyebrow" style={{ fontStyle: "italic" }}>“{offer.message}”</p>}
 

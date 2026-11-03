@@ -409,6 +409,19 @@ export type TradeItem = {
   leaving: boolean;
 };
 
+/** A release that rides along with a trade, applied the moment it is
+ *  accepted. Named by the side whose roster it is: the proposer when the
+ *  offer is made, the receiver when it is accepted. */
+export type TradeDrop = {
+  player_id: string;
+  player: string;
+  position: string;
+  nfl_team: string | null;
+  team_id: string;
+  /** True when it is the reading team's own player being let go. */
+  mine: boolean;
+};
+
 export type TradeOffer = {
   id: string;
   status: string;
@@ -423,6 +436,8 @@ export type TradeOffer = {
   from_team: string;
   to_team: string;
   items: TradeItem[];
+  /** Absent from a desk read before the trade_drops migration. */
+  drops?: TradeDrop[];
 };
 
 /** Everything the trade screen renders, from one ff_trade_desk call. */

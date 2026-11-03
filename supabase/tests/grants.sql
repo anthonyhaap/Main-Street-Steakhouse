@@ -47,7 +47,7 @@ declare
   -- the SECURITY DEFINER functions that use them run as the definer, so a
   -- manager never needs the grant.
   v_service_only text[] := array[
-    'ff_run_waivers', 'ff_process_waivers', 'ff_place_unordered_teams', 'ff_validate_trade',
+    'ff_run_waivers', 'ff_process_waivers', 'ff_place_unordered_teams', 'ff_validate_trade', 'ff_trade_overflow',
     'ff_roll_rosters', 'ff_materialize_roster', 'ff_planned_roster', 'ff_refresh_wire', 'ff_refresh_projections',
     'ff_rebuild_season_projections', 'ff_load_season_projections', 'ff_load_sleeper_projections',
     'ff_load_espn_injuries', 'ff_load_espn_news', 'ff_backfill_bye_weeks',

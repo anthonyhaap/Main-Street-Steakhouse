@@ -5,6 +5,7 @@ import { SkeletonRows, useToast } from "@/components/ui";
 import { Desk } from "@/components/trades/Desk";
 import { BlockSheet } from "@/components/trades/BlockSheet";
 import { OfferSheet } from "@/components/trades/OfferSheet";
+import { AcceptSheet, dropsNeeded } from "@/components/trades/AcceptSheet";
 import type { Owned } from "@/components/players/DropPicker";
 import { LEAGUE_ID } from "@/lib/config";
 import { useLive, useServerClock, type WireStatus } from "@/lib/live";
@@ -21,6 +22,7 @@ export function DeskPanel({ onStatus }: { onStatus?: (s: WireStatus) => void }) 
   const [busy, setBusy] = useState<string | null>(null);
   const [blocking, setBlocking] = useState(false);
   const [offering, setOffering] = useState<{ counters?: TradeOffer } | null>(null);
+  const [accepting, setAccepting] = useState<{ offer: TradeOffer; need: number } | null>(null);
   const { week, games } = useWeekGames();
 
   const fetcher = useCallback(async () => {
@@ -83,11 +85,26 @@ export function DeskPanel({ onStatus }: { onStatus?: (s: WireStatus) => void }) 
     return true;
   }, [toast, refetch]);
 
-  const respond = useCallback((id: string, response: "accepted" | "declined" | "cancelled") =>
-    void run(id,
-      () => supabaseBrowser().rpc("ff_respond_trade", { p_trade_id: id, p_response: response }),
+  const limit = league?.roster_slots?.length || null;
+
+  // p_drops goes up only when there are drops, so an ordinary answer is the
+  // same call it always was — including against a database that has not had
+  // the trade_drops migration yet.
+  const answer = useCallback((id: string, response: "accepted" | "declined" | "cancelled", drops: string[] = []) =>
+    run(id,
+      () => supabaseBrowser().rpc("ff_respond_trade", {
+        p_trade_id: id, p_response: response, ...(drops.length ? { p_drops: drops } : {}),
+      }),
       response === "accepted" ? "Trade done." : response === "declined" ? "Declined." : "Withdrawn."),
   [run]);
+
+  // Accepting onto a full roster asks who goes first; everything else is one tap.
+  const respond = useCallback((id: string, response: "accepted" | "declined" | "cancelled") => {
+    const offer = data?.desk.offers.find((o) => o.id === id);
+    const need = response === "accepted" && offer ? dropsNeeded(offer, mine.length, limit) : 0;
+    if (offer && need > 0) { setAccepting({ offer, need }); return; }
+    void answer(id, response);
+  }, [data, mine.length, limit, answer]);
 
   const skeleton = <div className="card"><SkeletonRows n={8} /></div>;
 
@@ -143,17 +160,32 @@ export function DeskPanel({ onStatus }: { onStatus?: (s: WireStatus) => void }) 
           teams={teams.filter((t) => t.id !== team.id).map((t) => ({ id: t.id, name: t.name }))}
           owners={owners}
           counters={offering.counters ?? null}
-          rosterLimit={league?.roster_slots?.length || null}
+          rosterLimit={limit}
           games={games}
           week={week}
           busy={busy === "offer"}
           onCancel={() => setOffering(null)}
-          onSubmit={(toTeamId, give, get, message, countersId) => void run("offer",
+          onSubmit={(toTeamId, give, get, message, countersId, drops) => void run("offer",
             () => supabaseBrowser().rpc("ff_propose_trade", {
               p_from_team_id: team.id, p_to_team_id: toTeamId,
               p_i_give: give, p_i_get: get,
               p_message: message || null, p_counters_id: countersId,
+              ...(drops.length ? { p_drops: drops } : {}),
             }), "Offer sent.").then((ok) => ok && setOffering(null))}
+        />
+      )}
+
+      {accepting && (
+        <AcceptSheet
+          offer={accepting.offer}
+          roster={mine.filter((m) => !accepting.offer.items.some((i) => i.leaving && i.player_id === m.player_id))}
+          need={accepting.need}
+          games={games}
+          week={week}
+          busy={busy === accepting.offer.id}
+          onCancel={() => setAccepting(null)}
+          onAccept={(drops) => void answer(accepting.offer.id, "accepted", drops)
+            .then((ok) => ok && setAccepting(null))}
         />
       )}
     </>
