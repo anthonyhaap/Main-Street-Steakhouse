@@ -11,7 +11,8 @@
  * the page hydrates the same whenever it is opened.
  */
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { TopBar } from "@/components/Shell";
 import { Desk } from "@/components/trades/Desk";
 import { OfferSheet } from "@/components/trades/OfferSheet";
@@ -114,10 +115,23 @@ const STAGES: { key: Stage; label: string; now: number; desk: TradeDesk; deadlin
   { key: "shut", label: "Deadline gone", now: Date.parse("2026-12-02T16:00:00Z"), desk: CLOSED, deadline: { ...DEADLINE, week: 13, open: false } },
 ];
 
+/** `useSearchParams` client-renders what it sits in, so the page wraps it. */
 export default function PreviewTrades() {
+  return <Suspense fallback={null}><Trades /></Suspense>;
+}
+
+function Trades() {
   const [stage, setStage] = useState<Stage>("open");
   const s = STAGES.find((x) => x.key === stage)!;
-  const [offering, setOffering] = useState(false);
+  // ?give=<id> or ?get=<id>&with=<team>: the links a player's card makes,
+  // opening the sheet already begun, as the real desk does.
+  const params = useSearchParams();
+  const askGive = params.get("give");
+  const askGet = params.get("get");
+  const begun = askGive || askGet
+    ? { toTeamId: params.get("with"), give: askGive ? [askGive] : [], get: askGet ? [askGet] : [] }
+    : null;
+  const [offering, setOffering] = useState(!!begun);
   const [accepting, setAccepting] = useState<{ offer: TradeOffer; need: number } | null>(null);
   const mine = OWNERS.filter((o) => o.team_id === "t1");
   // The same decision the real panel makes: a full roster asks who goes.
@@ -165,6 +179,7 @@ export default function PreviewTrades() {
             teams={[{ id: "t2", name: "Prime Cut" }]}
             owners={OWNERS}
             counters={null}
+            start={begun}
             rosterLimit={LIMIT}
             games={GAMES}
             week={s.desk.week}

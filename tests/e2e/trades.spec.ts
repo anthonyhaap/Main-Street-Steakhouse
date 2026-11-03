@@ -181,3 +181,17 @@ test("a toast is drawn above an open sheet, not under it", async ({ page }) => {
   expect(z.toasts).toBeGreaterThan(z.modal);
   expect(z.toasts).toBeGreaterThan(z.sheet);
 });
+
+test("a player's Trade button opens the offer with him already in it", async ({ page }) => {
+  // What "Trade" on Tyjae Spears's card links to.
+  await page.goto("/preview/trades?give=b2");
+  const sheet = page.getByRole("dialog", { name: "Make a trade offer" });
+  await expect(sheet.getByLabel("You give: Tyjae Spears")).toBeChecked();
+  await expect(sheet.getByLabel("You give: Jaylen Wright")).not.toBeChecked();
+
+  // And "Trade for him" on Zay Flowers, from Prime Cut's desk.
+  await page.goto("/preview/trades?get=b1&with=t2");
+  const ask = page.getByRole("dialog", { name: "Make a trade offer" });
+  await expect(ask.getByLabel("Trading with")).toHaveValue("t2");
+  await expect(ask.getByLabel("You get: Zay Flowers")).toBeChecked();
+});

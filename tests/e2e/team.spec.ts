@@ -485,3 +485,53 @@ test("the projection on My Team is the matchup page's projection", async ({ page
   await page.goto("/preview/team?state=live");
   await expect(page.locator(".mt-score__proj")).toContainText("290.4");
 });
+
+/**
+ * A man on your roster is something you can act on, not only read: his card
+ * opens in place, and says trade or drop. On somebody else's desk it says
+ * make an offer for him instead.
+ */
+test("a player on your roster opens with trade and drop", async ({ page }) => {
+  await page.goto("/preview/team");
+  await page.locator(".lineup .pbadge", { hasText: "Josh Allen" }).click();
+
+  // In place, not a trip to his page.
+  await expect(page).toHaveURL(/\/preview\/team/);
+  const card = page.getByRole("dialog", { name: "Josh Allen" });
+  await expect(card).toBeVisible();
+
+  // Trade starts an offer at the trade desk with him already in it.
+  await expect(card.getByRole("link", { name: "Trade" }))
+    .toHaveAttribute("href", /^\/transactions\?tab=trades&give=[^&]+$/);
+
+  // Drop asks before it does anything, and Keep him backs out.
+  await card.getByRole("button", { name: "Drop", exact: true }).click();
+  await expect(card.getByRole("alert")).toContainText("Drop Josh Allen? He goes on waivers");
+  await card.getByRole("button", { name: "Keep him" }).click();
+  await expect(card.getByRole("alert")).toHaveCount(0);
+
+  // Asked twice, it goes through: the card closes and he is off the roster.
+  await card.getByRole("button", { name: "Drop", exact: true }).click();
+  await card.getByRole("button", { name: "Drop Josh Allen" }).click();
+  await expect(page.getByRole("dialog", { name: "Josh Allen" })).toHaveCount(0);
+  await expect(page.locator(".lineup .pbadge", { hasText: "Josh Allen" })).toHaveCount(0);
+});
+
+test("a player whose game has started can be read but not moved", async ({ page }) => {
+  await page.goto("/preview/team?state=live");
+  await page.locator(".lineup .pbadge", { hasText: "Patrick Mahomes" }).click();
+  const card = page.getByRole("dialog", { name: "Patrick Mahomes" });
+  await expect(card).toContainText("game has started, so he can't be dropped or traded");
+  await expect(card.getByRole("button", { name: "Drop", exact: true })).toBeDisabled();
+  await expect(card.getByRole("button", { name: "Trade" })).toBeDisabled();
+});
+
+test("a player on another manager's roster opens with an offer for him", async ({ page }) => {
+  await page.goto("/preview/team?as=visitor");
+  await page.locator(".lineup .pbadge", { hasText: "Josh Allen" }).click();
+  const card = page.getByRole("dialog", { name: "Josh Allen" });
+  await expect(card.getByRole("link", { name: "Trade for him" }))
+    .toHaveAttribute("href", /^\/transactions\?tab=trades&with=[^&]+&get=[^&]+$/);
+  // Nothing on someone else's card can drop their player.
+  await expect(card.getByRole("button", { name: /Drop/ })).toHaveCount(0);
+});
