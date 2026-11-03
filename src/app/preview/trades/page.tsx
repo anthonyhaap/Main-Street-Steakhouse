@@ -14,7 +14,10 @@
 import { useState } from "react";
 import { TopBar } from "@/components/Shell";
 import { Desk } from "@/components/trades/Desk";
-import type { TradeDesk } from "@/lib/types";
+import { OfferSheet } from "@/components/trades/OfferSheet";
+import { AcceptSheet, dropsNeeded } from "@/components/trades/AcceptSheet";
+import type { Owned } from "@/components/players/DropPicker";
+import type { TradeDesk, TradeOffer } from "@/lib/types";
 import type { TradeDeadline } from "@/lib/deadline";
 import { foldGames } from "@/lib/nfl/schedule";
 
@@ -43,6 +46,7 @@ const INCOMING = {
   ],
 };
 
+// One for two, so this side names a drop to make room, carried on the offer.
 const OUTGOING = {
   id: "o2", status: "proposed", message: null,
   created_at: "2026-09-08T09:40:00.000Z", outcome: null, counters_id: null,
@@ -51,6 +55,21 @@ const OUTGOING = {
   items: [
     { player_id: "p3", player: "Tyjae Spears", position: "RB", nfl_team: "TEN", leaving: true },
     { player_id: "p4", player: "Cade Otton", position: "TE", nfl_team: "TB", leaving: false },
+    { player_id: "p6", player: "Rachaad White", position: "RB", nfl_team: "TB", leaving: false },
+  ],
+  drops: [
+    { player_id: "p7", player: "Tank Bigsby", position: "RB", nfl_team: "JAX", team_id: "t1", mine: true },
+  ],
+};
+
+// A gift onto a full roster: accepting it means choosing who goes.
+const GIFT: TradeOffer = {
+  id: "o4", status: "proposed", message: "clearing space",
+  created_at: "2026-09-08T08:10:00.000Z", outcome: null, counters_id: null,
+  proposer_team_id: "t5", receiver_team_id: "t1",
+  mine: false, from_team: "Smokehouse Six", to_team: "Gridiron Butchers",
+  items: [
+    { player_id: "p8", player: "Bucky Irving", position: "RB", nfl_team: "TB", leaving: false },
   ],
 };
 
@@ -64,7 +83,7 @@ const SETTLED = {
 
 const OPEN: TradeDesk = {
   week: 6, deadline_week: 12, block: BLOCK,
-  offers: [INCOMING, OUTGOING, SETTLED], settled: [],
+  offers: [INCOMING, OUTGOING, GIFT, SETTLED], settled: [],
 };
 
 const CLOSED: TradeDesk = {
@@ -77,6 +96,16 @@ const DEADLINE: TradeDeadline = {
   week: 12, deadline_week: 12, closes_at: CLOSES, open: true, offers: 2, trades: 1, block: 2, waiting: 1,
 };
 
+/** Two rosters already at the (fixture) limit of two, the way most of a real
+ *  league sits by midseason: only an even swap fits. */
+const LIMIT = 2;
+const OWNERS: Owned[] = [
+  { player_id: "b2", player: "Tyjae Spears", position: "RB", nfl_team: "TEN", team_id: "t1", team: "Gridiron Butchers" },
+  { player_id: "p2", player: "Jaylen Wright", position: "RB", nfl_team: "MIA", team_id: "t1", team: "Gridiron Butchers" },
+  { player_id: "b1", player: "Zay Flowers", position: "WR", nfl_team: "BAL", team_id: "t2", team: "Prime Cut" },
+  { player_id: "p1", player: "Rome Odunze", position: "WR", nfl_team: "CHI", team_id: "t2", team: "Prime Cut" },
+];
+
 type Stage = "open" | "week" | "day" | "shut";
 const STAGES: { key: Stage; label: string; now: number; desk: TradeDesk; deadline: TradeDeadline }[] = [
   { key: "open", label: "Open", now: Date.parse("2026-10-13T16:00:00Z"), desk: OPEN, deadline: { ...DEADLINE, week: 6 } },
@@ -88,6 +117,15 @@ const STAGES: { key: Stage; label: string; now: number; desk: TradeDesk; deadlin
 export default function PreviewTrades() {
   const [stage, setStage] = useState<Stage>("open");
   const s = STAGES.find((x) => x.key === stage)!;
+  const [offering, setOffering] = useState(false);
+  const [accepting, setAccepting] = useState<{ offer: TradeOffer; need: number } | null>(null);
+  const mine = OWNERS.filter((o) => o.team_id === "t1");
+  // The same decision the real panel makes: a full roster asks who goes.
+  const respond = (id: string, response: string) => {
+    const offer = s.desk.offers.find((o) => o.id === id);
+    const need = response === "accepted" && offer ? dropsNeeded(offer, mine.length, LIMIT) : 0;
+    if (offer && need > 0) setAccepting({ offer, need });
+  };
 
   return (
     <>
@@ -115,11 +153,39 @@ export default function PreviewTrades() {
           busy={null}
           games={GAMES}
           week={s.desk.week}
-          onRespond={() => {}}
+          onRespond={respond}
           onCounter={() => {}}
           onOpenBlock={() => {}}
-          onMakeOffer={() => {}}
+          onMakeOffer={() => setOffering(true)}
         />
+
+        {offering && (
+          <OfferSheet
+            myTeamId="t1"
+            teams={[{ id: "t2", name: "Prime Cut" }]}
+            owners={OWNERS}
+            counters={null}
+            rosterLimit={LIMIT}
+            games={GAMES}
+            week={s.desk.week}
+            busy={false}
+            onCancel={() => setOffering(false)}
+            onSubmit={() => setOffering(false)}
+          />
+        )}
+
+        {accepting && (
+          <AcceptSheet
+            offer={accepting.offer}
+            roster={mine}
+            need={accepting.need}
+            games={GAMES}
+            week={s.desk.week}
+            busy={false}
+            onCancel={() => setAccepting(null)}
+            onAccept={() => setAccepting(null)}
+          />
+        )}
       </main>
     </>
   );

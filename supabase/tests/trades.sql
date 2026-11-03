@@ -286,6 +286,154 @@ begin
   end;
   v_checks := v_checks + 3;
 
+  -- ----------------------------------------------- drops inside a trade --
+  -- Every fixture roster is at its five-man limit, as most real ones are by
+  -- midseason, so a lopsided offer is exactly the one that needs a drop.
+  declare
+    v_uid_c uuid;
+    a uuid[]; b uuid[]; c uuid[];
+    v_tb uuid; v_tc uuid; v_tx uuid;
+  begin
+    select owner_id into v_uid_c from teams where id = v_c;
+    select array_agg(o.player_id order by o.player_id) into a from ff_owner_at(v_league, v_week) o where o.team_id = v_a;
+    select array_agg(o.player_id order by o.player_id) into b from ff_owner_at(v_league, v_week) o where o.team_id = v_b;
+    select array_agg(o.player_id order by o.player_id) into c from ff_owner_at(v_league, v_week) o where o.team_id = v_c;
+    if cardinality(a) <> 5 or cardinality(b) <> 5 or cardinality(c) <> 5 then
+      raise exception 'the drops fixture expects three full rosters, got % / % / %',
+        cardinality(a), cardinality(b), cardinality(c);
+    end if;
+
+    perform set_config('request.jwt.claims', json_build_object('sub', v_uid_a)::text, true);
+
+    -- One for two leaves A at six: refused, and told how many to name.
+    begin
+      perform ff_propose_trade(v_a, v_b, array[a[1]], array[b[1], b[2]]);
+      raise exception 'a one-for-two onto a full roster went through with no drop';
+    exception when others then
+      get stacked diagnostics v_err = message_text;
+      if v_err not like '%over the 5 man limit — name 1 to drop%' then raise; end if;
+    end;
+    -- A man in the deal cannot also be the one dropped.
+    begin
+      perform ff_propose_trade(v_a, v_b, array[a[1]], array[b[1], b[2]], null, null, array[a[1]]);
+      raise exception 'a player was traded and dropped in one offer';
+    exception when others then
+      get stacked diagnostics v_err = message_text;
+      if v_err not like '%cannot be dropped as well%' then raise; end if;
+    end;
+    -- Only your own.
+    begin
+      perform ff_propose_trade(v_a, v_b, array[a[1]], array[b[1], b[2]], null, null, array[c[1]]);
+      raise exception 'a manager dropped another team''s player';
+    exception when others then
+      get stacked diagnostics v_err = message_text;
+      if v_err not like '%not on that roster to drop%' then raise; end if;
+    end;
+    -- Only as many as the trade forces: a trade is not a back door around add/drop.
+    begin
+      perform ff_propose_trade(v_a, v_b, array[a[1]], array[b[1], b[2]], null, null, array[a[2], a[3]]);
+      raise exception 'an offer dropped more players than it needed to';
+    exception when others then
+      get stacked diagnostics v_err = message_text;
+      if v_err not like '%only needs 1 dropped, not 2%' then raise; end if;
+    end;
+    begin
+      perform ff_propose_trade(v_a, v_b, array[a[1]], array[b[1]], null, null, array[a[2]]);
+      raise exception 'an even swap dropped a player';
+    exception when others then
+      get stacked diagnostics v_err = message_text;
+      if v_err not like '%nobody needs dropping%' then raise; end if;
+    end;
+    v_checks := v_checks + 5;
+
+    -- Named properly, it lands, and the drop is stored with the offer.
+    v_tb := (ff_propose_trade(v_a, v_b, array[a[1]], array[b[1], b[2]], null, null, array[a[2]])->>'trade_id')::uuid;
+    if (select count(*) from trade_drops where trade_id = v_tb and team_id = v_a and player_id = a[2]) <> 1 then
+      raise exception 'the proposer''s drop was not stored with the offer';
+    end if;
+    -- And the desk shows it, as the proposer's own.
+    if not exists (
+      select 1 from jsonb_array_elements(ff_trade_desk(v_a)->'offers') o,
+                    jsonb_array_elements(o->'drops') d
+       where (o->>'id')::uuid = v_tb and (d->>'player_id')::uuid = a[2] and (d->>'mine')::boolean
+    ) then
+      raise exception 'the desk does not show the offer''s drop';
+    end if;
+    v_checks := v_checks + 2;
+
+    -- An offer that would overfill the RECEIVER may be made: who goes from
+    -- C's roster is C's call, at acceptance.
+    v_tc := (ff_propose_trade(v_a, v_c, array[a[3], a[4]], array[c[1]])->>'trade_id')::uuid;
+    -- And one naming the man A is about to drop, to be overtaken by it.
+    v_tx := (ff_propose_trade(v_a, v_c, array[a[2]], array[c[3]])->>'trade_id')::uuid;
+    v_checks := v_checks + 1;
+
+    -- B accepts: two go, one comes, and A's drop leaves in the same entry.
+    perform set_config('request.jwt.claims', json_build_object('sub', v_uid_b)::text, true);
+    perform ff_respond_trade(v_tb, 'accepted');
+    if (select count(*) from ff_owner_at(v_league, v_week) where team_id = v_a) <> 5 then
+      raise exception 'the trade and its drop left A at the wrong size';
+    end if;
+    if exists (select 1 from ff_owner_at(v_league, v_week) where player_id = a[2]) then
+      raise exception 'the dropped player is still on a roster';
+    end if;
+    if not exists (select 1 from ff_on_waivers(v_league) where player_id = a[2]) then
+      raise exception 'a player dropped in a trade did not go on waivers';
+    end if;
+    if not exists (
+      select 1 from transaction_items i join trades t on t.transaction_id = i.transaction_id
+       where t.id = v_tb and i.player_id = a[2] and i.from_team_id = v_a and i.to_team_id is null
+    ) then
+      raise exception 'the drop is not in the trade''s own ledger entry';
+    end if;
+    if (select status from trades where id = v_tx) <> 'invalid' then
+      raise exception 'an offer naming a player dropped in another trade stayed live';
+    end if;
+    v_checks := v_checks + 5;
+
+    -- C must name who goes before accepting, and only C's own, only one.
+    perform set_config('request.jwt.claims', json_build_object('sub', v_uid_c)::text, true);
+    begin
+      perform ff_respond_trade(v_tc, 'accepted');
+      raise exception 'C accepted onto a full roster without a drop';
+    exception when others then
+      get stacked diagnostics v_err = message_text;
+      if v_err not like '%other roster at 6, over the 5 man limit — name 1 to drop%' then raise; end if;
+    end;
+    begin
+      perform ff_respond_trade(v_tc, 'accepted', array[c[1]]);
+      raise exception 'C dropped the player C was trading away';
+    exception when others then
+      get stacked diagnostics v_err = message_text;
+      if v_err not like '%cannot be dropped as well%' then raise; end if;
+    end;
+    begin
+      perform ff_respond_trade(v_tc, 'accepted', array[c[2], c[4]]);
+      raise exception 'C dropped more than the trade needed';
+    exception when others then
+      get stacked diagnostics v_err = message_text;
+      if v_err not like '%only needs 1 dropped%' then raise; end if;
+    end;
+    begin
+      perform ff_respond_trade(v_tc, 'declined', array[c[2]]);
+      raise exception 'a decline carried a drop';
+    exception when others then
+      get stacked diagnostics v_err = message_text;
+      if v_err not like '%only an acceptance%' then raise; end if;
+    end;
+    perform ff_respond_trade(v_tc, 'accepted', array[c[2]]);
+    if (select count(*) from ff_owner_at(v_league, v_week) where team_id = v_c) <> 5
+       or exists (select 1 from ff_owner_at(v_league, v_week) where player_id = c[2]) then
+      raise exception 'C''s acceptance did not land with its drop';
+    end if;
+    if (select team_id from trade_drops where trade_id = v_tc and player_id = c[2]) <> v_c then
+      raise exception 'the receiver''s drop was not recorded against the trade';
+    end if;
+    v_checks := v_checks + 6;
+
+    perform set_config('request.jwt.claims', '', true);
+  end;
+
   raise notice 'trades: % checks passed', v_checks;
 end $$;
 
