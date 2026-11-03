@@ -14,6 +14,8 @@
 import { useState } from "react";
 import { TopBar } from "@/components/Shell";
 import { Desk } from "@/components/trades/Desk";
+import { OfferSheet } from "@/components/trades/OfferSheet";
+import type { Owned } from "@/components/players/DropPicker";
 import type { TradeDesk } from "@/lib/types";
 import type { TradeDeadline } from "@/lib/deadline";
 import { foldGames } from "@/lib/nfl/schedule";
@@ -77,6 +79,16 @@ const DEADLINE: TradeDeadline = {
   week: 12, deadline_week: 12, closes_at: CLOSES, open: true, offers: 2, trades: 1, block: 2, waiting: 1,
 };
 
+/** Two rosters already at the (fixture) limit of two, the way most of a real
+ *  league sits by midseason: only an even swap fits. */
+const LIMIT = 2;
+const OWNERS: Owned[] = [
+  { player_id: "b2", player: "Tyjae Spears", position: "RB", nfl_team: "TEN", team_id: "t1", team: "Gridiron Butchers" },
+  { player_id: "p2", player: "Jaylen Wright", position: "RB", nfl_team: "MIA", team_id: "t1", team: "Gridiron Butchers" },
+  { player_id: "b1", player: "Zay Flowers", position: "WR", nfl_team: "BAL", team_id: "t2", team: "Prime Cut" },
+  { player_id: "p1", player: "Rome Odunze", position: "WR", nfl_team: "CHI", team_id: "t2", team: "Prime Cut" },
+];
+
 type Stage = "open" | "week" | "day" | "shut";
 const STAGES: { key: Stage; label: string; now: number; desk: TradeDesk; deadline: TradeDeadline }[] = [
   { key: "open", label: "Open", now: Date.parse("2026-10-13T16:00:00Z"), desk: OPEN, deadline: { ...DEADLINE, week: 6 } },
@@ -88,6 +100,7 @@ const STAGES: { key: Stage; label: string; now: number; desk: TradeDesk; deadlin
 export default function PreviewTrades() {
   const [stage, setStage] = useState<Stage>("open");
   const s = STAGES.find((x) => x.key === stage)!;
+  const [offering, setOffering] = useState(false);
 
   return (
     <>
@@ -118,8 +131,23 @@ export default function PreviewTrades() {
           onRespond={() => {}}
           onCounter={() => {}}
           onOpenBlock={() => {}}
-          onMakeOffer={() => {}}
+          onMakeOffer={() => setOffering(true)}
         />
+
+        {offering && (
+          <OfferSheet
+            myTeamId="t1"
+            teams={[{ id: "t2", name: "Prime Cut" }]}
+            owners={OWNERS}
+            counters={null}
+            rosterLimit={LIMIT}
+            games={GAMES}
+            week={s.desk.week}
+            busy={false}
+            onCancel={() => setOffering(false)}
+            onSubmit={() => setOffering(false)}
+          />
+        )}
       </main>
     </>
   );

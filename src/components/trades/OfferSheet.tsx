@@ -15,16 +15,25 @@ import type { TradeOffer } from "@/lib/types";
  * nobody in it at all, or one that leaves either roster over the limit, and it
  * says which when it refuses.
  *
+ * The roster limit is the one most offers run into, because by midseason most
+ * rosters sit right at it: then any offer that lands one more player than it
+ * sends is refused. The sheet counts both rosters after the swap and says so
+ * before Send rather than after — the refusal used to arrive as a toast drawn
+ * under this very sheet, so on a phone the button just did nothing.
+ *
  * A counter arrives here pre-filled with the offer it answers, mirrored: what
  * they wanted from you becomes what you are being asked to give.
  */
 export function OfferSheet({
-  myTeamId, teams, owners, counters, games = null, week = null, busy, onCancel, onSubmit,
+  myTeamId, teams, owners, counters, rosterLimit = null, games = null, week = null, busy, onCancel, onSubmit,
 }: {
   myTeamId: string;
   teams: { id: string; name: string }[];
   owners: Owned[];
   counters: TradeOffer | null;
+  /** The league's roster size (its slot count), the limit ff_validate_trade
+   *  enforces. Null skips the check and leaves it to the database. */
+  rosterLimit?: number | null;
   /** This week's slate, beside every name on either side of the table. */
   games?: WeekGames | null;
   week?: number | null;
@@ -52,6 +61,17 @@ export function OfferSheet({
 
   const mine = useMemo(() => owners.filter((o) => o.team_id === myTeamId), [owners, myTeamId]);
   const theirs = useMemo(() => owners.filter((o) => o.team_id === toTeam), [owners, toTeam]);
+
+  // Same arithmetic as ff_validate_trade, on the same ff_owner_at rows.
+  const myAfter = mine.length - give.size + get.size;
+  const theirAfter = theirs.length - get.size + give.size;
+  const theirName = teams.find((t) => t.id === toTeam)?.name ?? "They";
+  const over: string | null = !rosterLimit ? null
+    : myAfter > rosterLimit
+      ? `That puts you at ${myAfter}, over the ${rosterLimit}-man limit. Give ${myAfter - rosterLimit} more, ask for ${myAfter - rosterLimit} fewer, or drop someone first.`
+      : theirAfter > rosterLimit
+        ? `That puts ${theirName} at ${theirAfter}, over the ${rosterLimit}-man limit. Ask for ${theirAfter - rosterLimit} more of theirs, or give ${theirAfter - rosterLimit} fewer.`
+        : null;
 
   const flip = (set: Set<string>, put: (s: Set<string>) => void) => (id: string) => {
     const next = new Set(set);
@@ -117,6 +137,8 @@ export function OfferSheet({
 
           <input className="field" placeholder="Say something (optional)" value={message}
             maxLength={500} onChange={(e) => setMessage(e.target.value)} aria-label="Message" />
+
+          {over && <div className="note" data-kind="error" role="alert">{over}</div>}
         </div>
 
         <div style={{ display: "flex", gap: "var(--s3)", padding: "var(--s4)" }}>
@@ -124,7 +146,7 @@ export function OfferSheet({
             Never mind
           </button>
           <button className="btn" data-v="gold" style={{ flex: 1 }}
-            disabled={busy || !toTeam || (give.size === 0 && get.size === 0)}
+            disabled={busy || !toTeam || (give.size === 0 && get.size === 0) || !!over}
             onClick={() => onSubmit(toTeam, [...give], [...get], message, counters?.id ?? null)}>
             {busy ? "…" : counters ? "Send counter" : "Send offer"}
           </button>

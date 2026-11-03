@@ -16,7 +16,7 @@ import type { TradeDesk, TradeOffer } from "@/lib/types";
 
 /** The trade desk: offers in, offers out, and who is on the block. */
 export function DeskPanel({ onStatus }: { onStatus?: (s: WireStatus) => void }) {
-  const { ready, team, teams } = useSession();
+  const { ready, team, teams, league } = useSession();
   const toast = useToast();
   const [busy, setBusy] = useState<string | null>(null);
   const [blocking, setBlocking] = useState(false);
@@ -143,6 +143,7 @@ export function DeskPanel({ onStatus }: { onStatus?: (s: WireStatus) => void }) 
           teams={teams.filter((t) => t.id !== team.id).map((t) => ({ id: t.id, name: t.name }))}
           owners={owners}
           counters={offering.counters ?? null}
+          rosterLimit={league?.roster_slots?.length || null}
           games={games}
           week={week}
           busy={busy === "offer"}

@@ -84,3 +84,47 @@ test("the deadline week counts down on the desk, on the league's clock", async (
   await expect(page.getByText(/Trades close/)).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Make an offer" })).toBeDisabled();
 });
+
+test("an offer that would overfill a roster says so before Send", async ({ page }) => {
+  // Both fixture rosters sit at the limit, as most real ones do by midseason.
+  // The database refuses a lopsided offer either way; the sheet must say why
+  // before the button, not in a toast nobody could see.
+  await page.goto("/preview/trades");
+  await page.getByRole("button", { name: "Make an offer" }).click();
+  const sheet = page.getByRole("dialog", { name: "Make a trade offer" });
+  const send = sheet.getByRole("button", { name: "Send offer" });
+
+  // Two of theirs for nothing of mine: I would be at four.
+  await sheet.getByLabel("You get: Zay Flowers").check();
+  await sheet.getByLabel("You get: Rome Odunze").check();
+  await expect(sheet.getByRole("alert")).toContainText("puts you at 4, over the 2-man limit");
+  await expect(send).toBeDisabled();
+
+  // One for one fits.
+  await sheet.getByLabel("You get: Rome Odunze").uncheck();
+  await sheet.getByLabel("You give: Tyjae Spears").check();
+  await expect(sheet.getByRole("alert")).toHaveCount(0);
+  await expect(send).toBeEnabled();
+
+  // And the other side is held to the same limit.
+  await sheet.getByLabel("You get: Zay Flowers").uncheck();
+  await expect(sheet.getByRole("alert")).toContainText("puts Prime Cut at 3");
+  await expect(send).toBeDisabled();
+});
+
+test("a toast is drawn above an open sheet, not under it", async ({ page }) => {
+  await page.goto("/preview/trades");
+  const z = await page.evaluate(() => {
+    const probe = (cls: string) => {
+      const el = document.createElement("div");
+      el.className = cls;
+      document.body.appendChild(el);
+      const v = Number(getComputedStyle(el).zIndex);
+      el.remove();
+      return v;
+    };
+    return { toasts: probe("toasts"), modal: probe("modal"), sheet: probe("sheet__wrap") };
+  });
+  expect(z.toasts).toBeGreaterThan(z.modal);
+  expect(z.toasts).toBeGreaterThan(z.sheet);
+});

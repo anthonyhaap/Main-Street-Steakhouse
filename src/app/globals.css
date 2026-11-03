@@ -1198,9 +1198,12 @@ a.kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); border-c
   100% { background-position: -200% 0; }
 }
 
+/* Above the overlays (.modal, .sheet__wrap at 100): a toast is most often the
+   answer to a button inside one, and drawn under the sheet it was the answer
+   nobody saw — a refused trade offer read as a Send button that did nothing. */
 .toasts {
   position: fixed;
-  z-index: 90;
+  z-index: 110;
   bottom: calc(var(--bottom-nav) + var(--s4));
   right: var(--s4);
   left: var(--s4);
