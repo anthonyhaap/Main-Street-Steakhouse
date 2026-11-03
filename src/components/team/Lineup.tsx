@@ -29,7 +29,7 @@ import { ordinal } from "@/lib/power";
  * a roster you cannot touch reads as a bug rather than a rule.
  */
 export function PlayerRow({
-  slot, player, week, injury, projection, selected, busy, canMove = true, onPickUp,
+  slot, player, week, injury, projection, selected, busy, canMove = true, onPickUp, onOpen,
 }: {
   slot: string;
   player: HubPlayer | null;
@@ -43,6 +43,9 @@ export function PlayerRow({
   canMove?: boolean;
   /** Opens this row's swap options, or closes them if they are already open. */
   onPickUp: () => void;
+  /** Opens him in place — his card, with drop and trade on it. Without it the
+   *  badge goes to his page, as it does everywhere else. */
+  onOpen?: (p: HubPlayer) => void;
 }) {
   const locked = player?.locked ?? false;
   const form = player?.form ?? null;
@@ -65,6 +68,7 @@ export function PlayerRow({
           team={player.nfl_team}
           espnId={player.espn_id}
           size={38}
+          onOpen={onOpen ? () => onOpen(player) : undefined}
           sub={
             <>
               <span>{player.position} · {player.nfl_team ?? "FA"}</span>

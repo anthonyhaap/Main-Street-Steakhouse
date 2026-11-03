@@ -24,12 +24,15 @@ import type { TradeOffer } from "@/lib/types";
  * they wanted from you becomes what you are being asked to give.
  */
 export function OfferSheet({
-  myTeamId, teams, owners, counters, rosterLimit = null, games = null, week = null, busy, onCancel, onSubmit,
+  myTeamId, teams, owners, counters, start = null, rosterLimit = null, games = null, week = null, busy, onCancel, onSubmit,
 }: {
   myTeamId: string;
   teams: { id: string; name: string }[];
   owners: Owned[];
   counters: TradeOffer | null;
+  /** An offer already begun somewhere else — "Trade" on a player's card —
+   *  so the sheet opens with him ticked. Ignored for a counter. */
+  start?: { toTeamId: string | null; give: string[]; get: string[] } | null;
   /** The league's roster size (its slot count), the limit ff_validate_trade
    *  enforces. Null skips the check and leaves it to the database. */
   rosterLimit?: number | null;
@@ -48,14 +51,17 @@ export function OfferSheet({
   // gives nobody has no arriving player to read a team off, and the old guess
   // fell through to the first club in the list — closing one manager's offer
   // while sending its answer to another. The database refuses that now too.
+  const begun = counters ? null : start;
   const [toTeam, setToTeam] = useState<string>(
-    counters?.proposer_team_id ?? teams[0]?.id ?? "",
+    counters?.proposer_team_id
+      ?? (begun?.toTeamId && teams.some((t) => t.id === begun.toTeamId) ? begun.toTeamId : null)
+      ?? teams[0]?.id ?? "",
   );
   const [give, setGive] = useState<Set<string>>(
-    () => new Set(counters?.items.filter((i) => i.leaving).map((i) => i.player_id) ?? []),
+    () => new Set(counters?.items.filter((i) => i.leaving).map((i) => i.player_id) ?? begun?.give ?? []),
   );
   const [get, setGet] = useState<Set<string>>(
-    () => new Set(counters?.items.filter((i) => !i.leaving).map((i) => i.player_id) ?? []),
+    () => new Set(counters?.items.filter((i) => !i.leaving).map((i) => i.player_id) ?? begun?.get ?? []),
   );
   const [message, setMessage] = useState("");
   const [drops, setDrops] = useState<Set<string>>(new Set());

@@ -31,7 +31,17 @@ import { useSearchParams } from "next/navigation";
 import { TopBar } from "@/components/Shell";
 import { TeamDesk, slotOk, type MoveTarget } from "@/components/team/TeamDesk";
 import { venue, type GameWeather } from "@/lib/nfl/venues";
-import type { HubPlayer, TeamHub, Wire } from "@/lib/nfl/types";
+import type { HubPlayer, PlayerCard, TeamHub, Wire } from "@/lib/nfl/types";
+import { CARD } from "@/app/preview/player/fixture";
+
+/** The fixture card, worn by whichever man was tapped: the sheet's body is
+ *  layout, and the name, club and face are what say whose card it is. */
+const cardFor = (p: HubPlayer): PlayerCard => ({
+  ...CARD,
+  player: { ...CARD.player, id: p.player_id, full_name: p.full_name, position: p.position,
+    nfl_team: p.nfl_team, espn_id: p.espn_id },
+  roster_spot: null,
+});
 
 type Seed = {
   name: string; pos: string; team: string; slot: string; espn: string;
@@ -365,6 +375,12 @@ function TeamPreview() {
             <option value="t2">The Porterhouse — Ray</option>
           </select>
         }
+        cardFor={cardFor}
+        // A drop on the fixture takes him off the roster, as the real one would.
+        onRelease={visitor ? undefined : async (p) => {
+          setHub((h) => ({ ...h, roster: h.roster.filter((r) => r.player_id !== p.player_id) }));
+          return true;
+        }}
         onSetLineup={visitor ? undefined : (assignments) => setHub((h) => ({
           ...h,
           roster: h.roster.map((p) => (assignments[p.player_id] ? { ...p, slot: assignments[p.player_id] } : p)),

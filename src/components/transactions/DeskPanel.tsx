@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { SkeletonRows, useToast } from "@/components/ui";
 import { Desk } from "@/components/trades/Desk";
 import { BlockSheet } from "@/components/trades/BlockSheet";
@@ -24,6 +25,17 @@ export function DeskPanel({ onStatus }: { onStatus?: (s: WireStatus) => void }) 
   const [offering, setOffering] = useState<{ counters?: TradeOffer } | null>(null);
   const [accepting, setAccepting] = useState<{ offer: TradeOffer; need: number } | null>(null);
   const { week, games } = useWeekGames();
+
+  // "Trade" on a player's card lands here as ?give=<id>, and "Trade for him"
+  // as ?get=<id>&with=<team>. Read once per link: closing the sheet marks it
+  // handled and takes it off the URL, so a refresh does not reopen it.
+  const params = useSearchParams();
+  const router = useRouter();
+  const askGive = params.get("give");
+  const askGet = params.get("get");
+  const askWith = params.get("with");
+  const askKey = askGive || askGet ? `${askGive}|${askGet}|${askWith}` : null;
+  const [handled, setHandled] = useState<string | null>(null);
 
   const fetcher = useCallback(async () => {
     if (!team) return null;
@@ -106,6 +118,29 @@ export function DeskPanel({ onStatus }: { onStatus?: (s: WireStatus) => void }) 
     void answer(id, response);
   }, [data, mine.length, limit, answer]);
 
+  // The offer the link asks for, once there is a desk to check it against:
+  // only your own man to give, the team that owns him to ask, and never past
+  // the deadline — the desk says why instead.
+  const begun = useMemo(() => {
+    if (!askKey || handled === askKey || !desk || !team) return null;
+    if (desk.week > desk.deadline_week || data?.deadline?.open === false) return null;
+    const give = askGive && mine.some((m) => m.player_id === askGive) ? [askGive] : [];
+    const theirs = askGet ? owners.find((o) => o.player_id === askGet && o.team_id !== team.id) : undefined;
+    const get = theirs ? [theirs.player_id] : [];
+    if (give.length === 0 && get.length === 0) return null;
+    return { toTeamId: theirs?.team_id ?? askWith, give, get };
+  }, [askKey, handled, desk, team, data, askGive, askGet, askWith, mine, owners]);
+
+  const closeOffer = useCallback(() => {
+    setOffering(null);
+    if (askKey) {
+      setHandled(askKey);
+      const next = new URLSearchParams(params.toString());
+      next.delete("give"); next.delete("get"); next.delete("with");
+      router.replace(`/transactions?${next.toString()}`, { scroll: false });
+    }
+  }, [askKey, params, router]);
+
   const skeleton = <div className="card"><SkeletonRows n={8} /></div>;
 
   if (!ready) return skeleton;
@@ -154,24 +189,25 @@ export function DeskPanel({ onStatus }: { onStatus?: (s: WireStatus) => void }) 
         />
       )}
 
-      {offering && (
+      {(offering || begun) && (
         <OfferSheet
           myTeamId={team.id}
           teams={teams.filter((t) => t.id !== team.id).map((t) => ({ id: t.id, name: t.name }))}
           owners={owners}
-          counters={offering.counters ?? null}
+          counters={offering?.counters ?? null}
+          start={offering ? null : begun}
           rosterLimit={limit}
           games={games}
           week={week}
           busy={busy === "offer"}
-          onCancel={() => setOffering(null)}
+          onCancel={closeOffer}
           onSubmit={(toTeamId, give, get, message, countersId, drops) => void run("offer",
             () => supabaseBrowser().rpc("ff_propose_trade", {
               p_from_team_id: team.id, p_to_team_id: toTeamId,
               p_i_give: give, p_i_get: get,
               p_message: message || null, p_counters_id: countersId,
               ...(drops.length ? { p_drops: drops } : {}),
-            }), "Offer sent.").then((ok) => ok && setOffering(null))}
+            }), "Offer sent.").then((ok) => ok && closeOffer())}
         />
       )}
 

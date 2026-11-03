@@ -7,7 +7,7 @@ import { injuriesByPlayer } from "@/lib/nfl/wire";
 import { buildLineup, slotOk } from "@/lib/nfl/lineup";
 import type { MatchupCurve } from "@/lib/nfl/matchup";
 import type { GameWeather } from "@/lib/nfl/venues";
-import type { HubPlayer, TeamHub, Wire } from "@/lib/nfl/types";
+import type { HubPlayer, PlayerCard, TeamHub, Wire } from "@/lib/nfl/types";
 import { Seal, TeamLink, useCountUp } from "@/components/ui";
 import { PlayerRow, SwapOptions, SwapSheet, useNarrow, type SwapOption } from "@/components/team/Lineup";
 import { DeskHeader, DeskScore, DeskTabs, projectedFinal } from "@/components/team/MobileDesk";
@@ -15,6 +15,7 @@ import { Coach } from "@/components/team/Coach";
 import { InsightBoard, NewsWire, TeamStats } from "@/components/team/Rail";
 import { Notifications } from "@/components/team/Notifications";
 import { RosterMoves } from "@/components/team/Moves";
+import { RosterPlayer } from "@/components/team/RosterPlayer";
 
 export { slotOk };
 
@@ -46,7 +47,7 @@ export type MoveTarget = { slot: string; player: HubPlayer | null };
 export function TeamDesk({
   hub, wire, moving, busy, crest = null, oppCrest = null, weather = null, matchups = null,
   readOnly = false, picker = null, settlesAt = null, currentWeek = null,
-  onPickUp, onCancelMove, onDrop, onWeek, onEdit, onSetLineup,
+  onPickUp, onCancelMove, onDrop, onWeek, onEdit, onSetLineup, onRelease, cardFor,
 }: {
   hub: TeamHub;
   wire: Wire | null;
@@ -91,10 +92,22 @@ export function TeamDesk({
    * but there is nothing to write to.
    */
   onSetLineup?: (assignments: Record<string, string>) => void | Promise<void>;
+  /**
+   * Drop a player outright, from his card. Resolves true when it landed.
+   * Absent on somebody else's desk, where the card offers a trade instead.
+   */
+  onRelease?: (p: HubPlayer) => Promise<boolean>;
+  /** A fixture card for the player sheet, so the preview needs no session. */
+  cardFor?: (p: HubPlayer) => PlayerCard | undefined;
 }) {
   const roster = hub.roster;
   const injuries = useMemo(() => injuriesByPlayer(wire), [wire]);
   const [coaching, setCoaching] = useState(false);
+  // By id, so the card follows the hub: a refetch after a lineup change keeps
+  // the same man open, and one who has just left the roster closes himself.
+  const [openId, setOpenId] = useState<string | null>(null);
+  const opened = openId ? roster.find((p) => p.player_id === openId) ?? null : null;
+  const openPlayer = (p: HubPlayer) => setOpenId(p.player_id);
 
   const insights = useMemo(
     () => buildInsights(roster, wire?.injuries ?? [], hub.week),
@@ -418,6 +431,7 @@ export function TeamDesk({
                       busy={busy}
                       canMove={!readOnly}
                       onPickUp={() => s.player && toggle(s.player)}
+                      onOpen={openPlayer}
                     />
                     {swapPanel(s.player)}
                   </Fragment>
@@ -447,6 +461,7 @@ export function TeamDesk({
                       busy={busy}
                       canMove={!readOnly}
                       onPickUp={() => toggle(p)}
+                      onOpen={openPlayer}
                     />
                     {swapPanel(p)}
                   </Fragment>
@@ -477,6 +492,18 @@ export function TeamDesk({
           busy={busy}
           onPick={(o) => onDrop({ slot: o.slot, player: o.player })}
           onCancel={onCancelMove}
+        />
+      )}
+
+      {opened && (
+        <RosterPlayer
+          player={opened}
+          own={!readOnly}
+          teamId={hub.team.id}
+          card={cardFor?.(opened)}
+          busy={busy}
+          onRelease={readOnly ? undefined : onRelease}
+          onClose={() => setOpenId(null)}
         />
       )}
 

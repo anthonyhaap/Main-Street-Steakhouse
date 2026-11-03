@@ -203,6 +203,24 @@ function Desk() {
     await refetch();
   }
 
+  /**
+   * Drop him outright, from his card. The same call the players tab makes for
+   * a release with no signing, so the same rules hold: your own man, his game
+   * not started, and he goes on waivers.
+   */
+  async function release(p: HubPlayer): Promise<boolean> {
+    if (!mine || !team) return false;
+    setBusy(true);
+    const { error: rpcError } = await supabaseBrowser().rpc("ff_add_drop", {
+      p_team_id: team.id, p_drop_player_id: p.player_id,
+    });
+    setBusy(false);
+    if (rpcError) { toast("error", rpcError.message); return false; }
+    toast("ok", `${p.full_name} dropped — he's on waivers.`);
+    await refetch();
+    return true;
+  }
+
   if (!ready || (subject && !hub && !error)) {
     return (
       <>
@@ -258,6 +276,7 @@ function Desk() {
           onWeek={(w) => { setMoving(null); setWeek(w); }}
           onEdit={mine ? () => setEditing(true) : undefined}
           onSetLineup={mine ? setLineup : undefined}
+          onRelease={mine ? release : undefined}
         />
       </div>
       {editing && mine && team && (
