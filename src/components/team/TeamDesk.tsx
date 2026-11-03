@@ -500,6 +500,7 @@ export function TeamDesk({
           player={opened}
           own={!readOnly}
           teamId={hub.team.id}
+          current={currentWeek == null || hub.week === currentWeek}
           card={cardFor?.(opened)}
           busy={busy}
           onRelease={readOnly ? undefined : onRelease}
