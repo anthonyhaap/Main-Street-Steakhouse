@@ -20,6 +20,10 @@ import { useEffect, useRef, useState } from "react";
  * It fades out rather than cutting to the desk, whether it ran to the end or
  * was skipped. Taps fall through to the desk while it fades. A clip that
  * failed to load, or a reader who asked for reduced motion, gets the cut.
+ *
+ * It fades in the same way: the black screen covers the desk at once, and
+ * the picture comes up out of it when the clip actually starts playing, so a
+ * slow load reads as black rather than a frozen first frame.
  */
 const INTRO_KEY = "mss-team-intro";
 const FADE_MS = 600;
@@ -37,6 +41,7 @@ export function TeamIntro({ onDone }: { onDone: () => void }) {
   // muted when it refuses sound, and the button has to say so.
   const [muted, setMuted] = useState(false);
   const [fading, setFading] = useState(false);
+  const [playing, setPlaying] = useState(false);
   useEffect(() => { done.current = onDone; }, [onDone]);
 
   // Start the fade once; the overlay unmounts when it has finished.
@@ -77,6 +82,8 @@ export function TeamIntro({ onDone }: { onDone: () => void }) {
         src="/team-intro.mp4"
         playsInline
         preload="auto"
+        data-playing={playing || undefined}
+        onPlaying={() => setPlaying(true)}
         onEnded={() => leave.current()}
         onError={() => onDone()}
         onVolumeChange={(e) => setMuted(e.currentTarget.muted)}
@@ -108,7 +115,14 @@ export function TeamIntro({ onDone }: { onDone: () => void }) {
           transition: opacity ${FADE_MS}ms ease;
         }
         .team-intro[data-fading] { opacity: 0; pointer-events: none; }
-        .team-intro__video { width: 100%; height: 100%; object-fit: contain; }
+        .team-intro__video {
+          width: 100%; height: 100%; object-fit: contain;
+          opacity: 0; transition: opacity ${FADE_MS}ms ease;
+        }
+        .team-intro__video[data-playing] { opacity: 1; }
+        @media (prefers-reduced-motion: reduce) {
+          .team-intro__video { transition: none; }
+        }
         .team-intro__btn {
           position: absolute;
           top: calc(env(safe-area-inset-top, 0px) + 16px);
