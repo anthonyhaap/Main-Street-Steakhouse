@@ -145,8 +145,8 @@ export function Tonight({ initial, serverNow }: { initial: Briefing | null; serv
               then the table, then what people are saying, and the office's
               announcements after the football. */}
           {b && <Carousel b={b} live={phase === "live"} />}
-          {b && <Table b={b} />}
           {b && <Payouts />}
+          {b && <Table b={b} />}
           {/* A second call, on purpose: the room arrives after the card. */}
           {b && <Room now={clock} enabled={ready} />}
 
@@ -170,8 +170,7 @@ function Payouts() {
       </div>
       <ol className="place__list">
         {PAYOUTS.map((p) => (
-          <li key={p.place} style={{ gridTemplateColumns: "26px minmax(0, 1fr) auto" }}>
-            <span className="num place__seed">{p.mark}</span>
+          <li key={p.place} style={{ gridTemplateColumns: "minmax(0, 1fr) auto" }}>
             <span className="place__name" title={p.detail}>{p.place}</span>
             <span className="place__rec" style={{ color: "var(--gold)", fontWeight: 600 }}>{p.terms}</span>
           </li>
