@@ -16,8 +16,13 @@ import { useEffect, useRef, useState } from "react";
  *
  * Once per session: the first time it shows, it marks the tab, and the desk
  * goes straight in until the tab is closed.
+ *
+ * It fades out rather than cutting to the desk, whether it ran to the end or
+ * was skipped. Taps fall through to the desk while it fades. A clip that
+ * failed to load, or a reader who asked for reduced motion, gets the cut.
  */
 const INTRO_KEY = "mss-team-intro";
+const FADE_MS = 600;
 
 /** Whether the clip has already played in this tab. Private mode or blocked
  *  storage reads as "not yet", so it plays rather than never. */
@@ -31,7 +36,18 @@ export function TeamIntro({ onDone }: { onDone: () => void }) {
   // Follows the element, not the other way round: the browser can force it
   // muted when it refuses sound, and the button has to say so.
   const [muted, setMuted] = useState(false);
+  const [fading, setFading] = useState(false);
   useEffect(() => { done.current = onDone; }, [onDone]);
+
+  // Start the fade once; the overlay unmounts when it has finished.
+  const leaving = useRef(false);
+  const leave = useRef(() => {
+    if (leaving.current) return;
+    leaving.current = true;
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) { done.current(); return; }
+    setFading(true);
+    setTimeout(() => done.current(), FADE_MS);
+  });
 
   useEffect(() => {
     try { sessionStorage.setItem(INTRO_KEY, "1"); } catch { /* private mode */ }
@@ -42,20 +58,26 @@ export function TeamIntro({ onDone }: { onDone: () => void }) {
       v.muted = true;
       v.play().catch(() => done.current());
     });
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") done.current(); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") leave.current(); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
   return (
-    <div className="team-intro" role="dialog" aria-label="Team intro" onClick={() => onDone()}>
+    <div
+      className="team-intro"
+      data-fading={fading || undefined}
+      role="dialog"
+      aria-label="Team intro"
+      onClick={() => leave.current()}
+    >
       <video
         ref={video}
         className="team-intro__video"
         src="/team-intro.mp4"
         playsInline
         preload="auto"
-        onEnded={() => onDone()}
+        onEnded={() => leave.current()}
         onError={() => onDone()}
         onVolumeChange={(e) => setMuted(e.currentTarget.muted)}
       />
@@ -73,7 +95,7 @@ export function TeamIntro({ onDone }: { onDone: () => void }) {
       <button
         type="button"
         className="team-intro__btn team-intro__skip"
-        onClick={(e) => { e.stopPropagation(); onDone(); }}
+        onClick={(e) => { e.stopPropagation(); leave.current(); }}
       >
         Skip
       </button>
@@ -83,7 +105,9 @@ export function TeamIntro({ onDone }: { onDone: () => void }) {
           background: #000;
           display: flex; align-items: center; justify-content: center;
           cursor: pointer;
+          transition: opacity ${FADE_MS}ms ease;
         }
+        .team-intro[data-fading] { opacity: 0; pointer-events: none; }
         .team-intro__video { width: 100%; height: 100%; object-fit: contain; }
         .team-intro__btn {
           position: absolute;
