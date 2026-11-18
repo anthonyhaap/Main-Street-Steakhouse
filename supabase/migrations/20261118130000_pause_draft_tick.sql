@@ -1,0 +1,22 @@
+-- ============================================================================
+-- Switch off draft-tick until the next draft.
+--
+-- draft-tick runs ff_tick_drafts() every five seconds, which makes the
+-- automatic pick for a draft that is in progress when the clock runs out or
+-- the team on the clock has auto-draft on. The league's only draft finished on
+-- 2026-09-09, so since then it has done nothing but log a run: about 17,000 a
+-- day into cron.job_run_details, most of the 1.2 million rows (303 MB) that
+-- table held by 2026-11-18.
+--
+-- The job is switched off, not removed, so its schedule and command stay put.
+--
+-- BEFORE NEXT SEASON'S DRAFT, switch it back on, or a manager who lets the
+-- clock run out is never picked for:
+--
+--   update cron.job set active = true where jobname = 'draft-tick';
+--
+-- An update rather than cron.alter_job() so this replays on the stand-in
+-- pg_cron in scripts/replay/ext, which has the table but not the function.
+-- ============================================================================
+
+update cron.job set active = false where jobname = 'draft-tick';
