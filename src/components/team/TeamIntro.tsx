@@ -93,7 +93,12 @@ export function TeamIntro({ onDone }: { onDone: () => void }) {
           background: rgba(0,0,0,0.5); color: #fff;
           font: inherit; font-size: 14px; cursor: pointer;
         }
-        .team-intro__skip { right: calc(env(safe-area-inset-right, 0px) + 16px); }
+        .team-intro__skip {
+          right: calc(env(safe-area-inset-right, 0px) + 16px);
+          min-height: 52px; padding: 10px 26px;
+          font-size: 18px; font-weight: 600;
+          border-width: 2px; border-color: rgba(255,255,255,0.7);
+        }
         .team-intro__mute { left: calc(env(safe-area-inset-left, 0px) + 16px); }
       `}</style>
     </div>
