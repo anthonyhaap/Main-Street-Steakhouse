@@ -5,6 +5,7 @@ import {
   ChevronDown, ChevronUp, Crown, Dices, Landmark, Link2, ListChecks, Mail, Save, Scale, ScrollText, Send, Timer, Users,
 } from "lucide-react";
 import { HistoryImport } from "@/components/admin/HistoryImport";
+import { JobHealth } from "@/components/admin/JobHealth";
 import { CoOwners } from "@/components/team/CoOwners";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { useLive } from "@/lib/live";
@@ -167,6 +168,8 @@ export default function AdminPage() {
 
         {iAmCommish && (
           <>
+            <JobHealth enabled={ready} />
+
             <section className="card">
               <div className="card__head">
                 <h2>The Weekly Special</h2>
