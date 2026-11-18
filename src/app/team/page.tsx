@@ -15,6 +15,7 @@ import { TopBar } from "@/components/Shell";
 import { Skeleton, SkeletonRows, useToast } from "@/components/ui";
 import { TeamDesk, slotOk, type MoveTarget } from "@/components/team/TeamDesk";
 import { EditTeam } from "@/components/team/EditTeam";
+import { TeamIntro } from "@/components/team/TeamIntro";
 
 /**
  * The desk, for the reader's own team or for anybody else's.
@@ -338,6 +339,24 @@ function DeskSkeleton() {
   );
 }
 
+/**
+ * Coming in to your own desk plays the intro clip first, with the desk loading
+ * underneath it. Somebody else's desk (`?id=`) goes straight in. The clip sits
+ * outside `Desk` so the desk swapping from skeleton to lineup does not restart
+ * it.
+ */
+function WithIntro() {
+  const asked = useSearchParams().get("id");
+  const [intro, setIntro] = useState(!asked);
+  const endIntro = useCallback(() => setIntro(false), []);
+  return (
+    <>
+      <Desk />
+      {intro && <TeamIntro onDone={endIntro} />}
+    </>
+  );
+}
+
 export default function TeamPage() {
   // `useSearchParams` client-renders the tree it sits in, so the skeleton is
   // the fallback as well as the loading state: the chrome is in the
@@ -351,7 +370,7 @@ export default function TeamPage() {
         </>
       }
     >
-      <Desk />
+      <WithIntro />
     </Suspense>
   );
 }
