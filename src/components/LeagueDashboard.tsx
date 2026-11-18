@@ -9,6 +9,7 @@ import {
 import type { BoardPick, Matchup, Pulse, Standing, Team } from "@/lib/types";
 import { fmtClock, pickLabel, snakeSlot, teamAtPick } from "@/lib/draft";
 import { crestUrl } from "@/lib/crest";
+import { PAYOUTS } from "@/lib/payouts";
 import { Seal, TeamLink, fmtPts } from "@/components/ui";
 import { CheckRow, Kpi, Meter, Ring, fmtDay, relTime } from "@/components/dash";
 
@@ -312,24 +313,17 @@ export function LeagueDashboard({
                 <CircleDollarSign size={16} color="var(--gold)" />
               </div>
               <div className="rows">
-                <div className="row" style={{ alignItems: "flex-start" }}>
-                  <Crown size={14} color="var(--gold)" style={{ marginTop: 3, flexShrink: 0 }} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 600 }}>Championship game</div>
-                    <div className="eyebrow" style={{ marginTop: 3, letterSpacing: "0.1em" }}>
-                      Split decided by the two managers in it
+                {PAYOUTS.map((p, i) => (
+                  <div className="row" key={p.place} style={{ alignItems: "flex-start" }}>
+                    {i === 0
+                      ? <Crown size={14} color="var(--gold)" style={{ marginTop: 3, flexShrink: 0 }} />
+                      : <span className="num eyebrow" style={{ width: 14, flexShrink: 0, marginTop: 2 }}>{p.mark}</span>}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 600 }}>{p.place}</div>
+                      <div className="eyebrow" style={{ marginTop: 3, letterSpacing: "0.1em" }}>{p.detail}</div>
                     </div>
                   </div>
-                </div>
-                <div className="row" style={{ alignItems: "flex-start" }}>
-                  <span className="num eyebrow" style={{ width: 14, flexShrink: 0, marginTop: 2 }}>3</span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 600 }}>Third place</div>
-                    <div className="eyebrow" style={{ marginTop: 3, letterSpacing: "0.1em" }}>
-                      Money back
-                    </div>
-                  </div>
-                </div>
+                ))}
               </div>
             </article>
 
