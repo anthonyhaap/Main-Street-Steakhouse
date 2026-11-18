@@ -313,11 +313,8 @@ export function LeagueDashboard({
                 <CircleDollarSign size={16} color="var(--gold)" />
               </div>
               <div className="rows">
-                {PAYOUTS.map((p, i) => (
+                {PAYOUTS.map((p) => (
                   <div className="row" key={p.place} style={{ alignItems: "flex-start" }}>
-                    {i === 0
-                      ? <Crown size={14} color="var(--gold)" style={{ marginTop: 3, flexShrink: 0 }} />
-                      : <span className="num eyebrow" style={{ width: 14, flexShrink: 0, marginTop: 2 }}>{p.mark}</span>}
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontWeight: 600 }}>{p.place}</div>
                       <div className="eyebrow" style={{ marginTop: 3, letterSpacing: "0.1em" }}>{p.detail}</div>
