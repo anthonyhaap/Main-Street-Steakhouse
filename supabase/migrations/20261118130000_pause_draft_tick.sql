@@ -13,10 +13,12 @@
 -- BEFORE NEXT SEASON'S DRAFT, switch it back on, or a manager who lets the
 -- clock run out is never picked for:
 --
---   update cron.job set active = true where jobname = 'draft-tick';
+--   select cron.alter_job((select jobid from cron.job where jobname = 'draft-tick'),
+--                         active := true);
 --
--- An update rather than cron.alter_job() so this replays on the stand-in
--- pg_cron in scripts/replay/ext, which has the table but not the function.
+-- Through cron.alter_job() because on Supabase the postgres role may not
+-- update cron.job directly ("permission denied for table job"), but may alter
+-- a job it owns, and draft-tick is owned by postgres.
 -- ============================================================================
 
-update cron.job set active = false where jobname = 'draft-tick';
+select cron.alter_job((select jobid from cron.job where jobname = 'draft-tick'), active := false);

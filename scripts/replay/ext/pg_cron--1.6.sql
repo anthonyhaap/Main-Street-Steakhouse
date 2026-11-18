@@ -65,3 +65,26 @@ begin
   delete from cron.job where jobname = job_name;
   return found;
 end $$;
+
+-- Real pg_cron's signature: every argument after the job is optional, and a
+-- null leaves that column as it was.
+create function alter_job(
+  job_id   bigint,
+  schedule text    default null,
+  command  text    default null,
+  database text    default null,
+  username text    default null,
+  active   boolean default null
+) returns void
+language plpgsql
+as $$
+begin
+  update cron.job j
+     set schedule = coalesce(alter_job.schedule, j.schedule),
+         command  = coalesce(alter_job.command,  j.command),
+         database = coalesce(alter_job.database, j.database),
+         username = coalesce(alter_job.username, j.username),
+         active   = coalesce(alter_job.active,   j.active)
+   where j.jobid = job_id;
+  if not found then raise exception 'could not find valid entry for job %', job_id; end if;
+end $$;
