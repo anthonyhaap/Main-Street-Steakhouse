@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 /**
  * The clip that plays on the way into your own desk.
@@ -28,6 +28,9 @@ export function introSeen(): boolean {
 export function TeamIntro({ onDone }: { onDone: () => void }) {
   const video = useRef<HTMLVideoElement>(null);
   const done = useRef(onDone);
+  // Follows the element, not the other way round: the browser can force it
+  // muted when it refuses sound, and the button has to say so.
+  const [muted, setMuted] = useState(false);
   useEffect(() => { done.current = onDone; }, [onDone]);
 
   useEffect(() => {
@@ -54,10 +57,22 @@ export function TeamIntro({ onDone }: { onDone: () => void }) {
         preload="auto"
         onEnded={() => onDone()}
         onError={() => onDone()}
+        onVolumeChange={(e) => setMuted(e.currentTarget.muted)}
       />
       <button
         type="button"
-        className="team-intro__skip"
+        className="team-intro__btn team-intro__mute"
+        onClick={(e) => {
+          e.stopPropagation();
+          const v = video.current;
+          if (v) v.muted = !v.muted;
+        }}
+      >
+        {muted ? "Unmute" : "Mute"}
+      </button>
+      <button
+        type="button"
+        className="team-intro__btn team-intro__skip"
         onClick={(e) => { e.stopPropagation(); onDone(); }}
       >
         Skip
@@ -70,15 +85,16 @@ export function TeamIntro({ onDone }: { onDone: () => void }) {
           cursor: pointer;
         }
         .team-intro__video { width: 100%; height: 100%; object-fit: contain; }
-        .team-intro__skip {
+        .team-intro__btn {
           position: absolute;
           top: calc(env(safe-area-inset-top, 0px) + 16px);
-          right: calc(env(safe-area-inset-right, 0px) + 16px);
           min-height: 36px; padding: 6px 14px;
           border-radius: 999px; border: 1px solid rgba(255,255,255,0.4);
           background: rgba(0,0,0,0.5); color: #fff;
           font: inherit; font-size: 14px; cursor: pointer;
         }
+        .team-intro__skip { right: calc(env(safe-area-inset-right, 0px) + 16px); }
+        .team-intro__mute { left: calc(env(safe-area-inset-left, 0px) + 16px); }
       `}</style>
     </div>
   );
