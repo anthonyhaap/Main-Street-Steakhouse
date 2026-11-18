@@ -305,6 +305,34 @@ export function LeagueDashboard({
           {/* -------------------------------------------------- right rail */}
           <div className="dash__col">
 
+            {/* payouts */}
+            <article className="card" data-accent="gold" aria-label="Payouts">
+              <div className="card__head">
+                <h2>Payouts</h2>
+                <CircleDollarSign size={16} color="var(--gold)" />
+              </div>
+              <div className="rows">
+                <div className="row" style={{ alignItems: "flex-start" }}>
+                  <Crown size={14} color="var(--gold)" style={{ marginTop: 3, flexShrink: 0 }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 600 }}>Championship game</div>
+                    <div className="eyebrow" style={{ marginTop: 3, letterSpacing: "0.1em" }}>
+                      Split decided by the two managers in it
+                    </div>
+                  </div>
+                </div>
+                <div className="row" style={{ alignItems: "flex-start" }}>
+                  <span className="num eyebrow" style={{ width: 14, flexShrink: 0, marginTop: 2 }}>3</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 600 }}>Third place</div>
+                    <div className="eyebrow" style={{ marginTop: 3, letterSpacing: "0.1em" }}>
+                      Money back
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </article>
+
             {/* readiness checklist */}
             <article className="card" data-accent={openChecks.length ? "wine" : undefined}>
               <div className="card__head">
