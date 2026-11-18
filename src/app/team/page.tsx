@@ -348,6 +348,14 @@ function DeskSkeleton() {
 function WithIntro() {
   const asked = useSearchParams().get("id");
   const [intro, setIntro] = useState(!asked);
+  // Coming back to your own desk from somebody else's only changes the query,
+  // so this component stays mounted: replay on that transition, during render
+  // rather than in an effect so the desk never shows a frame before the clip.
+  const [was, setWas] = useState(asked);
+  if (was !== asked) {
+    setWas(asked);
+    if (!asked) setIntro(true);
+  }
   const endIntro = useCallback(() => setIntro(false), []);
   return (
     <>
