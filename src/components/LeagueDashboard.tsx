@@ -9,7 +9,6 @@ import {
 import type { BoardPick, Matchup, Pulse, Standing, Team } from "@/lib/types";
 import { fmtClock, pickLabel, snakeSlot, teamAtPick } from "@/lib/draft";
 import { crestUrl } from "@/lib/crest";
-import { PAYOUTS } from "@/lib/payouts";
 import { Seal, TeamLink, fmtPts } from "@/components/ui";
 import { CheckRow, Kpi, Meter, Ring, fmtDay, relTime } from "@/components/dash";
 
@@ -305,24 +304,6 @@ export function LeagueDashboard({
 
           {/* -------------------------------------------------- right rail */}
           <div className="dash__col">
-
-            {/* payouts */}
-            <article className="card" data-accent="gold" aria-label="Payouts">
-              <div className="card__head">
-                <h2>Payouts</h2>
-                <CircleDollarSign size={16} color="var(--gold)" />
-              </div>
-              <div className="rows">
-                {PAYOUTS.map((p) => (
-                  <div className="row" key={p.place} style={{ alignItems: "flex-start" }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 600 }}>{p.place}</div>
-                      <div className="eyebrow" style={{ marginTop: 3, letterSpacing: "0.1em" }}>{p.detail}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </article>
 
             {/* readiness checklist */}
             <article className="card" data-accent={openChecks.length ? "wine" : undefined}>

@@ -1,6 +1,6 @@
 /**
  * The league's payouts, as the managers agreed them. Shown on the home
- * screen and the League page; edit here and both follow.
+ * screen.
  */
 export type Payout = {
   place: string;
