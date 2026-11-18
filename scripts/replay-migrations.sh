@@ -95,8 +95,16 @@ trap cleanup EXIT
 # Installing stand-ins lets that file execute VERBATIM, which is the point: the
 # alternative is editing the SQL before replaying it, and then the thing under
 # test is no longer the thing that ships.
+#
+# Skipped only when the installed copy is byte-for-byte this one: a shim that
+# gains a function (pg_cron's alter_job did) must reach a machine that ran the
+# replay before it did, or the replay fails on a function that is right here.
 for ext in http pg_cron; do
-  [ -f "$SHAREDIR/extension/$ext.control" ] && continue
+  current=true
+  for f in "$REPLAY/ext/$ext.control" "$REPLAY/ext/$ext"--*.sql; do
+    cmp -s "$f" "$SHAREDIR/extension/$(basename "$f")" || current=false
+  done
+  $current && continue
   cp "$REPLAY/ext/$ext.control" "$REPLAY/ext/$ext"--*.sql "$SHAREDIR/extension/" 2>/dev/null \
     || die "cannot install the $ext shim into $SHAREDIR/extension (need write access; try sudo)."
   echo "installed replay shim: $ext"
