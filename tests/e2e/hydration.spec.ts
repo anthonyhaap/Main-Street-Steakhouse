@@ -16,7 +16,7 @@ import { expect, test } from "@playwright/test";
  */
 
 const PAGES = [
-  "/preview", "/preview/admin", "/preview/challenges", "/preview/chat", "/preview/draft", "/preview/history",
+  "/preview/admin", "/preview/challenges", "/preview/chat", "/preview/draft", "/preview/history",
   "/preview/league-feed", "/preview/ledger", "/preview/matchup", "/preview/matchups", "/preview/notifications",
   "/preview/players", "/preview/recap", "/preview/standings", "/preview/sunday", "/preview/team",
   "/preview/tonight", "/preview/trades", "/preview/waivers",

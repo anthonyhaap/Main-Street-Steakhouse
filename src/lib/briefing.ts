@@ -543,7 +543,7 @@ export function action(b: Briefing, phase: Phase): Action | null {
   const lu = b.lineup;
   switch (phase) {
     case "unlinked":
-      return { label: "See the league", href: "/league" };
+      return { label: "See the standings", href: "/standings" };
     case "draft":
       return b.draft?.status === "active"
         ? { label: b.draft.on_clock_team_id === b.me?.team_id ? "Make your pick" : "Enter the draft room", href: "/draft", urgent: b.draft.on_clock_team_id === b.me?.team_id }

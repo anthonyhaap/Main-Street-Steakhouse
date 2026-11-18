@@ -196,7 +196,7 @@ function LeagueMenu({ path, counts }: { path: string; counts?: { chat: number; l
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const active = isOn(path, "/league") || LEAGUE_PAGES.some((i) => isOn(path, i.href));
+  const active = LEAGUE_PAGES.some((i) => isOn(path, i.href));
 
   const close = () => setOpen(false);
   const closeAndRefocus = () => {
@@ -235,10 +235,6 @@ function LeagueMenu({ path, counts }: { path: string; counts?: { chat: number; l
       </button>
       {open && (
         <div className="nav__dropdown-panel">
-          <Link href="/league" className="nav__dropdown-item" data-on={isOn(path, "/league")} onClick={close}>
-            <Crown size={14} strokeWidth={1.75} aria-hidden />
-            League Home
-          </Link>
           <Link href="/sunday" className="nav__dropdown-item" data-on={isOn(path, "/sunday")} onClick={close}>
             <Radio size={14} strokeWidth={1.75} aria-hidden />
             Game Center
@@ -292,6 +288,7 @@ export function TopBar({ status }: { status?: WireStatus }) {
   const showAdmin = isCommissioner || !league?.commissioner_id;
   const items: NavItem[] = [
     ...NAV.map((i) => (gameDay && i.href === "/matchups" ? SUNDAY : i)),
+    // Not a page: the slot where the League menu sits in the bar.
     { href: "/league", label: "League", Icon: Crown },
     ...(showAdmin ? [{ href: "/admin", label: "Commish", Icon: Crown, commish: true }] : []),
   ];
@@ -302,7 +299,7 @@ export function TopBar({ status }: { status?: WireStatus }) {
   const sheetRest: NavItem[] = NAV.concat(showAdmin ? [{ href: "/admin", label: "Commish", Icon: Crown, commish: true }] : [])
     .filter((i) => i.href !== "/" && !onTab(i.href));
   const sheetLeague = LEAGUE_PAGES.filter((i) => !onTab(i.href));
-  const restActive = sheetRest.some((i) => isOn(path, i.href)) || isOn(path, "/league")
+  const restActive = sheetRest.some((i) => isOn(path, i.href))
     || (!onTab(GAME_CENTER.href) && isOn(path, GAME_CENTER.href))
     || sheetLeague.some((i) => isOn(path, i.href));
 
@@ -415,10 +412,6 @@ export function TopBar({ status }: { status?: WireStatus }) {
             <div className="sheet__section">
               <span className="sheet__section-label">League</span>
               <div className="sheet__grid">
-                <Link href="/league" className="qa__btn" data-on={isOn(path, "/league")} onClick={close}>
-                  <Crown strokeWidth={1.75} />
-                  League Home
-                </Link>
                 {!onTab(GAME_CENTER.href) && (
                   <Link href={GAME_CENTER.href} className="qa__btn" data-on={isOn(path, GAME_CENTER.href)} onClick={close}>
                     <Radio strokeWidth={1.75} />
