@@ -13,13 +13,25 @@ import { useEffect, useRef } from "react";
  * Sound is tried first: the tap on "My Team" usually counts as the gesture a
  * browser wants before it plays audio. Where it does not, it plays muted
  * rather than not at all.
+ *
+ * Once per session: the first time it shows, it marks the tab, and the desk
+ * goes straight in until the tab is closed.
  */
+const INTRO_KEY = "mss-team-intro";
+
+/** Whether the clip has already played in this tab. Private mode or blocked
+ *  storage reads as "not yet", so it plays rather than never. */
+export function introSeen(): boolean {
+  try { return !!sessionStorage.getItem(INTRO_KEY); } catch { return false; }
+}
+
 export function TeamIntro({ onDone }: { onDone: () => void }) {
   const video = useRef<HTMLVideoElement>(null);
   const done = useRef(onDone);
   useEffect(() => { done.current = onDone; }, [onDone]);
 
   useEffect(() => {
+    try { sessionStorage.setItem(INTRO_KEY, "1"); } catch { /* private mode */ }
     const v = video.current;
     if (!v) return;
     v.muted = false;
