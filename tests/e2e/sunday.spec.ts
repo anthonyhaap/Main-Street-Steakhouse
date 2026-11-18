@@ -190,7 +190,8 @@ test("the game center is reachable from any screen", async ({ page }, info) => {
     await expect(sheet.getByRole("link", { name: "Matchups" })).toHaveAttribute("href", "/matchups");
     await expect(sheet.getByRole("link", { name: /^Chat/ })).toHaveAttribute("href", "/chat");
     await expect(sheet.getByRole("link", { name: "Standings" })).toHaveAttribute("href", "/standings");
-    await expect(sheet.getByRole("link", { name: "League Home" })).toHaveAttribute("href", "/league");
+    // The old League Home page is gone: everything on it lives on these pages.
+    await expect(sheet.getByRole("link", { name: "League Home" })).toHaveCount(0);
     // A tab is never repeated in the sheet.
     await expect(sheet.getByRole("link", { name: "Game Center" })).toHaveCount(0);
     await expect(sheet.getByRole("link", { name: "My Team" })).toHaveCount(0);
