@@ -10,6 +10,7 @@ import { Scale, ScrollText } from "lucide-react";
 import { TopBar } from "@/components/Shell";
 import { useToast } from "@/components/ui";
 import { LeagueRules, ScoringEditor } from "@/components/admin/RulesEditors";
+import { JobHealthCard, type JobHealthData } from "@/components/admin/JobHealth";
 import type { League, ScoringRuleSet } from "@/lib/types";
 
 const league: League = {
@@ -41,12 +42,30 @@ const rules: ScoringRuleSet[] = [
   { id: "r2", effective_from_week: 5, note: "Half-point per reception for tight ends was voted down; back to full PPR.", created_at: "2026-10-12T12:00:00Z" },
 ];
 
+// Fixed instants, like the rule sets above: every "ago" is counted from
+// checked_at, so the build's render and the browser's agree.
+const AT = Date.parse("2026-11-18T16:00:00Z");
+const before = (s: number) => new Date(AT - s * 1000).toISOString();
+const jobs: JobHealthData = {
+  available: true,
+  checked_at: new Date(AT).toISOString(),
+  jobs: [
+    { name: "draft-tick", schedule: "5 seconds", active: false, last_run: before(86400 * 60), last_status: "succeeded", last_success: before(86400 * 60), healthy: null },
+    { name: "live-stats", schedule: "*/2 * * * *", active: true, last_run: before(100), last_status: "succeeded", last_success: before(100), healthy: true },
+    { name: "open-sunday-live", schedule: "0 15 * * 0", active: true, last_run: before(86400 * 2 + 3600), last_status: "succeeded", last_success: before(86400 * 2 + 3600), healthy: true },
+    { name: "projections", schedule: "35 2,8,14,20 * * *", active: true, last_run: before(19000), last_status: "succeeded", last_success: before(19000), healthy: true },
+    { name: "waivers", schedule: "5 8 * * *", active: true, last_run: before(86400 * 2), last_status: "failed", last_success: before(86400 * 2), healthy: false },
+  ],
+};
+
 export default function Preview() {
   const toast = useToast();
   return (
     <>
       <TopBar status="live" />
       <main className="page">
+        <JobHealthCard data={jobs} />
+
         <section className="card">
           <div className="card__head">
             <div>

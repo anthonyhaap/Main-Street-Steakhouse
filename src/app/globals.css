@@ -1016,6 +1016,8 @@ a.kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); border-c
 .job + .job { border-top: 1px solid var(--rule-soft); }
 .job__dot { width: 7px; height: 7px; border-radius: 50%; background: var(--win); flex-shrink: 0; }
 .job[data-ok="false"] .job__dot { background: var(--lose); }
+.job[data-ok="off"] .job__dot { background: var(--faint); }
+.job[data-ok="off"] .job__name { color: var(--dim); }
 .job__name { font-family: var(--mono); font-size: var(--t-micro); }
 .job__meta { margin-left: auto; font-size: var(--t-micro); color: var(--dim); }
 
