@@ -64,12 +64,13 @@ export function yetToPlay(starters: (HubPlayer | null)[]): number {
 }
 
 export function DeskHeader({
-  hub, crest, readOnly, picker, onEdit,
+  hub, crest, readOnly, picker, take = null, onEdit,
 }: {
   hub: TeamHub;
   crest: string | null;
   readOnly: boolean;
   picker: ReactNode;
+  take?: ReactNode;
   onEdit?: () => void;
 }) {
   const rec = hub.record;
@@ -97,6 +98,7 @@ export function DeskHeader({
               {rec.wins}–{rec.losses}{rec.ties ? `–${rec.ties}` : ""} · {ordinal(rec.rank)} of {rec.teams}
             </span>
           )}
+          {take}
         </div>
         {/* The league's other desks. The page's own select, laid invisibly
             over the chevron, so the phone's native picker is what opens. */}

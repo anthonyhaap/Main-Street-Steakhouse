@@ -5869,3 +5869,42 @@ html[data-kb="open"] .chat-compose { bottom: 0; padding-bottom: var(--s2); }
   .pickem-team__check { position: static; margin-left: auto; }
   .pickem-team__score + .pickem-team__check { margin-left: 0; }
 }
+
+/* ------------------------------------------------ projected take (desk) */
+/* The manager's projected winnings beside their own team's name. A
+   <details>, so it opens on a tap without any state; the sheet sits in the
+   flow because both headers clip what hangs outside them. */
+.take { --take-up: var(--win); --take-down: var(--lose); --take-even: var(--muted); }
+.mt-head .take { --take-up: #8fe0b0; --take-down: #ffb4a3; --take-even: var(--gold-dim); }
+.mt-head .take { margin-top: 6px; }
+.th-side__meta .take[open] { flex-basis: 100%; }
+.take > summary {
+  display: inline-flex; align-items: center; gap: 6px;
+  min-height: 24px; padding: 2px 10px;
+  border: 1px solid currentColor; border-radius: 999px;
+  font: 700 var(--t-small)/1 var(--sans);
+  cursor: pointer; list-style: none; user-select: none;
+}
+.take > summary::-webkit-details-marker { display: none; }
+.take[data-tone="up"]   > summary { color: var(--take-up); }
+.take[data-tone="down"] > summary { color: var(--take-down); }
+.take[data-tone="even"] > summary { color: var(--take-even); }
+.take__label { font-size: var(--t-nano); letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.8; }
+.take__sheet {
+  display: grid; gap: 8px;
+  margin-top: 8px; padding: 10px 12px;
+  max-width: 360px;
+  border-radius: var(--r-sm);
+  background: color-mix(in srgb, currentColor 7%, transparent);
+  border: 1px solid color-mix(in srgb, currentColor 16%, transparent);
+  font-size: var(--t-small);
+}
+.take__head { font: 700 var(--t-nano)/1.2 var(--sans); letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.7; }
+.take__row { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); }
+.take__row b { display: block; font-weight: 700; }
+.take__row span:not(.num) { display: block; opacity: 0.75; font-size: var(--t-micro); line-height: 1.35; }
+.take__row .num { font-weight: 700; white-space: nowrap; }
+.take__row .num[data-tone="up"]   { color: var(--take-up); }
+.take__row .num[data-tone="down"] { color: var(--take-down); }
+.take__row .num[data-tone="even"] { color: var(--take-even); }
+.take__foot { font-size: var(--t-nano); opacity: 0.6; line-height: 1.4; }

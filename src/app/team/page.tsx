@@ -16,6 +16,7 @@ import { Skeleton, SkeletonRows, useToast } from "@/components/ui";
 import { TeamDesk, slotOk, type MoveTarget } from "@/components/team/TeamDesk";
 import { EditTeam } from "@/components/team/EditTeam";
 import { TeamIntro, introSeen } from "@/components/team/TeamIntro";
+import { ProjectedTake, useProjectedTake } from "@/components/team/ProjectedTake";
 
 /**
  * The desk, for the reader's own team or for anybody else's.
@@ -114,6 +115,9 @@ function Desk() {
     const by = ranks.data.ranks;
     return { ...hub, roster: hub.roster.map((p) => ({ ...p, pos_rank: by[p.player_id] ?? null })) };
   }, [hub, ranks]);
+
+  // Your projected winnings — asked for, and drawn, on your own desk only.
+  const take = useProjectedTake(mine ? team : null, teams, ready && mine);
 
   const { data: wire } = useWire(ready);
   // Only the reader's own desk draws the deadline, so only that desk asks.
@@ -271,6 +275,7 @@ function Desk() {
           picker={teams.length > 1
             ? <TeamPicker teams={teams} value={subject.id} mine={team?.id ?? null} onPick={look} />
             : null}
+          take={mine && take && !stale ? <ProjectedTake take={take} /> : null}
           onPickUp={setMoving}
           onCancelMove={() => setMoving(null)}
           onDrop={drop}
