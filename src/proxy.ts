@@ -15,7 +15,7 @@ import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "@/lib/config";
  * real components, reading nothing from the database. Public so the design
  * can be looked at and tested without a seat at the table.
  *
- * `/api/push/drain` is Vercel Cron, which arrives with no cookie and could
+ * `/api/push/drain` is the minute cron (pg_cron via pg_net), which arrives with no cookie and could
  * not obtain one. It is not unauthenticated — it checks a bearer CRON_SECRET
  * itself and refuses everything if that variable is unset — but the check has
  * to be its own rather than a session, so it cannot be gated here.

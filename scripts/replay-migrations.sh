@@ -99,7 +99,7 @@ trap cleanup EXIT
 # Skipped only when the installed copy is byte-for-byte this one: a shim that
 # gains a function (pg_cron's alter_job did) must reach a machine that ran the
 # replay before it did, or the replay fails on a function that is right here.
-for ext in http pg_cron; do
+for ext in http pg_cron pg_net; do
   current=true
   for f in "$REPLAY/ext/$ext.control" "$REPLAY/ext/$ext"--*.sql; do
     cmp -s "$f" "$SHAREDIR/extension/$(basename "$f")" || current=false
