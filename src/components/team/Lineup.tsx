@@ -71,7 +71,16 @@ export function PlayerRow({
           onOpen={onOpen ? () => onOpen(player) : undefined}
           sub={
             <>
-              <span>{player.position} · {player.nfl_team ?? "FA"}</span>
+              {/* On a phone this line is only the game: "vs SF · Sun 1:00".
+                  The pill already gives his position — unless it says FLEX
+                  or BN, when it stays — and the logo on the face gives his
+                  club, which only comes back when there is no game to name. */}
+              <span className="plr__id" data-hide={slot === player.position && player.game && player.nfl_team ? true : undefined}>
+                <span className="plr__ppos" data-hide={slot === player.position || undefined}>{player.position}</span>
+                <span className="plr__club" data-hide={player.game && player.nfl_team ? true : undefined}>
+                  {player.nfl_team ?? "FA"}
+                </span>
+              </span>
               {player.pos_rank ? (
                 <span
                   className="plr__rank"
@@ -165,6 +174,17 @@ export type SwapOption = {
   /** Whoever is in that slot now. Null for an empty slot or "send to bench". */
   player: HubPlayer | null;
 };
+
+/** "vs SF · Sun 1:00 PM" — the opponent and the time, not the club he plays
+ *  for as well; "LAR · Bye" when there is no game to name. The position leads
+ *  only when the slot pill beside it does not already say it (FLEX, BN). */
+function whoLine(p: Pick<HubPlayer, "position" | "nfl_team" | "game">, slot: string): string {
+  return [
+    slot === p.position ? null : p.position,
+    p.game ? null : p.nfl_team ?? "FA",
+    kickoffLine(p.game),
+  ].filter(Boolean).join(" · ");
+}
 
 /** ESPN's word, shortened to what fits beside a name: "Q", "O", "IR". */
 export function injuryTag(status: string): string {
@@ -260,7 +280,7 @@ export function SwapOptions({
                         <>
                           <b>{o.player.full_name}</b>
                           <span>
-                            {o.player.position} · {o.player.nfl_team ?? "FA"} · {kickoffLine(o.player.game)}
+                            {whoLine(o.player, o.slot)}
                             {locked && " · locked, game started"}
                           </span>
                         </>
@@ -333,7 +353,7 @@ export function SwapSheet({
           <span className="pos" data-p={player.slot}>{player.slot}</span>
           <span className="swap__who">
             <b>{player.full_name}</b>
-            <span>{player.position} · {player.nfl_team ?? "FA"} · {kickoffLine(player.game)}</span>
+            <span>{whoLine(player, player.slot)}</span>
           </span>
           <span className="swap__proj">
             <b className="num">{fmtPts(player.points)}</b>

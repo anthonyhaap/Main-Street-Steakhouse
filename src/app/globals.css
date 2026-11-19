@@ -1429,6 +1429,7 @@ a.kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); border-c
 
 .plr__match, .plr__form, .plr__use { display: none; min-width: 0; }
 .plr__when { color: var(--muted); white-space: nowrap; }
+.plr__ppos + .plr__club::before { content: "\00b7"; margin: 0 4px; }
 
 @container (min-width: 540px) {
   .plr__when { display: none; }
@@ -5694,6 +5695,8 @@ html[data-curtain="1"] .tt [data-i="7"] { animation-delay: 1.06s; }
   .plr .pbadge__sub > span { white-space: nowrap; flex-shrink: 0; }
   .plr .pbadge__sub > .plr__when { flex-shrink: 1; }
   .plr__rank, .plr__inj-full { display: none; }
+  .plr__id[data-hide], .plr__ppos[data-hide], .plr__club[data-hide] { display: none; }
+  .plr__ppos[data-hide] + .plr__club::before { content: none; }
   .plr__when { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
   .plr__inj {
     display: inline-grid; place-items: center;
