@@ -20,7 +20,9 @@ export const dynamic = "force-dynamic";
  * different work; an unfinished claim expires after five minutes and comes back
  * rather than being lost.
  *
- * Authorised by CRON_SECRET, which Vercel Cron sends as a bearer token. Without
+ * Authorised by CRON_SECRET as a bearer token. The caller is pg_cron, every minute,
+ * through pg_net (migration push_drain_cron) — it reads the same value from
+ * Vault as `cron_secret`; Vercel Cron did this until the account went to Hobby. Without
  * that env var set the route refuses everything rather than defaulting open —
  * an unauthenticated drain is a way to make the league's phones buzz.
  */

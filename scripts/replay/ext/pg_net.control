@@ -1,0 +1,6 @@
+# Stand-in for pg_net, which needs a background worker a stock Postgres lacks.
+# See scripts/replay/README.md — this exists so `create extension pg_net` and
+# `net.http_get(...)` resolve during a replay. It performs no I/O.
+comment = 'replay shim for pg_net (no network)'
+default_version = '0.19.5'
+relocatable = false

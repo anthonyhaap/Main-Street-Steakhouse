@@ -27,8 +27,8 @@ the smallest set the migrations actually touch — the surface was measured by
 grepping the directory, not guessed — because every object invented here is an
 object the replay stops being able to prove anything about.
 
-`ext/` holds stand-ins for `http` and `pg_cron`. Neither is installable on a
-stock Postgres: one needs libcurl compiled in, the other a background worker in
+`ext/` holds stand-ins for `http`, `pg_cron` and `pg_net`. None is installable on a
+stock Postgres: `http` needs libcurl compiled in, the other two a background worker in
 `shared_preload_libraries`. `20260809014900_enable_extensions.sql` is the first
 file that runs, so without them there is no replay at all. They are installed
 into the Postgres extension directory so that migration executes **verbatim**;

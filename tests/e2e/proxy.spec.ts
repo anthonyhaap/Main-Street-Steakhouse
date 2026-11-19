@@ -40,7 +40,7 @@ for (const path of PUBLIC) {
 }
 
 test("the cron drain is public to the router but not to the caller", async ({ request }) => {
-  // It is on the PUBLIC list because Vercel Cron arrives with no cookie and
+  // It is on the PUBLIC list because the minute cron arrives with no cookie and
   // could not obtain one. That must not mean it is open: it checks a bearer
   // CRON_SECRET itself, and refuses everything when that variable is unset.
   // So the right answer here is a refusal, and specifically not a redirect to
