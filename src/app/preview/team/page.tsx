@@ -30,6 +30,7 @@ import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { TopBar } from "@/components/Shell";
 import { TeamDesk, slotOk, type MoveTarget } from "@/components/team/TeamDesk";
+import { ProjectedTake, type Take } from "@/components/team/ProjectedTake";
 import { venue, type GameWeather } from "@/lib/nfl/venues";
 import type { HubPlayer, PlayerCard, TeamHub, Wire } from "@/lib/nfl/types";
 import { CARD } from "@/app/preview/player/fixture";
@@ -375,6 +376,8 @@ function TeamPreview() {
             <option value="t2">The Porterhouse — Ray</option>
           </select>
         }
+        // Your own desk only, as on the live page: a visitor sees no money.
+        take={visitor ? null : <ProjectedTake take={TAKE} />}
         cardFor={cardFor}
         // A drop on the fixture takes him off the roster, as the real one would.
         onRelease={visitor ? undefined : async (p) => {
@@ -399,3 +402,10 @@ export default function TeamPreviewPage() {
     </Suspense>
   );
 }
+
+/** Projected 2nd of 12 and sharing the pick'em lead two ways. */
+const TAKE: Take = {
+  total: 230 + 80,
+  league: { place: 2, net: 230, teams: 12, podiumPct: 24 },
+  pickem: { rank: 1, net: 80, pot: 200, tied: 2 },
+};

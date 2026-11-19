@@ -46,7 +46,7 @@ export type MoveTarget = { slot: string; player: HubPlayer | null };
  */
 export function TeamDesk({
   hub, wire, moving, busy, crest = null, oppCrest = null, weather = null, matchups = null,
-  readOnly = false, picker = null, settlesAt = null, currentWeek = null,
+  readOnly = false, picker = null, take = null, settlesAt = null, currentWeek = null,
   onPickUp, onCancelMove, onDrop, onWeek, onEdit, onSetLineup, onRelease, cardFor,
 }: {
   hub: TeamHub;
@@ -61,6 +61,11 @@ export function TeamDesk({
    * fixture has no league and leaves it out.
    */
   picker?: ReactNode;
+  /**
+   * The reader's projected winnings, drawn beside the name. Only the page
+   * knows whose desk this is and whether they may see it, so it decides.
+   */
+  take?: ReactNode;
   /** This team's crest, from `crestUrl()`. Null falls back to the monogram. */
   crest?: string | null;
   oppCrest?: string | null;
@@ -232,7 +237,7 @@ export function TeamDesk({
     <>
       <main className="page" data-desk="team">
         {/* ------------------------------------------------- phone header -- */}
-        <DeskHeader hub={hub} crest={crest} readOnly={readOnly} picker={picker} onEdit={onEdit} />
+        <DeskHeader hub={hub} crest={crest} readOnly={readOnly} picker={picker} take={take} onEdit={onEdit} />
         <DeskScore
           hub={hub}
           mine={shownMine}
@@ -259,6 +264,7 @@ export function TeamDesk({
                     </span>
                   )}
                   {rec && <span className="eyebrow">{ordinal(rec.rank)} of {rec.teams}</span>}
+                  {take}
                   {readOnly && (
                     <span className="badge" data-tone="neutral" title="Another manager's team — read only">
                       <Eye size={11} /> Viewing

@@ -535,3 +535,25 @@ test("a player on another manager's roster opens with an offer for him", async (
   // Nothing on someone else's card can drop their player.
   await expect(card.getByRole("button", { name: /Drop/ })).toHaveCount(0);
 });
+
+/**
+ * The projected take: on your own desk, beside the name, and nowhere else.
+ * Both headers draw it (one per layout), so only the visible one is asked.
+ */
+test("your own desk shows what the season projects to pay you", async ({ page }) => {
+  await page.goto("/preview/team");
+  const take = page.locator(".take:visible");
+  await expect(take).toHaveCount(1);
+  await expect(take.locator("summary")).toContainText("+$310");
+  await take.locator("summary").click();
+  await expect(take).toContainText("Projected 2nd of 12");
+  await expect(take).toContainText("+$230");
+  await expect(take).toContainText("Tied for 1st");
+  await expect(take).toContainText("+$80");
+});
+
+test("nobody else's desk shows their money", async ({ page }) => {
+  await page.goto("/preview/team?as=visitor");
+  await expect(page.getByText("Viewing").locator("visible=true").first()).toBeVisible();
+  await expect(page.locator(".take")).toHaveCount(0);
+});

@@ -40,6 +40,14 @@ export type PlayoffProjection = {
   /** Share that ended as the top seed, 0–100. */
   top_seed_pct: number;
   avg_seed: number;
+  /**
+   * Share of simulated seasons that ended in first, second and third place
+   * once the bracket was played out, 0–100. For a bracket `bracketFinish`
+   * does not know how to play, the top three seeds stand in for the podium.
+   */
+  podium_pct: [number, number, number];
+  /** Where the team finished on average, bracket included: 1 is champion. */
+  avg_finish: number;
   status: PlayoffStatus;
 };
 
@@ -243,6 +251,12 @@ function simulate(o: Outlook, sims: number, rand: () => number): PlayoffRace | n
   const winSum = new Array<number>(n).fill(0);
   const seedSum = new Array<number>(n).fill(0);
   const order = teams.map((_, i) => i);
+  // The bracket draws from its own stream, so playing the playoffs out does
+  // not move a single regular-season draw — the odds above it are unchanged.
+  const bracketRand = mulberry32(0xb4ac);
+  const podium = teams.map(() => [0, 0, 0]);
+  const finishSum = new Array<number>(n).fill(0);
+  const playoffResults = playedPlayoffGames(o, idx);
 
   // This week's games: seasons each side won, and who got in in those.
   const fWon = focus.map(() => [0, 0]);
@@ -274,6 +288,13 @@ function simulate(o: Outlook, sims: number, rand: () => number): PlayoffRace | n
       if (seed < o.playoff_teams) made[t]++;
       if (seed < o.playoff_byes) byes[t]++;
       if (seed === 0) tops[t]++;
+    }
+    const finish = bracketFinish(order, o.playoff_teams, o.playoff_byes, o.regular_season_weeks,
+      (week, x, y) => playoffResults.get(gameKey(week, x, y)) ?? (normal(mu[x], sd[x], bracketRand) >= normal(mu[y], sd[y], bracketRand) ? x : y));
+    for (let place = 0; place < n; place++) {
+      const t = finish[place];
+      finishSum[t] += place + 1;
+      if (place < 3) podium[t][place]++;
     }
     for (let f = 0; f < focus.length; f++) {
       const side = winner[focus[f]];
@@ -319,6 +340,8 @@ function simulate(o: Outlook, sims: number, rand: () => number): PlayoffRace | n
       bye_pct: (byes[i] / sims) * 100,
       top_seed_pct: (tops[i] / sims) * 100,
       avg_seed: seedSum[i] / sims,
+      podium_pct: [0, 1, 2].map((k) => (podium[i][k] / sims) * 100) as [number, number, number],
+      avg_finish: finishSum[i] / sims,
       status: status[i],
     };
   });
@@ -340,6 +363,67 @@ function simulate(o: Outlook, sims: number, rand: () => number): PlayoffRace | n
   }))]));
 
   return { projections, week: focusWeek, games, paths, teamIndex: idx };
+}
+
+/* ---------------------------------------------------------- the bracket */
+
+const gameKey = (week: number, a: number, b: number) => `${week}:${Math.min(a, b)}:${Math.max(a, b)}`;
+
+/** Playoff games already decided, by week and pair, to the index of the winner. */
+function playedPlayoffGames(o: Outlook, idx: Map<string, number>): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const m of o.matchups) {
+    if (!m.played || m.week <= o.regular_season_weeks) continue;
+    const h = idx.get(m.home_team_id), a = idx.get(m.away_team_id);
+    if (h === undefined || a === undefined || Number(m.home_points) === Number(m.away_points)) continue;
+    out.set(gameKey(m.week, h, a), Number(m.home_points) > Number(m.away_points) ? h : a);
+  }
+  return out;
+}
+
+/**
+ * The final order of the league, from the seeding to the trophy.
+ *
+ * `seeds` is the regular-season order (best first). `play(week, a, b)` returns
+ * whichever of the two won the game in that week. Two brackets are played out:
+ * six teams with two byes (3v6 and 4v5, then 1 meets the 4/5 winner and 2 the
+ * 3/6 winner, no reseeding) and four with none (1v4, 2v3). The semifinal
+ * winners play for the title, the losers for third. Anything else falls back
+ * to the seeding itself as the finish — the podium is then the top three seeds.
+ *
+ * Below the podium the order is the order teams went out, then their seed.
+ */
+export function bracketFinish(
+  seeds: number[],
+  playoffTeams: number,
+  byes: number,
+  regularWeeks: number,
+  play: (week: number, a: number, b: number) => number,
+): number[] {
+  const w1 = regularWeeks + 1;
+  let semis: [number, number][];
+  let quarterLosers: number[] = [];
+  let semiWeek: number;
+  if (playoffTeams === 6 && byes === 2 && seeds.length >= 6) {
+    const [s1, s2, s3, s4, s5, s6] = seeds;
+    const a = play(w1, s4, s5), b = play(w1, s3, s6);
+    quarterLosers = [a === s4 ? s5 : s4, b === s3 ? s6 : s3].sort((x, y) => seeds.indexOf(x) - seeds.indexOf(y));
+    semis = [[s1, a], [s2, b]];
+    semiWeek = w1 + 1;
+  } else if (playoffTeams === 4 && byes === 0 && seeds.length >= 4) {
+    const [s1, s2, s3, s4] = seeds;
+    semis = [[s1, s4], [s2, s3]];
+    semiWeek = w1;
+  } else {
+    return seeds.slice();
+  }
+  const winA = play(semiWeek, ...semis[0]), winB = play(semiWeek, ...semis[1]);
+  const loseA = winA === semis[0][0] ? semis[0][1] : semis[0][0];
+  const loseB = winB === semis[1][0] ? semis[1][1] : semis[1][0];
+  const champ = play(semiWeek + 1, winA, winB);
+  const third = play(semiWeek + 1, loseA, loseB);
+  const placed = [champ, champ === winA ? winB : winA, third, third === loseA ? loseB : loseA, ...quarterLosers];
+  return [...placed, ...seeds.filter((t) => !placed.includes(t))];
 }
 
 /* ------------------------------------------------------------------ maths */
