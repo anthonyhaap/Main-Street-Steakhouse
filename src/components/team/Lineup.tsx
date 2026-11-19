@@ -71,14 +71,14 @@ export function PlayerRow({
           onOpen={onOpen ? () => onOpen(player) : undefined}
           sub={
             <>
-              {/* On a phone the club drops out of this line once the game
-                  line is beside it: the logo on the face already says who he
-                  plays for, and "vs SF · Sun 1:00" needs the room more than
-                  "LAR · vs SF" does. */}
-              <span>
-                {player.position}
+              {/* On a phone this line is only the game: "vs SF · Sun 1:00".
+                  The pill already gives his position — unless it says FLEX
+                  or BN, when it stays — and the logo on the face gives his
+                  club, which only comes back when there is no game to name. */}
+              <span className="plr__id" data-hide={slot === player.position && player.game && player.nfl_team ? true : undefined}>
+                <span className="plr__ppos" data-hide={slot === player.position || undefined}>{player.position}</span>
                 <span className="plr__club" data-hide={player.game && player.nfl_team ? true : undefined}>
-                  {" "}· {player.nfl_team ?? "FA"}
+                  {player.nfl_team ?? "FA"}
                 </span>
               </span>
               {player.pos_rank ? (
@@ -175,12 +175,15 @@ export type SwapOption = {
   player: HubPlayer | null;
 };
 
-/** "WR · vs SF · Sun 1:00 PM" — the opponent and the time, not the club he
- *  plays for as well; "WR · LAR · Bye" when there is no game to name. */
-function whoLine(p: Pick<HubPlayer, "position" | "nfl_team" | "game">): string {
-  return p.game
-    ? `${p.position} · ${kickoffLine(p.game)}`
-    : `${p.position} · ${p.nfl_team ?? "FA"} · ${kickoffLine(p.game)}`;
+/** "vs SF · Sun 1:00 PM" — the opponent and the time, not the club he plays
+ *  for as well; "LAR · Bye" when there is no game to name. The position leads
+ *  only when the slot pill beside it does not already say it (FLEX, BN). */
+function whoLine(p: Pick<HubPlayer, "position" | "nfl_team" | "game">, slot: string): string {
+  return [
+    slot === p.position ? null : p.position,
+    p.game ? null : p.nfl_team ?? "FA",
+    kickoffLine(p.game),
+  ].filter(Boolean).join(" · ");
 }
 
 /** ESPN's word, shortened to what fits beside a name: "Q", "O", "IR". */
@@ -277,7 +280,7 @@ export function SwapOptions({
                         <>
                           <b>{o.player.full_name}</b>
                           <span>
-                            {whoLine(o.player)}
+                            {whoLine(o.player, o.slot)}
                             {locked && " · locked, game started"}
                           </span>
                         </>
@@ -350,7 +353,7 @@ export function SwapSheet({
           <span className="pos" data-p={player.slot}>{player.slot}</span>
           <span className="swap__who">
             <b>{player.full_name}</b>
-            <span>{whoLine(player)}</span>
+            <span>{whoLine(player, player.slot)}</span>
           </span>
           <span className="swap__proj">
             <b className="num">{fmtPts(player.points)}</b>
