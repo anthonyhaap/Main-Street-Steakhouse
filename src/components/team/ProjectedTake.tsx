@@ -6,7 +6,7 @@ import { useLive } from "@/lib/live";
 import { LEAGUE_ID, SEASON } from "@/lib/config";
 import { oddsCanSeparate, projectPlayoffs } from "@/lib/playoffs";
 import {
-  PICKEM_SITTING_OUT, PICKEM_BUY_IN, leagueNet, pickemNet, signedDollars,
+  PICKEM_SITTING_OUT, PICKEM_EXTRA_ENTRANTS, PICKEM_BUY_IN, leagueNet, pickemNet, signedDollars,
 } from "@/lib/payouts";
 import { ordinal } from "@/lib/power";
 import type { Outlook, Team } from "@/lib/types";
@@ -20,7 +20,8 @@ import type { PickemSeasonStanding } from "@/lib/pickem/types";
  * team is put in order of where it finished on average, and that order is the
  * projected finish — first and second get their shares, third gets the
  * buy-in back, everybody else is out $100. The pick'em: whoever leads the
- * season standings now takes the pot; a manager not in the pick'em has no
+ * season standings now takes the pot (every team owner who is in, plus anybody
+ * in it without a team); a manager not in the pick'em has no
  * line for it at all.
  *
  * A projection, and it says so: the place is where the sim has you, not a
@@ -83,9 +84,10 @@ export function useProjectedTake(team: Team | null, teams: Team[], enabled: bool
 
     let pickem: Take["pickem"] = null;
     if (inPickem && season) {
-      const entrantIds = new Set(
-        teams.map((t) => t.owner_id).filter((id): id is string => !!id && !PICKEM_SITTING_OUT.has(id)),
-      );
+      const entrantIds = new Set([
+        ...teams.map((t) => t.owner_id).filter((id): id is string => !!id && !PICKEM_SITTING_OUT.has(id)),
+        ...PICKEM_EXTRA_ENTRANTS,
+      ]);
       const rows = season.filter((r) => entrantIds.has(r.user_id));
       const me = rows.find((r) => r.user_id === team.owner_id) ?? rows.find((r) => r.mine);
       const pot = PICKEM_BUY_IN * entrantIds.size;

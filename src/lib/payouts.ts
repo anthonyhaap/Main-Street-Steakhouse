@@ -32,9 +32,9 @@ export const PAYOUTS: Payout[] = [
  * splits 70 / 30 between the champion and the runner-up. (A working split —
  * the line above still says the two finalists get to settle it themselves.)
  *
- * Pick'em: $20 a head, winner takes the whole pot. Not everybody is in it, so
- * the managers who sat it out are listed by account here rather than guessed
- * from the standings.
+ * Pick'em: $20 a head, winner takes the whole pot. Not everybody is in it, and
+ * not everybody in it owns a team, so both lists are kept by account here
+ * rather than guessed from the standings.
  */
 export const LEAGUE_BUY_IN = 100;
 export const FIRST_SHARE = 0.7;
@@ -45,6 +45,10 @@ export const PICKEM_BUY_IN = 20;
 export const PICKEM_SITTING_OUT = new Set([
   "0bfa3616-d209-4d7b-8894-706ac059dc3b",
   "40fbe18d-06b3-4311-8683-a3a72e1d5e5e",
+]);
+/** In the pick'em pot without owning a team (jfell44). */
+export const PICKEM_EXTRA_ENTRANTS = new Set([
+  "17a294c7-9da1-4b64-bb53-115ed9a86d05",
 ]);
 
 /** What each league finish pays, net of the buy-in. Index 0 is first place. */
