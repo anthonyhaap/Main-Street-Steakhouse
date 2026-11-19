@@ -10,19 +10,6 @@ export type Payout = {
   detail: string;
 };
 
-export const PAYOUTS: Payout[] = [
-  {
-    place: "Championship game",
-    terms: "Their call",
-    detail: "Split decided by the two managers in it",
-  },
-  {
-    place: "Third place",
-    terms: "Money back",
-    detail: "Money back",
-  },
-];
-
 /* --------------------------------------------------------- the money */
 
 /**
@@ -30,7 +17,7 @@ export const PAYOUTS: Payout[] = [
  *
  * The league: $100 a team. Third place gets the buy-in back; whatever is left
  * splits 70 / 30 between the champion and the runner-up. (A working split —
- * the line above still says the two finalists get to settle it themselves.)
+ * agreed "for now".)
  *
  * Pick'em: $20 a head, winner takes the whole pot. Not everybody is in it, and
  * not everybody in it owns a team, so both lists are kept by account here
@@ -76,3 +63,28 @@ export function signedDollars(n: number): string {
   if (n === 0) return "$0";
   return `${n > 0 ? "+" : "−"}$${Math.abs(n).toLocaleString("en-US")}`;
 }
+
+/** The league as it stands: twelve teams at the buy-in. */
+export const LEAGUE_TEAMS = 12;
+
+const dollars = (n: number) => `$${n.toLocaleString("en-US")}`;
+const gross = (place: number) => leagueNet(place, LEAGUE_TEAMS) + LEAGUE_BUY_IN;
+
+/** Derived from the numbers above, so the home screen and the desk agree. */
+export const PAYOUTS: Payout[] = [
+  {
+    place: "First place",
+    terms: dollars(gross(1)),
+    detail: `${Math.round(FIRST_SHARE * 100)}% of the pot after third's money back`,
+  },
+  {
+    place: "Second place",
+    terms: dollars(gross(2)),
+    detail: `${Math.round(SECOND_SHARE * 100)}% of the pot after third's money back`,
+  },
+  {
+    place: "Third place",
+    terms: "Money back",
+    detail: `${dollars(LEAGUE_BUY_IN)} back`,
+  },
+];
