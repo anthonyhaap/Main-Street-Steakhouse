@@ -19,9 +19,18 @@ import type { HubPlayer, PlayerCard } from "@/lib/nfl/types";
  * can claim him, so one stray tap should not be able to do that.
  */
 export function RosterPlayer({
-  player, own, teamId, card, busy, onRelease, onClose,
+  player, own, teamId, current = true, card, busy, onRelease, onClose,
 }: {
   player: HubPlayer;
+  /**
+   * True when the desk is showing the league's current week. Drops and trades
+   * always happen in the current week, but `player.locked` describes the week
+   * on screen — a past week reads every man as locked, a future one reads
+   * nobody as locked. So the lock is only believed for the current week; on
+   * any other the buttons stay live and the database decides, as it always
+   * does in the end.
+   */
+  current?: boolean;
   /** True on the reader's own desk. */
   own: boolean;
   /** The team whose desk this is — whom an offer for him goes to. */
@@ -34,7 +43,7 @@ export function RosterPlayer({
   onClose: () => void;
 }) {
   const [confirming, setConfirming] = useState(false);
-  const locked = player.locked;
+  const locked = current && player.locked;
 
   const note = own && locked ? (
     <div className="note">

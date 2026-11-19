@@ -535,3 +535,19 @@ test("a player on another manager's roster opens with an offer for him", async (
   // Nothing on someone else's card can drop their player.
   await expect(card.getByRole("button", { name: /Drop/ })).toHaveCount(0);
 });
+
+test("a player's lock is this week's, not the week on screen", async ({ page }, info) => {
+  // Mahomes is locked in the live fixture's week, and the fixture keeps that
+  // flag whatever week is picked. Looking at another week, that lock is not
+  // today's — moves happen in the current week — so the card leaves the call
+  // to the database rather than repeating the wrong week's answer.
+  const pick = async (w: number) => info.project.name === "mobile"
+    ? page.getByRole("combobox", { name: "Week" }).selectOption(String(w))
+    : page.getByRole("button", { name: String(w), exact: true }).click();
+  await page.goto("/preview/team?state=live");
+  await pick(3);
+  await page.locator(".lineup .pbadge", { hasText: "Patrick Mahomes" }).click();
+  const card = page.getByRole("dialog", { name: "Patrick Mahomes" });
+  await expect(card.getByRole("button", { name: "Drop", exact: true })).toBeEnabled();
+  await expect(card).not.toContainText("game has started");
+});
