@@ -65,6 +65,10 @@ opens and rolls back its own transaction, so they run in any order and leave
 nothing behind. A failing file fails the run.
 
 Needs the Postgres **server** binaries (`initdb`, `pg_ctl`), not just `psql` —
-`postgresql-16` on Debian and Ubuntu. It writes the shims into the extension
+`postgresql-17` on Debian and Ubuntu, matching production's major. Another
+major still replays, with a warning, but is not the database that ships:
+Postgres 18 refuses updates to `challenges` that 17 allows (see the
+"binaries" section of the script). `REPLAY_PG_MAJOR` overrides the major and
+`REPLAY_PG_STRICT=1` turns the warning into a failure, as CI does. It writes the shims into the extension
 directory, so it wants root or sudo on a machine where that directory is not
 writable.

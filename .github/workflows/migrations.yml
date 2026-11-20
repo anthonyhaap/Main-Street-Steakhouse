@@ -82,18 +82,35 @@ jobs:
   replay:
     name: the directory builds an empty database
     runs-on: ubuntu-latest
+    env:
+      # Production's major (Supabase `postgres_engine`). Change it when the
+      # project is upgraded, not when the runner image is.
+      REPLAY_PG_MAJOR: "17"
+      REPLAY_PG_STRICT: "1"
     steps:
       - uses: actions/checkout@v4
 
-      # The ubuntu runners ship a Postgres 16 cluster, stopped. Only the server
-      # binaries are wanted here — the harness builds its own throwaway cluster,
-      # so the preinstalled one is left alone.
-      - name: check for the postgres server binaries
+      # The replay must run on production's Postgres major (17), not whatever
+      # the runner image happens to ship. ubuntu-latest moved to 26.04 and its
+      # preinstalled Postgres went from 16 to 18; 18 refuses UPDATEs on
+      # `challenges` (replica identity full over a stored generated column in
+      # a publication) that 17 allows, and the job went red on a refusal
+      # production cannot produce. Only the server binaries are wanted — the
+      # harness builds its own throwaway cluster.
+      - name: install the postgres server binaries production runs
         run: |
           set -euo pipefail
-          ls /usr/lib/postgresql/*/bin/initdb >/dev/null 2>&1 \
-            || sudo apt-get install -y --no-install-recommends postgresql
-          pg_config --version
+          if [ ! -x "/usr/lib/postgresql/$REPLAY_PG_MAJOR/bin/initdb" ]; then
+            sudo apt-get update -qq
+            if ! sudo apt-get install -y --no-install-recommends "postgresql-$REPLAY_PG_MAJOR"; then
+              # Not in the image's sources: add the PGDG repository, which
+              # postgresql-common ships a setup script for.
+              sudo apt-get install -y --no-install-recommends postgresql-common
+              sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+              sudo apt-get install -y --no-install-recommends "postgresql-$REPLAY_PG_MAJOR"
+            fi
+          fi
+          "/usr/lib/postgresql/$REPLAY_PG_MAJOR/bin/postgres" --version
 
       # sudo because the harness installs its `http` and `pg_cron` stand-ins
       # into the Postgres extension directory, which is how the first migration
@@ -103,4 +120,4 @@ jobs:
       # schema the migrations actually build, and the only place a claim about
       # what the database refuses can be checked without a live project.
       - name: replay all migrations against an empty database, then test it
-        run: sudo --preserve-env=REPLAY_RUNDIR bash scripts/replay-migrations.sh --summary --test
+        run: sudo --preserve-env=REPLAY_RUNDIR,REPLAY_PG_MAJOR,REPLAY_PG_STRICT bash scripts/replay-migrations.sh --summary --test
