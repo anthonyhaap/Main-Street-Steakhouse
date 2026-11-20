@@ -92,14 +92,17 @@ jobs:
       # `terms_hash` — so three test files failed for a rule production (17)
       # does not have. Bump this when the Supabase project is upgraded:
       #   select current_setting('server_version');
-      # The runner image carries the PGDG apt source, so any major installs.
+      # Ubuntu's own archive carries one major per release, so the PGDG apt
+      # source is added first — with postgresql-common's own setup script,
+      # which picks the right suite for the runner's release.
       - name: install the postgres server production runs
         env:
           PG_MAJOR: "17"
         run: |
           set -euo pipefail
           if [ ! -x "/usr/lib/postgresql/$PG_MAJOR/bin/initdb" ]; then
-            sudo apt-get update -qq
+            sudo apt-get install -y --no-install-recommends postgresql-common
+            sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
             sudo apt-get install -y --no-install-recommends "postgresql-$PG_MAJOR"
           fi
           "/usr/lib/postgresql/$PG_MAJOR/bin/postgres" --version
