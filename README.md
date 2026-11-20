@@ -978,10 +978,20 @@ running order, which is the only place a manager can see that winning a claim
 costs him his place.
 
 A claim may name who makes way, or not. That is not a shortcut — it is the
-difference between a claim and a signing. A claim settles on Wednesday against
-the roster the manager has *then*, so naming a drop says "take him anyway" and
+difference between a claim and a signing. A claim settles when the player
+clears against the roster the manager has *then*, so naming a drop says "take him anyway" and
 leaving it blank says "only if I have room". The run enforces exactly that and
 marks the second kind invalid, in those words, when there is no room.
+
+**How long a player stays on the wire.** A dropped player clears
+`waiver_days` after the drop (two by default, set on the commissioner's rules
+screen), the way ESPN, Yahoo and Sleeper do it. It used to be "until next
+Wednesday's run", which kept everything dropped after a Wednesday out of reach
+for that Sunday. `ff_waiver_clears_at` is the one place the time is computed;
+the `waivers` cron asks every five minutes and settles the league whenever
+somebody's time is up, answering only the claims on players who have cleared.
+A player stays on the wire until that run has happened, so nobody can sign him
+outright in the minutes before the claims on him are answered.
 
 The **Players** tab had to learn about waivers too. A dropped player is
 unowned, so without this it would have offered a Sign button that the database

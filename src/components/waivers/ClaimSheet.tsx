@@ -10,8 +10,8 @@ import { gameFor, type WeekGames } from "@/lib/nfl/schedule";
  * File a claim on a player who is on waivers.
  *
  * Naming who makes way is optional here, and that is not laziness — it is the
- * difference between a claim and a signing. A claim is settled on Wednesday
- * against the roster you have *then*, so a manager with room today may not have
+ * difference between a claim and a signing. A claim is settled when the player
+ * clears, two days after he was dropped, against the roster you have *then*, so a manager with room today may not have
  * it by the time his claim is answered. Naming a drop is how he says "take this
  * player anyway"; leaving it blank is how he says "only if I have room".
  *
@@ -23,6 +23,7 @@ export function ClaimSheet({
 }: {
   player: { id: string; name: string };
   roster: Owned[];
+  /** When this player clears waivers, and so when the claim is settled. */
   settlesAt: string | null;
   /** This week's slate, beside each man you might release. */
   games?: WeekGames | null;
@@ -57,6 +58,7 @@ export function ClaimSheet({
           {settlesAt
             ? `Settled ${new Date(settlesAt).toLocaleString(undefined, {
                 weekday: "long", hour: "numeric", minute: "2-digit",
+                timeZoneName: "short",
               })}, in waiver order. Nobody sees this until then.`
             : "Settled in waiver order. Nobody sees this until then."}
         </p>

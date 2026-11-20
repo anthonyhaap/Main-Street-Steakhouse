@@ -14,11 +14,12 @@ import { when } from "@/lib/waivers";
  * when" — was two taps and a tab away with nothing on this screen pointing at
  * it. So the doors are here, on the desk, with the settlement time beside them:
  * the deadline is what decides whether he signs a free agent tonight or files a
- * claim and waits for Wednesday.
+ * claim and waits for the player to clear, two days after the drop.
  *
  * Presentation only. The live desk asks `useWaiverDeadline` for the moment;
- * the fixture hands in a Wednesday. Null while it is still being asked, and
- * the strip says so rather than guessing a day.
+ * the fixture hands in a fixed moment. Null while it is still being asked or
+ * when nobody is on waivers, and the strip states the rule rather than
+ * guessing a day.
  */
 export function RosterMoves({ settlesAt }: { settlesAt: string | null }) {
   return (
@@ -27,8 +28,8 @@ export function RosterMoves({ settlesAt }: { settlesAt: string | null }) {
         <Clock size={16} strokeWidth={2} aria-hidden />
         <span>
           {settlesAt
-            ? <>Waivers settle <strong>{when(settlesAt)}</strong></>
-            : "Waivers settle weekly"}
+            ? <>Next player clears <strong>{when(settlesAt)}</strong></>
+            : "Nobody is on waivers"}
           <span className="eyebrow moves__blind">Claims are blind until then</span>
         </span>
       </div>

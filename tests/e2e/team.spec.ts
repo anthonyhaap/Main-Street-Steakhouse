@@ -137,7 +137,7 @@ test("the desk says when waivers settle and opens onto the pool", async ({ page 
   await expect(moves).toBeVisible();
   // The fixture settles on a Wednesday morning; the words are what matter,
   // the clock is the browser's.
-  await expect(moves.getByText(/Waivers settle/)).toBeVisible();
+  await expect(moves.getByText(/Next player clears/)).toBeVisible();
   await expect(moves.getByText(/Wed/)).toBeVisible();
   await expect(moves.getByText(/Claims are blind until then/)).toBeVisible();
   await expect(moves.getByRole("link", { name: "Free agents" }))

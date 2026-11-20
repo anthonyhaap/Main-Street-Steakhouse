@@ -35,11 +35,9 @@ const WAIVER_TYPES: [string, string][] = [
   ["reverse_standings", "Reverse standings, weekly"],
   ["faab", "FAAB bidding"],
 ];
-const DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
 
 const num = (v: unknown, d: number) =>
   v !== null && v !== undefined && Number.isFinite(Number(v)) ? Number(v) : d;
-const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 /** Single elimination: 6 teams with 2 byes is three rounds, 4 teams is two. */
 export const playoffRounds = (teams: number) => Math.max(1, Math.ceil(Math.log2(Math.max(2, teams))));
@@ -62,7 +60,7 @@ export function LeagueRules({ league, teamCount, scheduled, busy, onSave, league
   const [byes, setByes] = useState(num(s.playoff_byes, 0));
   const [deadline, setDeadline] = useState(num(s.trade_deadline_week, Math.max(1, num(s.regular_season_weeks, 14) - 2)));
   const [waiver, setWaiver] = useState(s.waiver_type ?? "rolling_priority");
-  const [waiverDay, setWaiverDay] = useState(s.waiver_run_day ?? "wednesday");
+  const [waiverDays, setWaiverDays] = useState(num(s.waiver_days, 2));
   const [keepers, setKeepers] = useState(!!s.keepers);
   const [slots, setSlots] = useState((league.roster_slots ?? []).join(", "));
 
@@ -83,7 +81,7 @@ export function LeagueRules({ league, teamCount, scheduled, busy, onSave, league
     playoff_weeks: playoffWeeks,
     trade_deadline_week: deadline,
     waiver_type: waiver,
-    waiver_run_day: waiverDay,
+    waiver_days: waiverDays,
     keepers,
   };
 
@@ -99,6 +97,7 @@ export function LeagueRules({ league, teamCount, scheduled, busy, onSave, league
     : !Number.isInteger(byes) || byes < 0 || byes >= playoffTeams ? "Byes have to be fewer than playoff teams."
     : weeks + rounds > 18 ? `A ${rounds}-round playoff after week ${weeks} runs past week 18.`
     : !Number.isInteger(deadline) || deadline < 1 || deadline > weeks ? "The trade deadline has to fall inside the regular season."
+    : !Number.isInteger(waiverDays) || waiverDays < 1 || waiverDays > 7 ? "A dropped player stays on waivers 1 to 7 days."
     : parsedSlots.length === 0 ? "The roster needs at least one slot."
     : badSlots.length ? `Unknown roster slot: ${badSlots.join(", ")}. Use ${SLOT_NAMES.join(", ")}.`
     : null;
@@ -110,7 +109,7 @@ export function LeagueRules({ league, teamCount, scheduled, busy, onSave, league
     setByes(num(s.playoff_byes, 0));
     setDeadline(num(s.trade_deadline_week, Math.max(1, num(s.regular_season_weeks, 14) - 2)));
     setWaiver(s.waiver_type ?? "rolling_priority");
-    setWaiverDay(s.waiver_run_day ?? "wednesday");
+    setWaiverDays(num(s.waiver_days, 2));
     setKeepers(!!s.keepers);
     setSlots((league.roster_slots ?? []).join(", "));
   }
@@ -160,11 +159,9 @@ export function LeagueRules({ league, teamCount, scheduled, busy, onSave, league
             {!WAIVER_TYPES.some(([v]) => v === waiver) && <option value={waiver}>{waiver}</option>}
           </select>
         </Field>
-        <Field label="Waivers run">
-          <select className="field" style={compact} value={waiverDay} onChange={(e) => setWaiverDay(e.target.value)}>
-            {DAYS.map((d) => <option key={d} value={d}>{cap(d)}</option>)}
-            {!DAYS.includes(waiverDay) && <option value={waiverDay}>{cap(waiverDay)}</option>}
-          </select>
+        <Field label="Days on waivers" hint="After a drop, before he's a free agent">
+          <input className="field num" style={compact} type="number" min={1} max={7}
+            value={Number.isNaN(waiverDays) ? "" : waiverDays} onChange={int(setWaiverDays)} />
         </Field>
         <Field label="Keepers">
           <label className="field" style={{ ...compact, display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
