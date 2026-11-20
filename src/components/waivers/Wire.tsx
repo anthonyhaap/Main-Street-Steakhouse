@@ -16,6 +16,9 @@ export { when };
  * Presentation only, so the fixture at /preview/waivers can hold it still. The
  * page above it owns the fetching and the RPCs; everything here is props.
  */
+const daysWord = (n: number) =>
+  n === 1 ? "a day" : `${["", "one", "two", "three", "four", "five", "six", "seven"][n] ?? n} days`;
+
 export function Wire({
   board, teamName, busy, claimed, games = null, week = null, onClaim, onCancelClaim, onMove, teamIdOf,
 }: {
@@ -39,6 +42,7 @@ export function Wire({
    */
   teamIdOf?: (name: string) => string | null;
 }) {
+  const days = daysWord(board.waiver_days ?? 2);
   return (
     <>
       <div className="card">
@@ -54,14 +58,14 @@ export function Wire({
         <div className="card__body" style={{ display: "flex", gap: 12, alignItems: "center" }}>
           <Clock size={22} strokeWidth={1.75} style={{ color: "var(--gold)", flexShrink: 0 }} />
           <div style={{ minWidth: 0 }}>
-            <div className="eyebrow">Next settlement</div>
+            <div className="eyebrow">Next to clear</div>
             <div style={{ font: "400 clamp(1.15rem, 0.9rem + 0.8vw, 1.5rem)/1.15 var(--serif)", letterSpacing: "-0.02em", marginTop: 2 }}>
-              {board.settles_at ? when(board.settles_at) : "Not scheduled"}
+              {board.settles_at ? when(board.settles_at) : "Nobody on waivers"}
             </div>
             <div style={{ fontSize: "var(--t-small)", color: "var(--muted)", marginTop: 4 }}>
               {board.settles_at
-                ? "Claims are blind until then. Anyone never owned is a free agent and can be signed now."
-                : "No settlement is on the calendar."}
+                ? `A dropped player clears ${days} after the drop. Claims on him are blind until then, and settle in waiver order.`
+                : `Everyone not on a roster is a free agent and can be signed now. A player you drop sits here for ${days} first.`}
             </div>
           </div>
         </div>

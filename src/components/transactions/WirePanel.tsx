@@ -142,7 +142,7 @@ export function WirePanel({ onStatus }: { onStatus?: (s: WireStatus) => void }) 
         <ClaimSheet
           player={{ id: claiming.player_id, name: claiming.player }}
           roster={roster}
-          settlesAt={board.settles_at ?? null}
+          settlesAt={claiming.clears_at}
           games={games}
           week={week}
           busy={busy === claiming.player_id}

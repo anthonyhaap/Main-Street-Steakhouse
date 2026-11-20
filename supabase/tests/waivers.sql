@@ -273,8 +273,9 @@ begin
   -- --------------------------------------------------------- what a manager sees --
   perform set_config('request.jwt.claims', json_build_object('sub', v_uid_a)::text, true);
   v_j := ff_waiver_board(v_a);
-  if v_j->>'settles_at' is null or jsonb_array_length(v_j->'order') <> 3 then
-    raise exception 'the waiver board is missing its order or its next settlement';
+  -- Nobody is left on this league's wire, so there is no settlement to name.
+  if not (v_j ? 'settles_at') or jsonb_array_length(v_j->'order') <> 3 then
+    raise exception 'the waiver board is missing its order or its settlement field';
   end if;
   perform set_config('request.jwt.claims', '', true);
   v_checks := v_checks + 1;
@@ -416,63 +417,181 @@ begin
   end;
   v_checks := v_checks + 1;
 
-  -- ------------------------------------ the advertised settlement holds --
-  -- Between the scheduled instant and the cron tick that serves it, the board
-  -- used to say "next week" about a run minutes away. Its own league, because
-  -- the checks above have recorded runs at "now" and the question here is what
-  -- the board says when none has.
+  -- ------------------------------------- two days from the drop, then free --
+  -- The rule a manager is told: a released player clears waivers two days
+  -- after the drop (the league's `waiver_days`), not at next week's run. Its
+  -- own league, because the checks above have recorded runs at "now".
   declare
-    v_l5 uuid; v_d5 uuid; v_r uuid; v_s uuid;
-    v_next timestamptz; v_said timestamptz;
+    v_l6 uuid; v_d6 uuid; v_r uuid; v_s uuid; v_early uuid; v_late uuid; v_c1 uuid; v_c2 uuid;
+    v_at timestamptz;
   begin
     insert into leagues (name, season, team_count, roster_slots, settings)
-    values ('Holds', 2026, 2, '["QB","BN"]'::jsonb,
-            '{"waiver_run_day":"wednesday"}'::jsonb) returning id into v_l5;
-    insert into teams (league_id, name, draft_slot) values (v_l5,'R',1) returning id into v_r;
-    insert into teams (league_id, name, draft_slot) values (v_l5,'S',2) returning id into v_s;
-    insert into drafts (league_id, rounds, status) values (v_l5, 1, 'setup') returning id into v_d5;
-    v_next := ff_next_waiver_run(v_l5, now());
+    values ('Two Days', 2026, 2, '["RB","BN","BN"]'::jsonb, '{}'::jsonb) returning id into v_l6;
+    insert into teams (league_id, name, draft_slot) values (v_l6,'R',1) returning id into v_r;
+    insert into teams (league_id, name, draft_slot) values (v_l6,'S',2) returning id into v_s;
+    insert into drafts (league_id, rounds, status) values (v_l6, 1, 'setup') returning id into v_d6;
 
-    -- Undrafted: nothing can be outstanding, so the schedule is the answer.
-    if ff_waiver_settles_at(v_l5) <> v_next then
-      raise exception 'an undrafted league was told something other than its next scheduled run';
+    insert into players (full_name, position, nfl_team, status, sleeper_id)
+    values ('Early Drop','RB','AAA','ACT','tdtest-1') returning id into v_early;
+    insert into players (full_name, position, nfl_team, status, sleeper_id)
+    values ('Late Drop','WR','AAA','ACT','tdtest-2') returning id into v_late;
+    insert into draft_picks (draft_id, pick_number, round, team_id, player_id) values
+      (v_d6, 1, 1, v_r, v_early), (v_d6, 2, 1, v_r, v_late);
+
+    -- Nobody on waivers: nothing to wait for, and the board says so.
+    if ff_waiver_settles_at(v_l6) is not null then
+      raise exception 'an empty wire was given a settlement time';
+    end if;
+    update drafts set status = 'complete' where id = v_d6;
+
+    perform ff_add_drop(v_r, null, v_early, v_week);
+    perform ff_add_drop(v_r, null, v_late, v_week);
+
+    -- Default: two days from the drop, to the microsecond.
+    if exists (select 1 from ff_on_waivers(v_l6) w
+                where w.clears_at <> w.dropped_at + interval '2 days') then
+      raise exception 'a drop did not clear two days after it was made';
     end if;
 
-    -- Drafted, and no run has ever served the most recent instant: the wire
-    -- settles at the next tick of the cron, which is within a day and at the
-    -- minute the job is scheduled for — not next Wednesday.
-    update drafts set status = 'complete' where id = v_d5;
-    v_said := ff_waiver_settles_at(v_l5);
-    if v_said <= now() or v_said > now() + interval '1 day' then
-      raise exception 'a due, unserved settlement was not placed at the next cron tick (said %)', v_said;
+    -- The league's setting is what decides it.
+    update leagues set settings = settings || '{"waiver_days": 1}'::jsonb where id = v_l6;
+    if exists (select 1 from ff_on_waivers(v_l6) w
+                where w.clears_at <> w.dropped_at + interval '1 day') then
+      raise exception 'waiver_days was not honoured';
     end if;
-    if extract(minute from v_said at time zone 'UTC') <>
-       split_part((select schedule from cron.job where jobname = 'waivers'), ' ', 1)::int then
-      raise exception 'the settlement is not on the cron''s minute (said %)', v_said;
+    update leagues set settings = settings || '{"waiver_days": "nonsense"}'::jsonb where id = v_l6;
+    if exists (select 1 from ff_on_waivers(v_l6) w
+                where w.clears_at <> w.dropped_at + interval '2 days') then
+      raise exception 'a nonsense waiver_days did not fall back to two days';
     end if;
-
-    -- A run recorded since the due instant serves it, and the schedule is the
-    -- answer again.
-    perform ff_run_waivers(v_l5, v_week);
-    if ff_waiver_settles_at(v_l5) <> v_next then
-      raise exception 'a served settlement did not fall through to the next scheduled run';
+    update leagues set settings = settings - 'waiver_days' where id = v_l6;
+    if (ff_waiver_board(v_r)->>'waiver_days')::int is distinct from 2 then
+      raise exception 'the board did not report the league''s waiver days (said %)',
+        ff_waiver_board(v_r)->>'waiver_days';
     end if;
 
-    -- The board says what the function says.
-    if (ff_waiver_board(v_r)->>'settles_at')::timestamptz <> ff_waiver_settles_at(v_l5) then
-      raise exception 'the board and ff_waiver_settles_at disagree';
+    perform ff_claim_waiver(v_s, v_early, null, 1);
+    perform ff_claim_waiver(v_s, v_late, null, 2);
+    select id into v_c1 from waiver_claims where add_player_id = v_early;
+    select id into v_c2 from waiver_claims where add_player_id = v_late;
+
+    -- Not yet due: the cron does nothing at all, not even record a run.
+    perform ff_process_waivers();
+    if exists (select 1 from waiver_runs where league_id = v_l6) then
+      raise exception 'the cron settled a league with nobody due';
+    end if;
+    if ff_waiver_settles_at(v_l6) <> (select min(clears_at) from ff_on_waivers(v_l6)) then
+      raise exception 'the settlement is not the earliest clearing time on the wire';
     end if;
 
-    -- The wire as a manager sees it at 08:02 on a Wednesday: the run that
-    -- served last week is a week old, this week's instant has passed, and the
-    -- cron has not ticked yet. Aging the run is how a test gets there.
-    update waiver_runs set ran_at = ran_at - interval '7 days' where league_id = v_l5;
-    v_said := ff_waiver_settles_at(v_l5);
-    if v_said <= now() or v_said > now() + interval '1 day' then
-      raise exception 'between the instant and the tick the board did not point at the tick (said %)', v_said;
+    -- The early drop's two days are up; the late one has a day to go.
+    update transactions t set created_at = now() - interval '2 days 1 minute'
+     where t.league_id = v_l6
+       and exists (select 1 from transaction_items i where i.transaction_id = t.id and i.player_id = v_early);
+    update transactions t set created_at = now() - interval '1 day'
+     where t.league_id = v_l6
+       and exists (select 1 from transaction_items i where i.transaction_id = t.id and i.player_id = v_late);
+
+    -- Overdue and unserved: the screen points at the next tick, never the past.
+    v_at := ff_waiver_settles_at(v_l6);
+    if v_at <= now() or v_at > now() + interval '5 minutes' then
+      raise exception 'an overdue settlement was not placed at the next tick (said %)', v_at;
+    end if;
+
+    perform ff_process_waivers();
+    if (select count(*) from waiver_runs where league_id = v_l6) <> 1 then
+      raise exception 'the cron did not settle a player whose two days were up';
+    end if;
+    if (select team_id from ff_owner_at(v_l6, v_week) where player_id = v_early) is distinct from v_s then
+      raise exception 'the due player was not awarded to the claimant';
+    end if;
+    -- The late drop is untouched: still on the wire, still claimed, still pending.
+    if not exists (select 1 from ff_on_waivers(v_l6) w where w.player_id = v_late)
+       or (select status from waiver_claims where id = v_c2) <> 'pending' then
+      raise exception 'a settlement decided a player who had not cleared yet';
+    end if;
+    -- And the run counted only the claim it decided.
+    if (select claims_seen from waiver_runs where league_id = v_l6 order by ran_at desc limit 1) <> 1 then
+      raise exception 'the run counted claims it did not decide (seen %)',
+        (select claims_seen from waiver_runs where league_id = v_l6 order by ran_at desc limit 1);
+    end if;
+    perform ff_process_waivers();
+    if (select count(*) from waiver_runs where league_id = v_l6) <> 1 then
+      raise exception 'a second cron tick found something due straight after a settlement';
+    end if;
+
+    -- Unclaimed and cleared: a free agent, signable on the spot. Release him
+    -- and age the release past two days with nobody claiming; one tick later
+    -- the outright signing that was refused is allowed.
+    perform ff_add_drop(v_s, null, v_early, v_week);
+    begin
+      perform ff_add_drop(v_r, v_early, null, v_week);
+      raise exception 'a player two minutes off a roster was signed outright';
+    exception when others then
+      get stacked diagnostics v_err = message_text;
+      if v_err not like '%on waivers%' then raise; end if;
+    end;
+    update transactions t set created_at = now() - interval '2 days 1 minute'
+     where t.league_id = v_l6
+       and exists (select 1 from transaction_items i where i.transaction_id = t.id
+                    and i.player_id = v_early and i.from_team_id = v_s and i.to_team_id is null);
+    perform ff_process_waivers();
+    perform ff_add_drop(v_r, v_early, null, v_week);
+    if (select team_id from ff_owner_at(v_l6, v_week) where player_id = v_early) is distinct from v_r then
+      raise exception 'a player whose two days were up could not be signed outright';
     end if;
   end;
-  v_checks := v_checks + 1;
+  v_checks := v_checks + 8;
+
+  -- ----------------------------- shortening the rule does not orphan a claim --
+  -- The clearing time is recomputed from `waiver_days` on every read. Shorten
+  -- it while a claim is pending and his new clearing time can fall before a
+  -- run that happened for somebody else; that run never decided his claim, so
+  -- he must stay on the wire, unsignable outright, until the next tick does.
+  declare
+    v_l7 uuid; v_d7 uuid; v_r uuid; v_s uuid; v_p uuid; v_c uuid;
+  begin
+    insert into leagues (name, season, team_count, roster_slots, settings)
+    values ('Shortened', 2026, 2, '["RB","BN","BN"]'::jsonb, '{"waiver_days": 2}'::jsonb)
+    returning id into v_l7;
+    insert into teams (league_id, name, draft_slot) values (v_l7,'R',1) returning id into v_r;
+    insert into teams (league_id, name, draft_slot) values (v_l7,'S',2) returning id into v_s;
+    insert into drafts (league_id, rounds, status) values (v_l7, 1, 'complete') returning id into v_d7;
+    insert into players (full_name, position, nfl_team, status, sleeper_id)
+    values ('Short Rule','RB','AAA','ACT','shtest-1') returning id into v_p;
+    insert into draft_picks (draft_id, pick_number, round, team_id, player_id)
+    values (v_d7, 1, 1, v_r, v_p);
+
+    perform ff_add_drop(v_r, null, v_p, v_week);
+    perform ff_claim_waiver(v_s, v_p, null, 1);
+    select id into v_c from waiver_claims where add_player_id = v_p;
+
+    -- Dropped a day ago: under two days he clears tomorrow. A run happens now
+    -- for somebody else, then the rule is cut to one day — which puts his
+    -- clearing time a minute before that run.
+    update transactions set created_at = now() - interval '1 day 1 minute' where league_id = v_l7;
+    insert into waiver_runs (league_id, week) values (v_l7, v_week);
+    update leagues set settings = settings || '{"waiver_days": 1}'::jsonb where id = v_l7;
+
+    if not exists (select 1 from ff_on_waivers(v_l7) w where w.player_id = v_p) then
+      raise exception 'shortening waiver_days took a claimed player off the wire with his claim undecided';
+    end if;
+    begin
+      perform ff_add_drop(v_r, v_p, null, v_week);
+      raise exception 'a claimed player was signed outright after the rule was shortened';
+    exception when others then
+      get stacked diagnostics v_err = message_text;
+      if v_err not like '%on waivers%' then raise; end if;
+    end;
+
+    perform ff_process_waivers();
+    if (select status from waiver_claims where id = v_c) <> 'won'
+       or (select team_id from ff_owner_at(v_l7, v_week) where player_id = v_p) is distinct from v_s then
+      raise exception 'the orphaned claim was not settled by the next tick (status %)',
+        (select status from waiver_claims where id = v_c);
+    end if;
+  end;
+  v_checks := v_checks + 3;
 
   raise notice 'waivers: % checks passed', v_checks;
 end $$;

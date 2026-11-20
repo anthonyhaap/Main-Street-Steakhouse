@@ -65,6 +65,8 @@ export type LeagueSettings = {
   trade_deadline_week?: number;
   waiver_type?: string;
   waiver_run_day?: string;
+  /** Days a dropped player stays on waivers before he clears. Default 2. */
+  waiver_days?: number;
   keepers?: boolean;
 };
 
@@ -379,7 +381,10 @@ export type WaiverClaim = {
 
 /** Everything the wire screen renders, from one ff_waiver_board call. */
 export type WaiverBoard = {
-  settles_at: string;
+  /** The earliest clearing time on the wire; null when nobody is on it. */
+  settles_at: string | null;
+  /** The league's rule: days a dropped player stays on the wire. */
+  waiver_days?: number;
   my_priority: number | null;
   order: { team: string; priority: number | null }[];
   on_waivers: WaiverPlayer[];

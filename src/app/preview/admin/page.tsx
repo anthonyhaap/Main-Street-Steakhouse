@@ -31,7 +31,7 @@ const league: League = {
   },
   settings: {
     regular_season_weeks: 14, playoff_teams: 6, playoff_byes: 2, playoff_weeks: [15, 16, 17],
-    trade_deadline_week: 12, waiver_type: "rolling_priority", waiver_run_day: "wednesday", keepers: false,
+    trade_deadline_week: 12, waiver_type: "rolling_priority", waiver_run_day: "wednesday", waiver_days: 2, keepers: false,
   },
 };
 
