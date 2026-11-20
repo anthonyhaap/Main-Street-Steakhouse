@@ -25,9 +25,9 @@
 #   scripts/replay-migrations.sh --summary    # also print an object census
 #   scripts/replay-migrations.sh --test       # also run supabase/tests/*.sql
 #
-# Requires: postgresql-16 server binaries (initdb/pg_ctl) and psql. On Debian
-# and Ubuntu that is `postgresql-16`; the GitHub Actions ubuntu runners have it
-# preinstalled.
+# Requires: Postgres server binaries (initdb/pg_ctl) and psql, of the same
+# major as production — 17, so `postgresql-17` on Debian and Ubuntu. See
+# "binaries" below for why the major matters and how it is chosen.
 #
 # Exit: 0 clean, 1 if any migration failed, 2 if the harness could not start.
 # =============================================================================
@@ -60,12 +60,33 @@ DB=ff_replay
 die() { echo "error: $*" >&2; exit 2; }
 
 # ------------------------------------------------------------------ binaries
+# The replay has to run on the SAME Postgres major as production, because
+# majors change what the database refuses. Production is Postgres 17 (the
+# project's `postgres_engine`). Postgres 18 added a rule that rejects every
+# UPDATE and DELETE on a published table whose `replica identity full` covers a
+# stored generated column the publication does not publish — `challenges` with
+# `terms_hash` is exactly that. When ubuntu-latest moved to 26.04 and its
+# preinstalled Postgres went 16 → 18, three test files started failing on a
+# refusal production cannot produce. The tests were right about the schema;
+# the harness was testing a different database.
+#
+# REPLAY_PG_MAJOR names the major to use (default: production's). It is a
+# preference locally — a box with only another major still replays, with a
+# warning — and a requirement when REPLAY_PG_STRICT=1, which is how CI runs it.
+PG_MAJOR="${REPLAY_PG_MAJOR:-17}"
 PGBIN=""
-for c in "$(pg_config --bindir 2>/dev/null)" /usr/lib/postgresql/*/bin; do
+for c in "/usr/lib/postgresql/$PG_MAJOR/bin" "$(pg_config --bindir 2>/dev/null)" /usr/lib/postgresql/*/bin; do
   [ -x "$c/initdb" ] && PGBIN="$c" && break
 done
-[ -n "$PGBIN" ] || die "no initdb found. Install the Postgres server package (postgresql-16)."
+[ -n "$PGBIN" ] || die "no initdb found. Install the Postgres server package (postgresql-$PG_MAJOR)."
 SHAREDIR="$("$PGBIN/pg_config" --sharedir)"
+GOT_MAJOR="$("$PGBIN/postgres" --version | sed -E 's/.* ([0-9]+)(\.[0-9]+)*.*/\1/')"
+if [ "$GOT_MAJOR" != "$PG_MAJOR" ]; then
+  [ "${REPLAY_PG_STRICT:-0}" = 1 ] \
+    && die "found Postgres $GOT_MAJOR in $PGBIN, need $PG_MAJOR (production's major). Install postgresql-$PG_MAJOR."
+  echo "warning: replaying on Postgres $GOT_MAJOR; production runs $PG_MAJOR, so a result here may not hold there." >&2
+fi
+echo "postgres: $("$PGBIN/postgres" --version) ($PGBIN)"
 
 # Postgres refuses to run as root, so the cluster runs as whatever unprivileged
 # account exists. `postgres` is there on any box with the server package.
