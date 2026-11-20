@@ -543,6 +543,56 @@ begin
   end;
   v_checks := v_checks + 8;
 
+  -- ----------------------------- shortening the rule does not orphan a claim --
+  -- The clearing time is recomputed from `waiver_days` on every read. Shorten
+  -- it while a claim is pending and his new clearing time can fall before a
+  -- run that happened for somebody else; that run never decided his claim, so
+  -- he must stay on the wire, unsignable outright, until the next tick does.
+  declare
+    v_l7 uuid; v_d7 uuid; v_r uuid; v_s uuid; v_p uuid; v_c uuid;
+  begin
+    insert into leagues (name, season, team_count, roster_slots, settings)
+    values ('Shortened', 2026, 2, '["RB","BN","BN"]'::jsonb, '{"waiver_days": 2}'::jsonb)
+    returning id into v_l7;
+    insert into teams (league_id, name, draft_slot) values (v_l7,'R',1) returning id into v_r;
+    insert into teams (league_id, name, draft_slot) values (v_l7,'S',2) returning id into v_s;
+    insert into drafts (league_id, rounds, status) values (v_l7, 1, 'complete') returning id into v_d7;
+    insert into players (full_name, position, nfl_team, status, sleeper_id)
+    values ('Short Rule','RB','AAA','ACT','shtest-1') returning id into v_p;
+    insert into draft_picks (draft_id, pick_number, round, team_id, player_id)
+    values (v_d7, 1, 1, v_r, v_p);
+
+    perform ff_add_drop(v_r, null, v_p, v_week);
+    perform ff_claim_waiver(v_s, v_p, null, 1);
+    select id into v_c from waiver_claims where add_player_id = v_p;
+
+    -- Dropped a day ago: under two days he clears tomorrow. A run happens now
+    -- for somebody else, then the rule is cut to one day — which puts his
+    -- clearing time a minute before that run.
+    update transactions set created_at = now() - interval '1 day 1 minute' where league_id = v_l7;
+    insert into waiver_runs (league_id, week) values (v_l7, v_week);
+    update leagues set settings = settings || '{"waiver_days": 1}'::jsonb where id = v_l7;
+
+    if not exists (select 1 from ff_on_waivers(v_l7) w where w.player_id = v_p) then
+      raise exception 'shortening waiver_days took a claimed player off the wire with his claim undecided';
+    end if;
+    begin
+      perform ff_add_drop(v_r, v_p, null, v_week);
+      raise exception 'a claimed player was signed outright after the rule was shortened';
+    exception when others then
+      get stacked diagnostics v_err = message_text;
+      if v_err not like '%on waivers%' then raise; end if;
+    end;
+
+    perform ff_process_waivers();
+    if (select status from waiver_claims where id = v_c) <> 'won'
+       or (select team_id from ff_owner_at(v_l7, v_week) where player_id = v_p) is distinct from v_s then
+      raise exception 'the orphaned claim was not settled by the next tick (status %)',
+        (select status from waiver_claims where id = v_c);
+    end if;
+  end;
+  v_checks := v_checks + 3;
+
   raise notice 'waivers: % checks passed', v_checks;
 end $$;
 

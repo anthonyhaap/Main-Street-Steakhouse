@@ -86,10 +86,21 @@ as $$
    where not exists (
      select 1 from waiver_runs r
       where r.league_id = p_league_id and r.ran_at >= d.clears_at)
+   -- ...and while anybody still has a claim in on him. The clearing time is
+   -- recomputed from the league's setting on every read, so a commissioner who
+   -- shortens `waiver_days` can move it to before a run that happened for
+   -- somebody else — a run that never decided this player's claims. Without
+   -- this he would leave the wire with those claims pending forever and be
+   -- signable outright. With it he stays, is due (his clears_at has passed),
+   -- and the next tick settles him.
+      or exists (
+     select 1 from waiver_claims c
+      where c.league_id = p_league_id and c.add_player_id = d.player_id
+        and c.status = 'pending')
 $$;
 
 comment on function public.ff_on_waivers(uuid) is
-  'Players whose last transaction was a drop and whose clearing time (drop + waiver_days) has not yet been served by a run. Never-owned players are free agents, not waivers.';
+  'Players whose last transaction was a drop and whose clearing time (drop + waiver_days) has not yet been served by a run, or who still have a pending claim on them. Never-owned players are free agents, not waivers.';
 
 -- Settle every claim whose player has cleared.
 --
