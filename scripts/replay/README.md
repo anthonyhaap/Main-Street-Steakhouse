@@ -65,6 +65,13 @@ opens and rolls back its own transaction, so they run in any order and leave
 nothing behind. A failing file fails the run.
 
 Needs the Postgres **server** binaries (`initdb`, `pg_ctl`), not just `psql` —
-`postgresql-16` on Debian and Ubuntu. It writes the shims into the extension
-directory, so it wants root or sudo on a machine where that directory is not
-writable.
+`postgresql-17` on Debian and Ubuntu, to match production. It writes the shims
+into the extension directory, so it wants root or sudo on a machine where that
+directory is not writable.
+
+Set `REPLAY_PG_MAJOR=17` to insist on that version; unset, it uses the first
+`initdb` it finds. CI sets it, because the major version changes what Postgres
+refuses. Postgres 18, for one, will not UPDATE a published table whose
+`replica identity full` covers a generated column the publication does not
+send (`challenges.terms_hash`), and 16 and 17 will. A replay on a different
+major than production passes or fails on rules production does not have.

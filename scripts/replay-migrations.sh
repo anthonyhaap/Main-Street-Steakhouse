@@ -25,9 +25,10 @@
 #   scripts/replay-migrations.sh --summary    # also print an object census
 #   scripts/replay-migrations.sh --test       # also run supabase/tests/*.sql
 #
-# Requires: postgresql-16 server binaries (initdb/pg_ctl) and psql. On Debian
-# and Ubuntu that is `postgresql-16`; the GitHub Actions ubuntu runners have it
-# preinstalled.
+# Requires: Postgres server binaries (initdb/pg_ctl) and psql. Set
+# REPLAY_PG_MAJOR (e.g. 17) to insist on one major version — CI does, so the
+# replay runs on what production runs and not on whatever the runner image
+# happens to ship. Unset, the first initdb found is used.
 #
 # Exit: 0 clean, 1 if any migration failed, 2 if the harness could not start.
 # =============================================================================
@@ -61,10 +62,19 @@ die() { echo "error: $*" >&2; exit 2; }
 
 # ------------------------------------------------------------------ binaries
 PGBIN=""
-for c in "$(pg_config --bindir 2>/dev/null)" /usr/lib/postgresql/*/bin; do
-  [ -x "$c/initdb" ] && PGBIN="$c" && break
-done
-[ -n "$PGBIN" ] || die "no initdb found. Install the Postgres server package (postgresql-16)."
+if [ -n "${REPLAY_PG_MAJOR:-}" ]; then
+  # Asked for by version: that one or nothing. A replay on a different major
+  # passing or failing says nothing about production.
+  c="/usr/lib/postgresql/$REPLAY_PG_MAJOR/bin"
+  [ -x "$c/initdb" ] || die "REPLAY_PG_MAJOR=$REPLAY_PG_MAJOR but $c/initdb is missing. Install postgresql-$REPLAY_PG_MAJOR."
+  PGBIN="$c"
+else
+  for c in "$(pg_config --bindir 2>/dev/null)" /usr/lib/postgresql/*/bin; do
+    [ -x "$c/initdb" ] && PGBIN="$c" && break
+  done
+fi
+[ -n "$PGBIN" ] || die "no initdb found. Install the Postgres server package (postgresql-17)."
+echo "postgres: $("$PGBIN/postgres" --version)"
 SHAREDIR="$("$PGBIN/pg_config" --sharedir)"
 
 # Postgres refuses to run as root, so the cluster runs as whatever unprivileged

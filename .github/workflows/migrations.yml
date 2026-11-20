@@ -85,22 +85,36 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # The ubuntu runners ship a Postgres 16 cluster, stopped. Only the server
-      # binaries are wanted here — the harness builds its own throwaway cluster,
-      # so the preinstalled one is left alone.
-      - name: check for the postgres server binaries
+      # The replay runs on production's Postgres major, not the runner's.
+      # The image moved from 16 to 18 under us in November 2026, and 18 refuses
+      # an UPDATE on a published table whose `replica identity full` covers a
+      # generated column the publication does not send — `challenges` and its
+      # `terms_hash` — so three test files failed for a rule production (17)
+      # does not have. Bump this when the Supabase project is upgraded:
+      #   select current_setting('server_version');
+      # Ubuntu's own archive carries one major per release, so the PGDG apt
+      # source is added first — with postgresql-common's own setup script,
+      # which picks the right suite for the runner's release.
+      - name: install the postgres server production runs
+        env:
+          PG_MAJOR: "17"
         run: |
           set -euo pipefail
-          ls /usr/lib/postgresql/*/bin/initdb >/dev/null 2>&1 \
-            || sudo apt-get install -y --no-install-recommends postgresql
-          pg_config --version
+          if [ ! -x "/usr/lib/postgresql/$PG_MAJOR/bin/initdb" ]; then
+            sudo apt-get install -y --no-install-recommends postgresql-common
+            sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+            sudo apt-get install -y --no-install-recommends "postgresql-$PG_MAJOR"
+          fi
+          "/usr/lib/postgresql/$PG_MAJOR/bin/postgres" --version
 
-      # sudo because the harness installs its `http` and `pg_cron` stand-ins
-      # into the Postgres extension directory, which is how the first migration
-      # gets to run verbatim instead of being edited before it is tested.
-      # --test runs supabase/tests/*.sql against the replayed database. A
-      # behavioural test belongs here rather than beside the app: this is the
+      # sudo because the harness installs its `http`, `pg_cron` and `pg_net`
+      # stand-ins into the Postgres extension directory, which is how the first
+      # migration gets to run verbatim instead of being edited before it is
+      # tested. --test runs supabase/tests/*.sql against the replayed database.
+      # A behavioural test belongs here rather than beside the app: this is the
       # schema the migrations actually build, and the only place a claim about
       # what the database refuses can be checked without a live project.
       - name: replay all migrations against an empty database, then test it
-        run: sudo --preserve-env=REPLAY_RUNDIR bash scripts/replay-migrations.sh --summary --test
+        env:
+          REPLAY_PG_MAJOR: "17"
+        run: sudo --preserve-env=REPLAY_RUNDIR,REPLAY_PG_MAJOR bash scripts/replay-migrations.sh --summary --test
